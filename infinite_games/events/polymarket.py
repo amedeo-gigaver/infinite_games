@@ -53,8 +53,9 @@ class PolymarketProviderIntegration(ProviderIntegration):
             end_date_iso.replace('Z', '+00:00')
         resolve_date = datetime.fromisoformat(end_date_iso).replace(tzinfo=None)
         start_date = None
+
         if payload['game_start_time']:
-            start_date = datetime.fromisoformat(end_date_iso).replace(tzinfo=None)
+            start_date = datetime.fromisoformat(payload['game_start_time'].replace('Z', '+00:00')).replace(tzinfo=None)
 
         # if 'will-scottie-scheffler-win-the-us-open' in market.get('market_slug'):
         #     self.log(f'(DEBUG) {market.get('condition_id')} FORCE TEST CLOSE')
