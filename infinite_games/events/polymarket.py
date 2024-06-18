@@ -50,7 +50,7 @@ class PolymarketProviderIntegration(ProviderIntegration):
             return
         end_date_iso = payload.get('end_date_iso')
         if end_date_iso:
-            end_date_iso.replace('Z', '+00:00')
+            end_date_iso = end_date_iso.replace('Z', '+00:00')
         resolve_date = datetime.fromisoformat(end_date_iso).replace(tzinfo=None)
         start_date = None
 
