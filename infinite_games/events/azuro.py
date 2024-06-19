@@ -43,7 +43,8 @@ class AzuroProviderIntegration(ProviderIntegration):
         self.session = await self.client.close_async()
 
     def available_for_submission(self, pe: ProviderEvent) -> bool:
-        return pe.starts > datetime.now()
+        # self.log(f'Can submit? {pe} {pe.starts} > {datetime.now()} {pe.starts > datetime.now()}')
+        return pe.starts > datetime.now() or pe.status != EventStatus.DISCARDED
 
     def convert_status(self, azuro_status):
         return {
@@ -86,7 +87,7 @@ class AzuroProviderIntegration(ProviderIntegration):
         if status == 'Won':
             return 1
         elif status == 'Lost':
-            return 2
+            return 0
         else:
             return None
 
@@ -158,15 +159,20 @@ class AzuroProviderIntegration(ProviderIntegration):
         game = condition['game']
         start_date = datetime.fromtimestamp(int(game["startsAt"]))
         event_status = condition.get('status')
+        effective_status = self.convert_status(event_status)
+        answer = self._get_answer(outcome.get('result'))
+        # if event_id == '0x7f3f3f19c4e4015fd9db2f22e653c766154091ef_100100000000000015930012320000000000000360701264_7047':
+        #     effective_status = EventStatus.SETTLED
+        #     answer = 1
         pe = ProviderEvent(
             event_id,
             self.provider_name(),
             game.get('title') + ' ,' + OUTCOMES[outcome['outcomeId']].get('_comment'),
             start_date,
             None,
-            self._get_answer(outcome.get('result')),
+            answer,
             datetime.now(),
-            self.convert_status(event_status),
+            effective_status,
             None,
             {
                 'conditionId': condition['conditionId'],
@@ -259,7 +265,8 @@ class AzuroProviderIntegration(ProviderIntegration):
                 # if not event_status != 'Canceled':
                 #     bt.logging.debug(f"Azuro condition for game {game.get('slug')} condition id {condition.get('conditionId')} is {condition.get('status')}, skipping..")
                 #     continue
-
+                if event_status == 'Canceled':
+                    continue
                 for outcome in condition['outcomes']:
                     if game_events >= max_outcome_per_game:
                         break

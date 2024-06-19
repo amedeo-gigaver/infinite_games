@@ -65,7 +65,7 @@ class Validator(BaseValidatorNeuron):
     def on_event_update(self, pe: ProviderEvent):
         """Hook called whenever we have settling events. Event removed when we return True"""
         if pe.status == EventStatus.SETTLED:
-            bt.logging.info(f'Settled event: {pe} {pe.description}')
+            bt.logging.info(f'Settled event: {pe} {pe.description} answer: {pe.answer}')
             miner_uids = infinite_games.utils.uids.get_all_uids(self)
 
             scores = []
@@ -80,15 +80,17 @@ class Validator(BaseValidatorNeuron):
                 else:
                     ans = max(0, min(1, ans))  # Clamp the answer
                     correct_ans = pe.answer
-                    if correct_ans == 2:
-                        scores.append(ans**2)
-                    elif correct_ans == 1:
-                        scores.append((1-ans)**2)
+                    if correct_ans:
+                        scores.append(1 - ((ans - correct_ans)**2))
                     else:
                         scores.append(0)
                         bt.logging.warning(f"Unknown result from market: {pe.market_type} - {pe.event_id}")
             self.update_scores(torch.FloatTensor(scores), miner_uids)
             return True
+        elif pe.status == EventStatus.DISCARDED:
+            bt.logging('Canceled event: {pe} removing from registry!')
+            self.event_provider.remove_event(pe)
+
         return False
 
     async def forward(self):
@@ -107,6 +109,7 @@ class Validator(BaseValidatorNeuron):
         # Create synapse object to send to the miner.
         synapse = infinite_games.protocol.EventPredictionSynapse()
         events_available_for_submission = self.event_provider.get_events_for_submission()
+        bt.logging.info(f'Event for submission: {len(events_available_for_submission)}')
         synapse.init(events_available_for_submission)
         # print("Synapse body hash", synapse.computed_body_hash)
         bt.logging.info(f'Axons: {len(self.metagraph.axons)}')

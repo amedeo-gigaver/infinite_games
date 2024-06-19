@@ -25,6 +25,7 @@ class PolymarketProviderIntegration(ProviderIntegration):
         return 'polymarket'
 
     def available_for_submission(self, pe: ProviderEvent):
+        # self.log(f'Can submit? {pe} {datetime.now().date()} < {pe.resolve_date.date()} {datetime.now().date() < pe.resolve_date.date()}')
         return datetime.now().date() < pe.resolve_date.date()
 
     def convert_status(self, closed_bool):
@@ -34,11 +35,24 @@ class PolymarketProviderIntegration(ProviderIntegration):
         }.get(closed_bool, EventStatus.PENDING)
 
     def _get_answer(self, market):
+        """
+        Example of answers
+
+        'tokens': [{'outcome': 'Yes',
+             'price': 0.195,
+             'token_id': '49890085726756071917943790579691800691766085550672445428078676220814757758014',
+             'winner': False},
+            {'outcome': 'No',
+             'price': 0.805,
+             'token_id': '59333345431942443015299430667133768751255782539994157405171948134198386135362',
+             'winner': False}]}
+        """
+
         toks = market["tokens"]
         if toks[0]["winner"]:
             return 1
         elif toks[1]["winner"]:
-            return 2
+            return 0
         else:
             return None
 
@@ -56,7 +70,8 @@ class PolymarketProviderIntegration(ProviderIntegration):
 
         if payload['game_start_time']:
             start_date = datetime.fromisoformat(payload['game_start_time'].replace('Z', '+00:00')).replace(tzinfo=None)
-
+        # from pprint import pprint
+        # pprint(market)
         # if 'will-scottie-scheffler-win-the-us-open' in market.get('market_slug'):
         #     self.log(f'(DEBUG) {market.get('condition_id')} FORCE TEST CLOSE')
         #     payload['closed'] = True
@@ -65,7 +80,7 @@ class PolymarketProviderIntegration(ProviderIntegration):
         return ProviderEvent(
             event_id,
             self.provider_name(),
-            payload.get('question'),
+            payload.get('question') + '.' + payload.get('description'),
             start_date,
             resolve_date,
             self._get_answer(payload),

@@ -1,6 +1,7 @@
 
 import asyncio
 import pickle
+import traceback
 import bittensor as bt
 from dataclasses import dataclass
 from datetime import datetime
@@ -137,6 +138,7 @@ class EventAggregator:
             except Exception as e:
                 bt.logging.error(f'Failed to check event {event_data}')
                 bt.logging.error(e)
+                print(traceback.format_exc())
             # bt.logging.debug(f'Fetching done {event_id}')
             # await asyncio.sleep(2)
 
@@ -158,7 +160,7 @@ class EventAggregator:
         if sooner_events:
             for i, event in enumerate(sooner_events):
                 time_msg = f'resolve: {event.resolve_date}' if event.resolve_date else f'starts: {event.starts}'
-                self.log(f'#{i + 1} : {event.description}  {time_msg} status: {event.status}')
+                self.log(f'#{i + 1} : {event.description[:100]}  {time_msg} status: {event.status} {event.event_id}')
 
     async def watch_events(self):
         """In base implementation we try to update/check each registered event via get_single_event"""
@@ -169,7 +171,7 @@ class EventAggregator:
             await asyncio.gather(*[self.check_event(event_data) for _, event_data in self.registered_events.items() if event_data.status == EventStatus.PENDING])
 
             self.log(f'Watching: {len(self.registered_events.items())} events')
-            self.log_upcoming(15)
+            self.log_upcoming(50)
             await asyncio.sleep(self.listen_delay_seconds)
 
     def event_key(self, provider_name, event_id):
@@ -216,8 +218,13 @@ class EventAggregator:
             pe.metadata,
         )
         if self.event_update_hook_fn and callable(self.event_update_hook_fn):
-            if self.event_update_hook_fn(self.registered_events.get(key)) is True:
-                del self.registered_events[key]
+            try:
+                if self.event_update_hook_fn(self.registered_events.get(key)) is True:
+                    del self.registered_events[key]
+            except Exception as e:
+                bt.logging.error(f'Failed to call update hook for event {key}')
+                bt.logging.error(e)
+                print(traceback.format_exc())
 
         return True
 
@@ -227,6 +234,15 @@ class EventAggregator:
 
     def get_event(self, event_id):
         return self.registered_events.get(self.get_event_key(event_id))
+
+    def remove_event(self, pe: ProviderEvent) -> bool:
+        """Removed event"""
+        key = self.event_key(provider_name=pe.market_type, event_id=pe.event_id)
+        if key in self.registered_events:
+
+            del self.registered_events[key]
+            return True
+        return False
 
     def save_state(self):
         with open(self.state_path, 'wb') as f:
