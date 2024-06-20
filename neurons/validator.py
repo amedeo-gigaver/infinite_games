@@ -15,6 +15,7 @@
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 
+import asyncio
 import os
 import time
 import bittensor as bt
@@ -152,7 +153,7 @@ class Validator(BaseValidatorNeuron):
         bt.logging.info("Processed miner responses.")
         self.blocktime += 1
         while block_start == self.block:
-            time.sleep(1)
+            await asyncio.sleep(2)
 
     def save_state(self):
         super().save_state()

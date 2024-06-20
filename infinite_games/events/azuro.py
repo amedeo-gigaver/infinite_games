@@ -44,7 +44,7 @@ class AzuroProviderIntegration(ProviderIntegration):
 
     def available_for_submission(self, pe: ProviderEvent) -> bool:
         # self.log(f'Can submit? {pe} {pe.starts} > {datetime.now()} {pe.starts > datetime.now()}')
-        return pe.starts > datetime.now() or pe.status != EventStatus.DISCARDED
+        return pe.starts > datetime.now() and pe.status != EventStatus.DISCARDED
 
     def convert_status(self, azuro_status):
         return {

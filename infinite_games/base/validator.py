@@ -374,6 +374,8 @@ class BaseValidatorNeuron(BaseNeuron):
         status_code = response.status_code
         if status_code != 204:
             bt.logging.error(f'*** Error sending logs! {response.content.decode("utf8")}')
+        else:
+            bt.logging.debug('*** Grafana logs sent')
 
     def save_state(self):
         """Saves the state of the validator to a file."""
