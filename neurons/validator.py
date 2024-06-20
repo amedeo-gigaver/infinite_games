@@ -68,6 +68,10 @@ class Validator(BaseValidatorNeuron):
         if pe.status == EventStatus.SETTLED:
             bt.logging.info(f'Settled event: {pe} {pe.description} answer: {pe.answer}')
             miner_uids = infinite_games.utils.uids.get_all_uids(self)
+            correct_ans = pe.answer
+            if not correct_ans:
+                bt.logging.error(f"**** Unknown answer for event, discarding : {pe.market_type} - {pe.event_id}")
+                return True
 
             scores = []
             for uid in miner_uids:
@@ -80,12 +84,7 @@ class Validator(BaseValidatorNeuron):
                     scores.append(0)
                 else:
                     ans = max(0, min(1, ans))  # Clamp the answer
-                    correct_ans = pe.answer
-                    if correct_ans:
-                        scores.append(1 - ((ans - correct_ans)**2))
-                    else:
-                        scores.append(0)
-                        bt.logging.warning(f"Unknown result from market: {pe.market_type} - {pe.event_id}")
+                    scores.append(1 - ((ans - correct_ans)**2))
             self.update_scores(torch.FloatTensor(scores), miner_uids)
             return True
         elif pe.status == EventStatus.DISCARDED:
