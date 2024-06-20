@@ -76,7 +76,7 @@ Validators record the miners' predictions and score them once the events settle.
 ## Scoring rule
 *We launched our subnet with model 1 and will then move to a variation of model 2.*
 
-Denote by $S(p_i, o_i)$ the quadratic scoring rule (the Brier score) for a prediction $p_i$ of a binary event $E_i$ and where $o_i$ is $1$ if $E_i$ is realized and $0$ otherwise. We have then that $S(p_i, 1)= p_i^2$ if $o_i$ is $1$ and $S(p_i,0)=(1-p_i)^2$ if $o_i$ is $0$. A quadratic scoring rule is strictly proper i.e it strictly incentivizes miners to report their true prediction. 
+Denote by $S(p_i, o_i)$ the quadratic scoring rule (the Brier score) for a prediction $p_i$ of a binary event $E_i$ and where $o_i$ is $1$ if $E_i$ is realized and $0$ otherwise. We have then that $S(p_i, 1)= 1- (1-p_i)^2$ if $o_i$ is $1$ and $S(p_i,0)=1-p_i^2$ if $o_i$ is $0$. A quadratic scoring rule is strictly proper i.e it strictly incentivizes miners to report their true prediction. 
 
 ### model 1
 
