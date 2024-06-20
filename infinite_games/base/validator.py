@@ -396,7 +396,11 @@ class BaseValidatorNeuron(BaseNeuron):
         bt.logging.info("Loading validator state.")
 
         # Load the state of the validator from file.
-        state = torch.load(self.config.neuron.full_path + "/state.pt")
+        try:
+            state = torch.load(self.config.neuron.full_path + "/state.pt")
+        except FileNotFoundError:
+            bt.logging.info(f"Neuron state not found in {self.config.neuron.full_path + '/state.pt'}, skip..")
+            return
         self.step = state["step"]
         self.scores = state["scores"]
         self.hotkeys = state["hotkeys"]
