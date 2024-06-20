@@ -25,8 +25,9 @@ class PolymarketProviderIntegration(ProviderIntegration):
         return 'polymarket'
 
     def available_for_submission(self, pe: ProviderEvent):
-        # self.log(f'Can submit? {pe} {datetime.now().date()} < {pe.resolve_date.date()} {datetime.now().date() < pe.resolve_date.date()}')
-        return datetime.now().date() < pe.resolve_date.date() and pe.status != EventStatus.DISCARDED
+        one_day_before_resolve = pe.resolve_date - timedelta(seconds=86400)
+        # self.log(f'Can submit? {pe} resolve date: {pe.resolve_date} , condition: {datetime.now().date()} < {one_day_before_resolve.date()} {datetime.now().date() < one_day_before_resolve.date()}')
+        return datetime.now().date() < one_day_before_resolve.date() and pe.status != EventStatus.DISCARDED
 
     def convert_status(self, closed_bool):
         return {

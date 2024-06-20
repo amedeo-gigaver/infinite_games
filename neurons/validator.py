@@ -147,8 +147,15 @@ class Validator(BaseValidatorNeuron):
                 if not provider_event:
                     bt.logging.warning(f'Miner submission for non registered event detected  {uid=} {provider_name=} {market_event_id=}')
                     continue
-
-                self.event_provider.miner_predict(provider_event, uid.item(), score, self.block)
+                integration = self.event_provider.integrations.get(provider_event.market_type)
+                if not integration:
+                    bt.logging.error(f'No integration found to register miner submission {uid=} {event_id=} {score=}')
+                    continue
+                if integration.available_for_submission(provider_event):
+                    self.event_provider.miner_predict(provider_event, uid.item(), score, self.block)
+                else:
+                    bt.logging.warning(f'Submission received, but this event is not open for submissions miner {uid=} {event_id=} {score=}')
+                    continue
 
         bt.logging.info("Processed miner responses.")
         self.blocktime += 1
