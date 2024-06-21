@@ -74,6 +74,20 @@ export USE_TORCH=1
 
 The venv should be active whenever the neurons are run.
 
+(Optional) Add our Grafana key to your `.env` file. This will help us make the subnet better. Please reach out to us on Discord or Telegram to get the key.
+
+In the `infinite_games` directory, create or edit your `.env` file:
+
+```bash
+nano .env
+```
+
+Add the following line to the file:
+
+```bash
+GRAFANA_API_KEY=<our_grafana_key>
+```
+
 ## 2. Create Wallets
 
 This step creates local coldkey and hotkey pairs for your validator.
