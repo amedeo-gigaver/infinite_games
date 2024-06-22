@@ -174,14 +174,14 @@ Install and run pm2 commands to keep your validator online at all times.
 
 Command to run the validator:
 
-`pm2 start neurons/validator.py --interpreter /usr/bin/python3  --name validator -- --wallet.name validator --netuid 155 --wallet.hotkey hotkey --subtensor.network test --logging.debug` 
+`pm2 start neurons/validator.py --interpreter python3  --name validator -- --wallet.name validator --netuid 6 --wallet.hotkey hotkey --subtensor.network test --logging.debug --logging.trace` 
 
 
 Explanation of each variable:
 
 --wallet.name: Provide the name of your wallet.
 --wallet.hotkey: Enter your wallet's hotkey.
---netuid: Use 155 for testnet.
+--netuid: Use 155 for testnet/ 6 for mainnet.
 --subtensor.network: Specify the network you want to use (finney, test, local, etc).
 --logging.debug: Adjust the logging level according to your preference.
 --axon.port: Specify the port number you want to use.
