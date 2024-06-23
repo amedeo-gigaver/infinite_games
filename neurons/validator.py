@@ -66,7 +66,7 @@ class Validator(BaseValidatorNeuron):
     def on_event_update(self, pe: ProviderEvent):
         """Hook called whenever we have settling events. Event removed when we return True"""
         if pe.status == EventStatus.SETTLED:
-            bt.logging.info(f'Settled event: {pe} {pe.description} answer: {pe.answer}')
+            bt.logging.info(f'Settled event: {pe} {pe.description[:100]} answer: {pe.answer}')
             miner_uids = infinite_games.utils.uids.get_all_uids(self)
             correct_ans = pe.answer
             if correct_ans is None:
