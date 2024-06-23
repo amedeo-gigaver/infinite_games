@@ -69,7 +69,7 @@ class Validator(BaseValidatorNeuron):
             bt.logging.info(f'Settled event: {pe} {pe.description} answer: {pe.answer}')
             miner_uids = infinite_games.utils.uids.get_all_uids(self)
             correct_ans = pe.answer
-            if not correct_ans:
+            if correct_ans is None:
                 bt.logging.error(f"**** Unknown answer for event, discarding : {pe.market_type} - {pe.event_id}")
                 return True
 
