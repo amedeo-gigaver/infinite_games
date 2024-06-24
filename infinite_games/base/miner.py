@@ -84,7 +84,7 @@ class BaseMinerNeuron(BaseNeuron):
         """
 
         # Check that miner is registered on the network.
-        self.sync()
+        self.sync(set_weights_enabled=False)
 
         # Serve passes the axon information to the network + netuid we are hosting on.
         # This will auto-update if the axon port of external ip have changed.
@@ -111,7 +111,7 @@ class BaseMinerNeuron(BaseNeuron):
                     # Check if we should exit.
                     if self.should_exit:
                         break
-                # Sync metagraph and potentially set weights.
+                # Sync metagraph
                 self.sync()
                 self.step += 1
 

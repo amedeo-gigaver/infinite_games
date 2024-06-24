@@ -107,7 +107,7 @@ class BaseNeuron(ABC):
     def run(self):
         ...
 
-    def sync(self, save_state=True):
+    def sync(self, save_state=True, set_weights_enabled=True):
         """
         Wrapper for synchronizing the state of the network for the given miner or validator.
         """
@@ -117,7 +117,7 @@ class BaseNeuron(ABC):
         if self.should_sync_metagraph():
             self.resync_metagraph()
 
-        if self.should_set_weights():
+        if set_weights_enabled and self.should_set_weights():
             bt.logging.info('********* SUBMIT WEIGHTS *********')
             self.set_weights()
 
