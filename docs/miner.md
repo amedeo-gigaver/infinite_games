@@ -1,9 +1,23 @@
 
 # Miner
 
-As a miner you should implement your prediction strategy in the `forward` function of `neurons/miner.py`. You will be receiving data in the form defined in the `infinite_games/protocol.py` and will only need to complete the `probability` entry.
+As a miner you should implement your prediction strategy in the `forward` function of `neurons/miner.py`. You will be receiving data in the form defined in the `infinite_games/protocol.py` and will only need to complete the `probability` entry. 
 
-A key pointfor the first iteration of the subnet is that you will be receiving data from validators every minute. **You do not have to respond every time**. You only have to send at least one response before the cutoff date of the event.
+A key point for the first iteration of the subnet is that you will be receiving data from validators every minute. **You do not have to respond every time**. You only have to send at least one response before the cutoff date of the event. This is particularly important if you use a base model like GPT4 for your mining strategy.
+
+## Base Miner
+
+We are currently providing two base mining models that we will be upgrading in the following weeks.
+
+1. Copying Miner
+This miner pulls the latest price from Polymarket, which corresponds to the current aggregate prediction on Polymarket, and sends it to the validators. Similarly, it pull the latest odds for a given Azuro event and sends the inverse (which is the corresponding probability) to validators.
+
+code: WIP
+
+2. Base LLM integration
+We integrate the LLM prompting [pipeline](https://github.com/dannyallover/llm_forecasting.git) with news retrieval developed by the authors of the forecasting LLM paper quoted in the readme. As is it only uses [Google News](https://news.google.com/home?hl=en-US&gl=US&ceid=US:en) for news retrieval (the original model from the article used 4 other different sources). It is also based on a single GPT4 base model.You will hence need to add your OpenAI key to your .env file.
+
+code: WIP
 
 ## Cutoff
 
