@@ -37,7 +37,7 @@ The authors released a version of the code they used to build the LLM they descr
 The computational requirements for a miner will depend significantly on the frequency at which they need to send predictions to be competitive since the base model we consider consists of a set of LLM sub-modules that each need to perform computations. Miners will also need to eventually continually provide new data to their models. Initially with 20-30 events settling per day we estimate miners to require between 16 and 36GB of RAM. We are in the process of testing the computational requirements further. 
 
 A significant cost in the case of the repo referenced above is the cost of using e.g the OpenAI API as well as the cost of retrieving news data. Every time a prediction is produced, a base model is used to generate various prompts. A miner could circumvent that by using a local model or by using the output of the [subnet 18](https://github.com/corcel-api/cortex.t.git). 
-News retrieval is done through news provider like https://www.newscatcherapi.com/. They are most often behind a paywall.
+News retrieval other than Google News is done through news provider like https://www.newscatcherapi.com/. They are most often behind a paywall.
 
 
 # Getting Started
