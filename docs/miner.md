@@ -17,7 +17,7 @@ code: WIP
 
 2. Base LLM integration
 
-We integrate the LLM prompting [pipeline](https://github.com/dannyallover/llm_forecasting.git) with news retrieval developed by the authors of the forecasting LLM paper quoted in the readme. As is it only uses [Google News](https://news.google.com/home?hl=en-US&gl=US&ceid=US:en) for news retrieval (the original model from the article used 4 other different sources). It is also based on a single GPT4 base model.You will hence need to add your OpenAI key to your .env file.
+We integrate the LLM prompting [pipeline](https://github.com/dannyallover/llm_forecasting.git) with news retrieval developed by the authors of the forecasting LLM paper quoted in the readme. As is it only uses [Google News](https://news.google.com/home?hl=en-US&gl=US&ceid=US:en) for news retrieval (the original model from the article used 4 other different sources). It is also based on a single GPT4 base model. You will hence need to add your OpenAI key to your .env file.
 
 code: WIP
 
