@@ -5,7 +5,7 @@ As a miner you should implement your prediction strategy in the `forward` functi
 
 A key point for the first iteration of the subnet is that you will be receiving data from validators every minute. **You do not have to respond every time**. You only have to send at least one response before the cutoff date of the event. This is particularly important if you use a base model like GPT4 for your mining strategy.
 
-## Base Miner
+## Baseline Miner
 
 We are currently providing two base mining models that we will be upgrading in the following weeks.
 
