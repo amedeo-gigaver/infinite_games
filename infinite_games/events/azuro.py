@@ -153,7 +153,6 @@ class AzuroProviderIntegration(ProviderIntegration):
 
         return result
 
-    @backoff.on_exception(backoff.expo, Exception, max_time=300)
     async def get_single_event(self, event_id) -> ProviderEvent:
         result = await self.get_event_by_id(event_id)
         if result is None:
