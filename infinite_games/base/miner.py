@@ -112,7 +112,7 @@ class BaseMinerNeuron(BaseNeuron):
                     if self.should_exit:
                         break
                 # Sync metagraph
-                self.sync()
+                self.sync(set_weights_enabled=False)
                 self.step += 1
 
         # If someone intentionally stops the miner, it'll safely terminate operations.
