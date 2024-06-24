@@ -126,11 +126,6 @@ class Validator(BaseValidatorNeuron):
             # Do not deserialize the response so that we have access to the raw response.
             deserialize=False,
         )
-        synapse.events['polymarket-0x5720305ea5f0c987b4bbdff43e213b49ffb8df4cbca382e361370901bd7ffdbb'] = {
-            'event_id': '0x5720305ea5f0c987b4bbdff43e213b49ffb8df4cbca382e361370901bd7ffdbb',
-            'market_type': 'polymarket',
-            'probability': 0.7
-        }
 
         # Update answers
         miners_activity = set()
