@@ -16,6 +16,7 @@
 # DEALINGS IN THE SOFTWARE.
 
 import asyncio
+import logging
 import os
 import time
 import traceback
@@ -108,8 +109,9 @@ class Validator(BaseValidatorNeuron):
         try:
             await self.event_provider.collect_events()
         except Exception:
-            bt.logging.error('Coult not sync events')
+            bt.logging.error('Could not sync events.. Retry..')
             print(traceback.format_exc())
+            await asyncio.sleep(5)
             return
 
         # Create synapse object to send to the miner.

@@ -114,12 +114,17 @@ class PolymarketProviderIntegration(ProviderIntegration):
         pe: Optional[ProviderEvent] = self.construct_provider_event(event_id, payload)
         return pe
 
-    @backoff.on_exception(backoff.expo, Exception, max_time=300)
+    @backoff.on_exception(backoff.expo, Exception, max_tries=6)
+    def _request(self, url):
+        resp = requests.get("https://clob.polymarket.com/sampling-markets")
+        if resp.status_code != 200:
+            raise Exception(f'Error requesting {url} {resp.content}')
+        return resp
+
     async def sync_events(self, start_from: int = None) -> AsyncIterator[ProviderEvent]:
         self.log(f"syncing events {start_from=} ")
         if not start_from:
             start_from = int(datetime.now().timestamp())
-
         first = True
         cursor = None
         max_events = 5000
@@ -127,11 +132,11 @@ class PolymarketProviderIntegration(ProviderIntegration):
 
         while cursor != "LTE=":
             if first:
-                resp = requests.get("https://clob.polymarket.com/sampling-markets")
+                resp = self._request("https://clob.polymarket.com/sampling-markets")
                 nxt = resp.json()
                 first = False
             else:
-                resp = requests.get("https://clob.polymarket.com/sampling-markets?next_cursor={}".format(cursor))
+                resp = self._request("https://clob.polymarket.com/sampling-markets?next_cursor={}".format(cursor))
                 nxt = resp.json()
 
             if resp.status_code == 200:
@@ -159,4 +164,5 @@ class PolymarketProviderIntegration(ProviderIntegration):
                     except Exception as e:
 
                         self.error(f"Error parse market {market.get('market_slug')} {e} {market}")
-            await asyncio.sleep(2)
+                    
+            await asyncio.sleep(10)

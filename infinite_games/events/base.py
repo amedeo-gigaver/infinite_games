@@ -168,7 +168,7 @@ class EventAggregator:
         while True:
             self.log(f'Update events: {len(self.registered_events.items())}')
 
-            await asyncio.gather(*[self.check_event(event_data) for _, event_data in self.registered_events.items() if event_data.status == EventStatus.PENDING])
+            await asyncio.gather(*[self.check_event(event_data) for _, event_data in self.registered_events.items() if event_data.status in [EventStatus.PENDING, EventStatus.SETTLED]])
 
             self.log(f'Watching: {len(self.registered_events.items())} events')
             self.log_upcoming(50)

@@ -160,7 +160,7 @@ class Miner(BaseMinerNeuron):
         return prirority
 
     def save_state(self):
-        return super().save_state()
+        pass
 
 
 bt.debug(True)

@@ -325,6 +325,10 @@ class BaseValidatorNeuron(BaseNeuron):
             # Replace any NaN values in rewards with 0.
             rewards = torch.nan_to_num(rewards, 0)
 
+        if len(self.scores != len(uids)):
+            # extend score shape in case we have new miners
+            extended_zeros = torch.zeros(len(uids))
+            self.scores = torch.cat([self.scores, extended_zeros])
         # Compute forward pass rewards, assumes uids are mutually exclusive.
         # shape: [ metagraph.n ]
         scattered_rewards: torch.FloatTensor = self.scores.scatter(
