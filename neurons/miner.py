@@ -50,10 +50,12 @@ class Miner(BaseMinerNeuron):
 
     async def _generate_prediction(self, market):
         try:
+            #polymarket
             if market['market_type'] == 'polymarket' and self.polymarket is not None:
                 x = await self.polymarket.get_event_by_id(market["event_id"])
                 market["probability"] = x["tokens"][0]["price"]
                 bt.logging.info("Assign {} prob to polymarket event {}".format(market["probability"], market["event_id"]))
+            #azuro
             elif market['market_type'] == 'azuro' and self.azuro is not None:
                 x = await self.azuro.get_event_by_id(market["event_id"])
                 market["probability"] = 1.0 / float(x["outcome"]["currentOdds"])

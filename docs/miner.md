@@ -13,7 +13,7 @@ We are currently providing two base mining models that we will be upgrading in t
 
 This miner pulls the latest price from Polymarket, which corresponds to the current aggregate prediction on Polymarket, and sends it to the validators. Similarly, it pull the latest odds for a given Azuro event and sends the inverse (which is the corresponding probability) to validators.
 
-code: WIP
+code: `neurons/miner.py`
 
 2. Baseline Miner 2 (LLM integration)
 
