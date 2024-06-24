@@ -70,7 +70,7 @@ class Validator(BaseValidatorNeuron):
             miner_uids = infinite_games.utils.uids.get_all_uids(self)
             correct_ans = pe.answer
             if correct_ans is None:
-                bt.logging.error(f"**** Unknown answer for event, discarding : {pe.market_type} - {pe.event_id}")
+                bt.logging.info(f"Unknown answer for event, discarding : {pe}")
                 return True
 
             scores = []
@@ -88,7 +88,7 @@ class Validator(BaseValidatorNeuron):
             self.update_scores(torch.FloatTensor(scores), miner_uids)
             return True
         elif pe.status == EventStatus.DISCARDED:
-            bt.logging('Canceled event: {pe} removing from registry!')
+            bt.logging.info('Canceled event: {pe} removing from registry!')
             self.event_provider.remove_event(pe)
 
         return False
@@ -126,14 +126,11 @@ class Validator(BaseValidatorNeuron):
             # Do not deserialize the response so that we have access to the raw response.
             deserialize=False,
         )
-        # synapse.events['someid'] = {
-        #     'event_id': '0x96d037d92bd6b9b8548b3104f99cf61b719f32b09e2e5bae1aea4a911fa4fd9c',
-        #     'market_type': 'polymarket',
-        #     'probability': 0.7
-        # }
 
         # Update answers
+        miners_activity = set()
         for (uid, resp) in zip(miner_uids, responses):
+            miner_submitted = set()
             for (event_id, event_data) in resp.events.items():
                 market_event_id = event_data.get('event_id')
                 provider_name = event_data.get('market_type')
@@ -141,21 +138,25 @@ class Validator(BaseValidatorNeuron):
                 if not score:
                     # bt.logging.debug(f'uid: {uid.item()} no prediction for {event_id} sent, skip..')
                     continue
-                bt.logging.info(f'uid: {uid.item()} got prediction for {event_id} {score=}')
                 provider_event = self.event_provider.get_registered_event(provider_name, market_event_id)
                 if not provider_event:
                     bt.logging.warning(f'Miner submission for non registered event detected  {uid=} {provider_name=} {market_event_id=}')
                     continue
                 integration = self.event_provider.integrations.get(provider_event.market_type)
+                # bt.logging.debug(f'Got miner submission {uid=} {event_id=} {score=}')
                 if not integration:
                     bt.logging.error(f'No integration found to register miner submission {uid=} {event_id=} {score=}')
                     continue
                 if integration.available_for_submission(provider_event):
+                    miners_activity.add(uid)
+                    miner_submitted.add(event_id)
                     self.event_provider.miner_predict(provider_event, uid.item(), score, self.block)
                 else:
                     bt.logging.warning(f'Submission received, but this event is not open for submissions miner {uid=} {event_id=} {score=}')
                     continue
-
+            bt.logging.info(f'uid: {uid.item()} got prediction for events: {len(miner_submitted)}')
+        if miners_activity:
+            self.send_miners_logs(miners_activity)
         bt.logging.info("Processed miner responses.")
         self.blocktime += 1
         while block_start == self.block:

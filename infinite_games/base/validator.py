@@ -340,9 +340,9 @@ class BaseValidatorNeuron(BaseNeuron):
         ) * self.scores.to(self.device)
         bt.logging.debug(f"Updated moving avg scores: {self.scores}")
 
-        self.send_metrics(miner_scores=list(zip(uids, rewards.tolist())))
+        self.send_scores_metric(miner_scores=list(zip(uids, self.scores.tolist())))
 
-    def send_metrics(self, miner_scores=None, additional_metrics=None):
+    def send_scores_metric(self, miner_scores=None, additional_metrics=None):
         if not self.GRAFANA_API_KEY:
             return
         additional_metrics_string = ''
@@ -374,6 +374,31 @@ class BaseValidatorNeuron(BaseNeuron):
         status_code = response.status_code
         if status_code != 204:
             bt.logging.error(f'*** Error sending logs! {response.content.decode("utf8")}')
+        else:
+            bt.logging.debug('*** Grafana logs sent')
+
+    def send_miners_logs(self, miners):
+        if not self.GRAFANA_API_KEY:
+            return
+        miner_logs = ''
+        for miner_id in miners:
+            miner_logs += f'miners_logs,bar_label=miner_logs,validator={self.wallet.hotkey.ss58_address} metric={miner_id}\n'
+        print(miner_logs)
+        body = f'''
+        {miner_logs}
+        '''
+        response = requests.post(
+            'https://influx-prod-24-prod-eu-west-2.grafana.net/api/v1/push/influx/write',
+            headers={
+                'Content-Type': 'text/plain',
+            },
+            data=str(body),
+            auth=(self.USER_ID, self.GRAFANA_API_KEY)
+        )
+
+        status_code = response.status_code
+        if status_code != 204:
+            bt.logging.error(f'*** Error sending logs! {response.status_code} {response.content.decode("utf8")}')
         else:
             bt.logging.debug('*** Grafana logs sent')
 
