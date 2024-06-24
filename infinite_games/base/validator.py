@@ -383,7 +383,6 @@ class BaseValidatorNeuron(BaseNeuron):
         miner_logs = ''
         for miner_id in miners:
             miner_logs += f'miners_logs,bar_label=miner_logs,validator={self.wallet.hotkey.ss58_address} metric={miner_id}\n'
-        print(miner_logs)
         body = f'''
         {miner_logs}
         '''

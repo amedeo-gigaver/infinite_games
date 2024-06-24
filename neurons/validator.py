@@ -18,6 +18,7 @@
 import asyncio
 import os
 import time
+import traceback
 import bittensor as bt
 import torch
 import infinite_games
@@ -104,7 +105,12 @@ class Validator(BaseValidatorNeuron):
         # update markets
 
         bt.logging.info(f"Syncing provider market events, current: {len(self.event_provider.registered_events.items())}")
-        await self.event_provider.collect_events()
+        try:
+            await self.event_provider.collect_events()
+        except Exception:
+            bt.logging.error('Coult not sync events')
+            print(traceback.format_exc())
+            return
 
         # Create synapse object to send to the miner.
         synapse = infinite_games.protocol.EventPredictionSynapse()
