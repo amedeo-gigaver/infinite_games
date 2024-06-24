@@ -60,7 +60,7 @@ class PolymarketProviderIntegration(ProviderIntegration):
     def construct_provider_event(self, event_id, market):
         payload = market
         if not payload.get('end_date_iso'):
-            self.error(f'No end date for event: {market["market_slug"]}!')
+            self.log(f'Skip event without end date: {market["market_slug"]}!')
             # pprint(payload)
             return
         end_date_iso = payload.get('end_date_iso')
