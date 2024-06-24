@@ -92,7 +92,7 @@ class AzuroProviderIntegration(ProviderIntegration):
             return None
 
     @backoff.on_exception(backoff.expo, Exception, max_time=300)
-    async def get_single_event(self, event_id) -> ProviderEvent:
+    async def get_event_by_id(self, event_id) -> dict:
         query = gql(
             """
             query SingleOutcome($id: ID!) {
@@ -150,6 +150,13 @@ class AzuroProviderIntegration(ProviderIntegration):
         if not result:
             bt.logging.error(f'Azuro: Could not fetch event by id  {event_id}')
             return None
+
+        return result
+
+    @backoff.on_exception(backoff.expo, Exception, max_time=300)
+    async def get_single_event(self, event_id) -> ProviderEvent:
+        result = await self.get_event_by_id(event_id)
+
         outcome = result['outcome']
 
         if not outcome:

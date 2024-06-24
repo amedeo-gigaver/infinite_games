@@ -23,6 +23,8 @@ import infinite_games
 
 # import base miner class which takes care of most of the boilerplate
 from infinite_games.base.miner import BaseMinerNeuron
+from infinite_games.events.azuro import AzuroProviderIntegration
+from infinite_games.events.polymarket import PolymarketProviderIntegration
 
 
 class Miner(BaseMinerNeuron):
@@ -38,14 +40,44 @@ class Miner(BaseMinerNeuron):
 
     def __init__(self, config=None):
         super(Miner, self).__init__(config=config)
+        self.providers_set = False
+        self.azuro = None
+        self.polymarket = None
+
+    async def initialize_providers(self):
+        self.azuro = await AzuroProviderIntegration()._ainit()
+        self.polymarket = await PolymarketProviderIntegration()._ainit()
+
+    async def _generate_prediction(self, market):
+        try:
+            if market['market_type'] == 'polymarket' and self.polymarket is not None:
+                x = await self.polymarket.get_event_by_id(market["event_id"])
+                market["probability"] = x["tokens"][0]["price"]
+                bt.logging.info("Assign {} prob to polymarket event {}".format(market["probability"], market["event_id"]))
+            elif market['market_type'] == 'azuro' and self.azuro is not None:
+                x = await self.azuro.get_event_by_id(market["event_id"])
+                market["probability"] = 1.0 / float(x["outcome"]["currentOdds"])
+                bt.logging.info("Assign {} prob to azuro event {}".format(market["probability"], market["event_id"]))
+        except Exception as e:
+            bt.logging.error("Failed to assign, probability, {}".format(e))
+
+        return market
 
     async def forward(
-        self, synapse: infinite_games.protocol.EventPredictionSynapse
+            self, synapse: infinite_games.protocol.EventPredictionSynapse
     ) -> infinite_games.protocol.EventPredictionSynapse:
         """
         Processes the incoming synapse and attaches the response to the synapse.
         """
-        bt.logging.info("Received synapse")
+        if not self.providers_set:
+            self.providers_set = True
+            await self.initialize_providers()
+
+        bt.logging.info("Incoming Events {}".format(len(synapse.events.items())))
+
+        for cid, market in synapse.events.items():
+            await self. _generate_prediction(market)
+
         return synapse
 
     async def blacklist(

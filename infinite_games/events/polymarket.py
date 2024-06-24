@@ -97,13 +97,21 @@ class PolymarketProviderIntegration(ProviderIntegration):
         )
 
     @backoff.on_exception(backoff.expo, Exception, max_time=300)
-    async def get_single_event(self, event_id) -> ProviderEvent:
+    async def get_event_by_id(self, event_id) -> Optional[dict]:
         market_url = self.base_url + '/markets/{}'.format(event_id)
         async with self.session.get(market_url) as resp:
             payload = await resp.json()
             if not payload or not payload.get('condition_id'):
                 self.error(f'no condition id for {event_id=} response: {payload}')
-                return
+                return None
+
+        return payload
+
+    @backoff.on_exception(backoff.expo, Exception, max_time=300)
+    async def get_single_event(self, event_id) -> Optional[ProviderEvent]:
+        payload: Optional[dict] = await self.get_event_by_id(event_id)
+        if not payload:
+            return None
         pe: Optional[ProviderEvent] = self.construct_provider_event(event_id, payload)
         return pe
 
