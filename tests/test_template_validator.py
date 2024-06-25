@@ -21,16 +21,12 @@ import torch
 import unittest
 import bittensor as bt
 
-from infinite_games.base.validator import BaseValidatorNeuron
+from infinite_games.neurons.validator import Validator
+from bittensor.mock import wallet_mock
+from bittensor.mock.wallet_mock import MockWallet
 
+class TemplateValidatorNeuronTestCase:
 
-class TemplateValidatorNeuronTestCase(unittest.TestCase):
-    """
-    This class contains unit tests for the RewardEvent classes.
-
-    The tests cover different scenarios where completions may or may not be successful and the reward events are checked that they don't contain missing values.
-    The `reward` attribute of all RewardEvents is expected to be a float, and the `is_filter_model` attribute is expected to be a boolean.
-    """
-
-    def setUp(self):
-        pass
+    def test_validator_forward(self, mock_network):
+        
+        Validator()

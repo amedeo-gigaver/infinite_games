@@ -19,7 +19,7 @@
 import bittensor as bt
 from typing import Optional, List
 
-from infinite_games.events.base import ProviderEvent
+from infinite_games.infinite_games.events.base import ProviderEvent
 
 
 class EventPredictionSynapse(bt.Synapse):

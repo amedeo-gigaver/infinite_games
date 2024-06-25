@@ -33,7 +33,7 @@ from traceback import print_exception
 import wandb
 
 
-from infinite_games.base.neuron import BaseNeuron
+from infinite_games.infinite_games.base.neuron import BaseNeuron
 from infinite_games import __version__
 
 

@@ -23,9 +23,17 @@ from abc import ABC, abstractmethod
 
 
 # Sync calls set weights and also resyncs the metagraph.
-from infinite_games.utils.config import check_config, add_args, config
-from infinite_games.utils.misc import ttl_get_block
+from infinite_games.infinite_games.utils.config import check_config, add_args, config
+from infinite_games.infinite_games.utils.misc import ttl_get_block
 from infinite_games import __spec_version__ as spec_version
+
+
+def get_wallet(config: "bt.Config"):
+    return bt.wallet(config=config)
+
+
+def get_subtensor(config: "bt.Config"):
+    return bt.subtensor(config=config)
 
 
 class BaseNeuron(ABC):
@@ -76,11 +84,11 @@ class BaseNeuron(ABC):
         bt.logging.info("Setting up bittensor objects.")
 
         # The wallet holds the cryptographic key pairs for the miner.
-        self.wallet = bt.wallet(config=self.config)
+        self.wallet = get_wallet(config)
         bt.logging.info(f"Wallet: {self.wallet}")
 
         # The subtensor is our connection to the Bittensor blockchain.
-        self.subtensor = bt.subtensor(config=self.config)
+        self.subtensor = get_subtensor(config)
         bt.logging.info(f"Subtensor: {self.subtensor}")
 
         # The metagraph holds the state of the network, letting us know about other validators and miners.
