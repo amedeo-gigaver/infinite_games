@@ -175,7 +175,7 @@ Install and run pm2 commands to keep your miner online at all times.
 
 Use the following example command to run the miner:
 
-`pm2 start neurons/miner.py --interpreter /usr/bin/python3  --name miner -- --wallet.name miner --netuid 155 --wallet.hotkey default --subtensor.network test --logging.debug`
+`pm2 start neurons/miner.py --interpreter python3  --name miner -- --wallet.name miner --netuid 155 --wallet.hotkey default --subtensor.network test --logging.debug`
 
 
 #### Variables Explanation
