@@ -5,9 +5,7 @@ import backoff
 
 import asyncio
 from datetime import datetime, timedelta
-import json
 import requests
-from pprint import pprint
 
 from infinite_games.events.base import EventStatus, ProviderEvent, ProviderIntegration
 
@@ -115,10 +113,15 @@ class PolymarketProviderIntegration(ProviderIntegration):
         return pe
 
     @backoff.on_exception(backoff.expo, Exception, max_tries=6)
-    def _request(self, url):
+    async def _request(self, url):
         resp = requests.get("https://clob.polymarket.com/sampling-markets")
         if resp.status_code != 200:
-            raise Exception(f'Error requesting {url} {resp.content}')
+            if resp.status_code == 429:
+                retry_timeout = resp.headers.get('Retry-After')
+                if retry_timeout:
+                    self.log(f'Hit limit for {url}, waiting for {retry_timeout} seconds..')
+                    await asyncio.sleep(int(retry_timeout) + 1)
+            raise Exception(f'Error requesting {url} {resp.status_code} {resp.headers}')
         return resp
 
     async def sync_events(self, start_from: int = None) -> AsyncIterator[ProviderEvent]:
@@ -132,11 +135,17 @@ class PolymarketProviderIntegration(ProviderIntegration):
 
         while cursor != "LTE=":
             if first:
-                resp = self._request("https://clob.polymarket.com/sampling-markets")
+                try:
+                    resp = await self._request("https://clob.polymarket.com/sampling-markets")
+                except Exception as e:
+                    self.error(str(e))
                 nxt = resp.json()
                 first = False
             else:
-                resp = self._request("https://clob.polymarket.com/sampling-markets?next_cursor={}".format(cursor))
+                try:
+                    resp = await self._request("https://clob.polymarket.com/sampling-markets?next_cursor={}".format(cursor))
+                except Exception as e:
+                    self.error(str(e))
                 nxt = resp.json()
 
             if resp.status_code == 200:
@@ -164,5 +173,5 @@ class PolymarketProviderIntegration(ProviderIntegration):
                     except Exception as e:
 
                         self.error(f"Error parse market {market.get('market_slug')} {e} {market}")
-                    
-            await asyncio.sleep(10)
+
+            await asyncio.sleep(30)

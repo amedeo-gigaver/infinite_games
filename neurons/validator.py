@@ -182,4 +182,4 @@ if __name__ == "__main__":
         while True:
             validator.print_info()
             bt.logging.info("Validator running...", time.time())
-            time.sleep(5)
+            time.sleep(20)
