@@ -62,7 +62,11 @@ class Validator(BaseValidatorNeuron):
             )
             self.event_provider.load_state()
             self.event_provider.on_event_updated_hook(self.on_event_update)
+            # watch for existing registered events
             self.loop.create_task(self.event_provider.watch_events())
+
+            # pull new markets
+            self.loop.create_task(self.event_provider.collect_events())
             bt.logging.debug("Provider initialized..")
 
     def on_event_update(self, pe: ProviderEvent):
@@ -103,17 +107,6 @@ class Validator(BaseValidatorNeuron):
         await self.initialize_provider()
         block_start = self.block
         miner_uids = infinite_games.utils.uids.get_all_uids(self)
-        # update markets
-
-        bt.logging.info(f"Syncing provider market events, current: {len(self.event_provider.registered_events.items())}")
-        try:
-            await self.event_provider.collect_events()
-        except Exception:
-            bt.logging.error('Could not sync events.. Retry..')
-            print(traceback.format_exc())
-            await asyncio.sleep(5)
-            return
-
         # Create synapse object to send to the miner.
         synapse = infinite_games.protocol.EventPredictionSynapse()
         events_available_for_submission = self.event_provider.get_events_for_submission()
@@ -162,9 +155,14 @@ class Validator(BaseValidatorNeuron):
                 else:
                     bt.logging.warning(f'Submission received, but this event is not open for submissions miner {uid=} {event_id=} {score=}')
                     continue
-            bt.logging.info(f'uid: {uid.item()} got prediction for events: {len(miner_submitted)}')
+            if len(miner_submitted) > 0:
+
+                bt.logging.info(f'uid: {uid.item()} got prediction for events: {len(miner_submitted)}')
+
         if miners_activity:
             self.send_miners_logs(miners_activity)
+        else:
+            bt.logging.info(f'No miner submissions received')
         bt.logging.info("Processed miner responses.")
         self.blocktime += 1
         while block_start == self.block:

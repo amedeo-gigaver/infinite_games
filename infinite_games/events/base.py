@@ -120,10 +120,18 @@ class EventAggregator:
 
     async def collect_events(self):
         if not self.integrations:
+            self.error('Please add integration to provider and restart your script.')
             raise Exception("No Provider Integrations Found. Please Add 'ProviderIntegration' compatible integrations ")
-        self.log('Pulling events from providers...')
-        tasks = [self._sync_provider(integration) for _, integration in self.integrations.items()]
-        await asyncio.gather(*tasks)
+        self.log('Start collector..')
+        while True:
+            self.log(f'Pulling events from providers. Current: {len(self.registered_events.items())}')
+            try:
+                tasks = [self._sync_provider(integration) for _, integration in self.integrations.items()]
+                await asyncio.gather(*tasks)
+            except Exception:
+                bt.logging.error('Could not pull events.. Retry..')
+                print(traceback.format_exc())
+            await asyncio.sleep(self.listen_delay_seconds)
 
     async def check_event(self, event_data: ProviderEvent):
         if event_data.status == EventStatus.PENDING:
@@ -145,6 +153,9 @@ class EventAggregator:
     def log(self, msg):
         bt.logging.info(f'{self.__class__.__name__} {msg}')
 
+    def error(self, msg):
+        bt.logging.error(f'{self.__class__.__name__} {msg}')
+
     def debug(self, msg):
         bt.logging.debug(f'{self.__class__.__name__} {msg}')
 
@@ -164,8 +175,9 @@ class EventAggregator:
 
     async def watch_events(self):
         """In base implementation we try to update/check each registered event via get_single_event"""
-        self.log("Start watcher")
+        self.log("Start watcher...")
         while True:
+            # self.collect_events()
             self.log(f'Update events: {len(self.registered_events.items())}')
 
             await asyncio.gather(*[self.check_event(event_data) for _, event_data in self.registered_events.items() if event_data.status in [EventStatus.PENDING, EventStatus.SETTLED]])
