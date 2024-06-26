@@ -19,6 +19,7 @@
 import copy
 import os
 import pathlib
+import backoff
 import requests
 import torch
 import asyncio
@@ -339,30 +340,25 @@ class BaseValidatorNeuron(BaseNeuron):
         # Update scores with rewards produced by this step.
         # shape: [ metagraph.n ]
         alpha: float = self.config.neuron.moving_average_alpha
+        old_scores = self.scores.tolist()
         self.scores: torch.FloatTensor = alpha * scattered_rewards + (
             1 - alpha
         ) * self.scores.to(self.device)
         bt.logging.debug(f"Updated moving avg scores: {self.scores}")
+        self.send_scores_metric(miner_scores=list(zip(uids, rewards.tolist(), self.scores.tolist(), old_scores)))
 
-        self.send_scores_metric(miner_scores=list(zip(uids, self.scores.tolist())))
-
-    def send_scores_metric(self, miner_scores=None, additional_metrics=None):
+    @backoff.on_exception(backoff.expo, Exception, max_tries=6)
+    def send_scores_metric(self, miner_scores=None):
         if not self.GRAFANA_API_KEY:
             return
-        additional_metrics_string = ''
-        if additional_metrics:
-            for metric_name, metric_value in additional_metrics.items():
-                additional_metrics_string += f'summary,bar_label={metric_name},source={self.wallet.hotkey.ss58_address} metric={metric_value}\n'
-
         miner_logs = ''
         if miner_scores:
 
-            for miner_id, score in miner_scores:
-                miner_logs += f'miners,bar_label=weights,validator={self.wallet.hotkey.ss58_address},source={miner_id} metric={score}\n'
+            for miner_id, score, total_weight, old_weight in miner_scores:
+                # bt.logging.debug(f'Miner {miner_id} {score} {old_weight} -> {total_weight}')
+                miner_logs += f'miners_scores,bar_label=rewards,block={self.block},validator={self.wallet.hotkey.ss58_address},source={miner_id},weight={round(total_weight or 0, 3)},old_weight={round(old_weight or 0, 3)} metric={score}\n'
 
         body = f'''
-        {additional_metrics_string}
-        summary,bar_label=globalblock,source={self.wallet.hotkey.ss58_address} metric={self.block}
         {miner_logs}
         '''
 

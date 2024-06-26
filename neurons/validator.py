@@ -56,7 +56,7 @@ class Validator(BaseValidatorNeuron):
             self.event_provider: EventAggregator = await EventAggregator.create(
                 state_path=self.config.neuron.full_path + '/events.pickle',
                 integrations=[
-                    AzuroProviderIntegration(max_pending_events=2),
+                    AzuroProviderIntegration(max_pending_events=5),
                     PolymarketProviderIntegration()
                 ]
             )
@@ -64,7 +64,6 @@ class Validator(BaseValidatorNeuron):
             self.event_provider.on_event_updated_hook(self.on_event_update)
             # watch for existing registered events
             self.loop.create_task(self.event_provider.watch_events())
-
             # pull new markets
             self.loop.create_task(self.event_provider.collect_events())
             bt.logging.debug("Provider initialized..")
