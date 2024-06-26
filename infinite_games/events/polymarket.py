@@ -15,6 +15,8 @@ class PolymarketProviderIntegration(ProviderIntegration):
         super().__init__(max_pending_events=max_pending_events)
         self.base_url = 'https://clob.polymarket.com'
         self.session = aiohttp.ClientSession()
+        self.lock = asyncio.Lock()
+        self.loop = asyncio.get_event_loop()
 
     async def _ainit(self) -> 'PolymarketProviderIntegration':
         return self
@@ -94,16 +96,32 @@ class PolymarketProviderIntegration(ProviderIntegration):
             }
         )
 
-    @backoff.on_exception(backoff.expo, Exception, max_time=300)
-    async def get_event_by_id(self, event_id) -> Optional[dict]:
-        market_url = self.base_url + '/markets/{}'.format(event_id)
-        async with self.session.get(market_url) as resp:
-            payload = await resp.json()
-            if not payload or not payload.get('condition_id'):
-                self.error(f'no condition id for {event_id=} response: {payload}')
-                return None
+    async def _lock(self, seconds, error_resp):
+        if not self.lock.locked():
+            self.log(f'Hit limit for {error_resp.url} polymarket waiting for {seconds} seconds..')
+            return await self.lock.acquire()
 
-        return payload
+    async def _wait_for_retry(self, retry_seconds, resp):
+        self.loop.create_task(self._lock(retry_seconds, resp))
+        await asyncio.sleep(int(retry_seconds) + 1)
+        self.log('Continue requests..')
+        try:
+            self.lock.release()
+        except RuntimeError:
+            pass
+
+    async def _handle_429(self, request_resp):
+        retry_timeout = request_resp.headers.get('Retry-After')
+        if retry_timeout:
+            if not self.lock.locked():
+                await self._wait_for_retry(retry_timeout, request_resp)
+            await asyncio.sleep(int(retry_timeout) + 1)
+        else:
+            self.log('got 429 for {request_resp} but no retry after header present.')
+        return
+
+    async def get_event_by_id(self, event_id) -> Optional[dict]:
+        return await self._request(self.base_url + '/markets/{}'.format(event_id))
 
     async def get_single_event(self, event_id) -> Optional[ProviderEvent]:
         payload: Optional[dict] = await self.get_event_by_id(event_id)
@@ -112,17 +130,36 @@ class PolymarketProviderIntegration(ProviderIntegration):
         pe: Optional[ProviderEvent] = self.construct_provider_event(event_id, payload)
         return pe
 
-    @backoff.on_exception(backoff.expo, Exception, max_tries=6)
-    async def _request(self, url):
-        resp = requests.get("https://clob.polymarket.com/sampling-markets")
-        if resp.status_code != 200:
-            if resp.status_code == 429:
-                retry_timeout = resp.headers.get('Retry-After')
-                if retry_timeout:
-                    self.log(f'Hit limit for {url}, waiting for {retry_timeout} seconds..')
-                    await asyncio.sleep(int(retry_timeout) + 1)
-            raise Exception(f'Error requesting {url} {resp.status_code} {resp.headers}')
-        return resp
+    async def _request(self, url, max_retries=3, expo_backoff=2):
+        while self.lock.locked():
+            await asyncio.sleep(1)
+        retried = 0
+
+        while retried < max_retries:
+            # to keep up/better sync with lock of other requests
+            await asyncio.sleep(0.1)
+            try:
+                async with self.session.get(url) as resp:
+                    if resp.status != 200:
+                        if retried >= max_retries:
+                            return
+                        if resp.status == 429:
+                            await self._handle_429(resp)
+                        # self.log(f'Retry {url}.. {retried + 1}')
+                    else:
+
+                        payload = await resp.json()
+                        return payload
+            except Exception as e:
+                if retried >= max_retries:
+                    self.error(e)
+                    # return
+                # self.log(f'Retry {url}.. {retried + 1}')
+            finally:
+                retried += 1
+                await asyncio.sleep(1 + retried * expo_backoff)
+
+        self.error(f'Unable to get response {url}')
 
     async def sync_events(self, start_from: int = None) -> AsyncIterator[ProviderEvent]:
         self.log(f"syncing events {start_from=} ")
@@ -130,7 +167,7 @@ class PolymarketProviderIntegration(ProviderIntegration):
             start_from = int(datetime.now().timestamp())
         first = True
         cursor = None
-        max_events = 5000
+        max_events = 20000
         count = 0
 
         while cursor != "LTE=":
@@ -139,16 +176,16 @@ class PolymarketProviderIntegration(ProviderIntegration):
                     resp = await self._request("https://clob.polymarket.com/sampling-markets")
                 except Exception as e:
                     self.error(str(e))
-                nxt = resp.json()
+                nxt = resp
                 first = False
             else:
                 try:
                     resp = await self._request("https://clob.polymarket.com/sampling-markets?next_cursor={}".format(cursor))
                 except Exception as e:
                     self.error(str(e))
-                nxt = resp.json()
+                nxt = resp
 
-            if resp.status_code == 200:
+            if resp:
 
                 cursor = nxt["next_cursor"]
                 for market in nxt["data"]:
@@ -174,4 +211,4 @@ class PolymarketProviderIntegration(ProviderIntegration):
 
                         self.error(f"Error parse market {market.get('market_slug')} {e} {market}")
 
-            await asyncio.sleep(30)
+            await asyncio.sleep(15)

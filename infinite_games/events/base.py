@@ -134,27 +134,36 @@ class EventAggregator:
             await asyncio.sleep(self.listen_delay_seconds)
 
     async def check_event(self, event_data: ProviderEvent):
-        if event_data.status == EventStatus.PENDING:
+        # self.log(f'Update Event {event_data.event_id}')
+        if event_data.status in [EventStatus.PENDING, EventStatus.SETTLED]:
             integration = self.integrations.get(event_data.market_type)
             if not integration:
                 bt.logging.error(f'No integration found for event {event_data.market_type} - {event_data.event_id}')
                 return
 
             try:
-                event_data: ProviderEvent = await integration.get_single_event(event_data.event_id)
-                self.update_event(event_data)
+                updated_event_data: ProviderEvent = await integration.get_single_event(event_data.event_id)
+                if updated_event_data:
+                    # self.log(f'Event updated {updated_event_data.event_id}')
+                    self.update_event(updated_event_data)
+                else:
+                    self.warning(f'Could not update event {event_data}')
+
             except Exception as e:
                 bt.logging.error(f'Failed to check event {event_data}')
                 bt.logging.error(e)
                 print(traceback.format_exc())
             # bt.logging.debug(f'Fetching done {event_id}')
             # await asyncio.sleep(2)
-
+            
     def log(self, msg):
         bt.logging.info(f'{self.__class__.__name__} {msg}')
 
     def error(self, msg):
         bt.logging.error(f'{self.__class__.__name__} {msg}')
+
+    def warning(self, msg):
+        bt.logging.warning(f'{self.__class__.__name__} {msg}')
 
     def debug(self, msg):
         bt.logging.debug(f'{self.__class__.__name__} {msg}')
@@ -179,8 +188,12 @@ class EventAggregator:
         while True:
             # self.collect_events()
             self.log(f'Update events: {len(self.registered_events.items())}')
-
-            await asyncio.gather(*[self.check_event(event_data) for _, event_data in self.registered_events.items() if event_data.status in [EventStatus.PENDING, EventStatus.SETTLED]])
+            try:
+                await asyncio.gather(*[self.check_event(event_data) for _, event_data in self.registered_events.items() if event_data.status in [EventStatus.PENDING, EventStatus.SETTLED]])
+            except Exception as e:
+                self.error("Failed to get event")
+                self.error(e)
+                print(traceback.format_exc())
 
             self.log(f'Watching: {len(self.registered_events.items())} events')
             self.log_upcoming(50)

@@ -169,9 +169,6 @@ class AzuroProviderIntegration(ProviderIntegration):
         event_status = condition.get('status')
         effective_status = self.convert_status(event_status)
         answer = self._get_answer(outcome.get('result'))
-        # if event_id == '0x7f3f3f19c4e4015fd9db2f22e653c766154091ef_100100000000000015930012320000000000000360701264_7047':
-        #     effective_status = EventStatus.SETTLED
-        #     answer = 1
         pe = ProviderEvent(
             event_id,
             self.provider_name(),
@@ -193,7 +190,7 @@ class AzuroProviderIntegration(ProviderIntegration):
     # @backoff.on_exception(backoff.expo, Exception, max_time=300)
     async def sync_events(self, start_from: int = None) -> AsyncIterator[ProviderEvent]:
         if not start_from:
-            start_from = int((datetime.now() + timedelta(hours=1)).timestamp())
+            start_from = int((datetime.now() + timedelta(minutes=30)).timestamp())
 
         self.log(f"Syncing events {start_from=} ")
         query = gql(
@@ -258,6 +255,8 @@ class AzuroProviderIntegration(ProviderIntegration):
             },
         )
         # self.log(f'Fetched games: {len(result["games"])}')
+        # from pprint import pprint
+        # pprint(result['games'])
         max_outcome_per_game = 1
         for game in result["games"]:
 
