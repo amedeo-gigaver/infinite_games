@@ -355,7 +355,7 @@ class BaseValidatorNeuron(BaseNeuron):
         if miner_scores:
 
             for miner_id, score, total_weight, old_weight in miner_scores:
-                bt.logging.debug(f'Miner {miner_id} {score} {old_weight} -> {total_weight}')
+                # bt.logging.debug(f'Miner {miner_id} {score} {old_weight} -> {total_weight}')
                 miner_logs += f'miners_scores,bar_label=rewards,block={self.block},validator={self.wallet.hotkey.ss58_address},source={miner_id},weight={round(total_weight or 0, 3)},old_weight={round(old_weight or 0, 3)} metric={score}\n'
 
         body = f'''
