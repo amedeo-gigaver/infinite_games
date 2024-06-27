@@ -1,6 +1,6 @@
 # The MIT License (MIT)
 # Copyright © 2023 Yuma Rao
-
+import os
 # Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
 # documentation files (the “Software”), to deal in the Software without restriction, including without limitation
 # the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
@@ -17,6 +17,8 @@
 
 import time
 import typing
+from datetime import datetime
+
 import bittensor as bt
 
 import infinite_games
@@ -25,6 +27,10 @@ import infinite_games
 from infinite_games.base.miner import BaseMinerNeuron
 from infinite_games.events.azuro import AzuroProviderIntegration
 from infinite_games.events.polymarket import PolymarketProviderIntegration
+from infinite_games.utils.miner_cache import MinerCache, MinerCacheStatus, MinerCacheObject, MarketType
+
+if os.getenv("OPENAI_KEY"):
+    from llm.forecasting import Forecaster
 
 
 class Miner(BaseMinerNeuron):
@@ -43,27 +49,41 @@ class Miner(BaseMinerNeuron):
         self.providers_set = False
         self.azuro = None
         self.polymarket = None
+        self.cache = MinerCache()
+        self.cache.initialize_cache()
+        self.llm = Forecaster() if os.getenv("OPENAI_KEY") else None
 
     async def initialize_providers(self):
         self.azuro = await AzuroProviderIntegration()._ainit()
         self.polymarket = await PolymarketProviderIntegration()._ainit()
 
-    async def _generate_prediction(self, market):
+    async def _generate_prediction(self, market: MinerCacheObject) -> None:
         try:
-            #polymarket
-            if market['market_type'] == 'polymarket' and self.polymarket is not None:
-                x = await self.polymarket.get_event_by_id(market["event_id"])
-                market["probability"] = x["tokens"][0]["price"]
-                bt.logging.info("Assign {} prob to polymarket event {}".format(market["probability"], market["event_id"]))
-            #azuro
-            elif market['market_type'] == 'azuro' and self.azuro is not None:
-                x = await self.azuro.get_event_by_id(market["event_id"])
-                market["probability"] = 1.0 / float(x["outcome"]["currentOdds"])
-                bt.logging.info("Assign {} prob to azuro event {}".format(market["probability"], market["event_id"]))
+            # LLM
+            llm_prediction = (await self.llm.get_prediction(market)) if self.llm else None
+            if llm_prediction is not None:
+                market.event.probability = llm_prediction
+                bt.logging.info(
+                    "Assign llm prediction {} to event {} ".format(market.event.probability, market.event.event_id)
+                )
+                return
+
+            # Polymarket
+            if market.event.market_type == MarketType.POLYMARKET and self.polymarket is not None:
+                x = await self.polymarket.get_event_by_id(market.event.event_id)
+                market.event.probability = x["tokens"][0]["price"]
+                bt.logging.info(
+                    "Assign {} prob to polymarket event {}".format(market.event.probability, market.event.event_id)
+                )
+            # Azuro
+            elif market.event.market_type == MarketType.AZURO and self.azuro is not None:
+                x = await self.azuro.get_event_by_id(market.event.event_id)
+                market.event.probability = 1.0 / float(x["outcome"]["currentOdds"])
+                bt.logging.info(
+                    "Assign {} prob to azuro event {}".format(market.event.probability, market.event.event_id)
+                )
         except Exception as e:
             bt.logging.error("Failed to assign, probability, {}".format(e))
-
-        return market
 
     async def forward(
             self, synapse: infinite_games.protocol.EventPredictionSynapse
@@ -78,7 +98,13 @@ class Miner(BaseMinerNeuron):
         bt.logging.info("Incoming Events {}".format(len(synapse.events.items())))
 
         for cid, market in synapse.events.items():
-            await self. _generate_prediction(market)
+            cached_market: typing.Optional[MinerCacheObject] = await self.cache.get(cid)
+            if cached_market is not None:
+                if cached_market.status == MinerCacheStatus.COMPLETED:
+                    market["probability"] = cached_market.event.probability
+            else:
+                new_market = MinerCacheObject.init_from_market(market)
+                await self.cache.add(cid, self._generate_prediction, new_market)
 
         return synapse
 

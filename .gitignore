@@ -6,7 +6,7 @@ __pycache__/
 #logs
 miner.out
 nohup.out
-
+.miner-cache.json
 # C extensions
 *.so
 wandb/
