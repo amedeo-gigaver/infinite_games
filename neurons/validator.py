@@ -20,6 +20,7 @@ import logging
 import os
 import time
 import traceback
+os.environ['USE_TORCH'] = '1'
 import bittensor as bt
 import torch
 import infinite_games
@@ -73,6 +74,7 @@ class Validator(BaseValidatorNeuron):
         if pe.status == EventStatus.SETTLED:
             bt.logging.info(f'Settled event: {pe} {pe.description[:100]} answer: {pe.answer}')
             miner_uids = infinite_games.utils.uids.get_all_uids(self)
+            bt.logging.info(f'Miners to update: {len(miner_uids)} from {self.metagraph.n.item()}')
             correct_ans = pe.answer
             if correct_ans is None:
                 bt.logging.info(f"Unknown answer for event, discarding : {pe}")
@@ -104,6 +106,7 @@ class Validator(BaseValidatorNeuron):
 
         """
         await self.initialize_provider()
+        self.reset_daily_average_scores()
         block_start = self.block
         miner_uids = infinite_games.utils.uids.get_all_uids(self)
         # Create synapse object to send to the miner.
@@ -127,6 +130,12 @@ class Validator(BaseValidatorNeuron):
             deserialize=False,
         )
 
+        # synapse.events['azuro-0x7f3f3f19c4e4015fd9db2f22e653c766154091ef_100100000000000015927405030000000000000357953524_142'] = {
+        #     'event_id': '0x7f3f3f19c4e4015fd9db2f22e653c766154091ef_100100000000000015927405030000000000000357953524_142',
+        #     'probability': 0.7,
+        #     'market_type': 'azuro'
+        # }
+
         # Update answers
         miners_activity = set()
         for (uid, resp) in zip(miner_uids, responses):
@@ -135,12 +144,14 @@ class Validator(BaseValidatorNeuron):
                 market_event_id = event_data.get('event_id')
                 provider_name = event_data.get('market_type')
                 score = event_data.get('probability')
+                # if uid != 4:
+                #     continue
                 if not score:
                     # bt.logging.debug(f'uid: {uid.item()} no prediction for {event_id} sent, skip..')
                     continue
                 provider_event = self.event_provider.get_registered_event(provider_name, market_event_id)
                 if not provider_event:
-                    bt.logging.warning(f'Miner submission for non registered event detected  {uid=} {provider_name=} {market_event_id=}')
+                    # bt.logging.warning(f'Miner submission for non registered event detected  {uid=} {provider_name=} {market_event_id=}')
                     continue
                 integration = self.event_provider.integrations.get(provider_event.market_type)
                 # bt.logging.debug(f'Got miner submission {uid=} {event_id=} {score=}')
@@ -159,9 +170,10 @@ class Validator(BaseValidatorNeuron):
                 bt.logging.info(f'uid: {uid.item()} got prediction for events: {len(miner_submitted)}')
 
         if miners_activity:
-            self.send_miners_logs(miners_activity)
+            pass
+            # self.send_miners_logs(miners_activity)
         else:
-            bt.logging.info(f'No miner submissions received')
+            bt.logging.info('No miner submissions received')
         bt.logging.info("Processed miner responses.")
         self.blocktime += 1
         while block_start == self.block:
@@ -170,6 +182,8 @@ class Validator(BaseValidatorNeuron):
     def save_state(self):
         super().save_state()
         self.event_provider.save_state()
+
+
 
 
 # The main function parses the configuration and runs the validator.
