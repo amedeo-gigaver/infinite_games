@@ -17,6 +17,7 @@
 
 
 import copy
+from datetime import datetime
 import os
 import pathlib
 import backoff
@@ -54,6 +55,11 @@ class BaseValidatorNeuron(BaseNeuron):
         # Set up initial scoring weights for validation
         bt.logging.info("Building validation weights.")
         self.scores = torch.zeros_like(self.metagraph.S, dtype=torch.float32)
+        self.average_scores: torch.Tensor = torch.zeros((self.metagraph.n))
+        # previous day.
+        self.previous_average_scores: torch.Tensor = torch.zeros((self.metagraph.n))
+        self.latest_reset_date: datetime = None
+        self.scoring_iterations = 0
 
         # Init sync with the network. Updates the metagraph.
         self.sync(False)
@@ -317,6 +323,22 @@ class BaseValidatorNeuron(BaseNeuron):
         # Update the hotkeys.
         self.hotkeys = copy.deepcopy(self.metagraph.hotkeys)
 
+    def reset_daily_average_scores(self):
+        """Current daily average scores are fixed and saved as previous day results for further moving average calculation"""
+        if not self.latest_reset_date or (self.latest_reset_date.day < datetime.now().day and self.latest_reset_date.month <= datetime.now().month):
+            if datetime.now().hour > 11:
+                bt.logging.info('Resetting daily scores')
+                self.latest_reset_date = datetime.now()
+                if self.average_scores is None:
+                    bt.logging.error("Do not have average scores to set for previous day!")
+                else:
+                    all_uids = [uid for uid in range(self.metagraph.n.item())]
+                    bt.logging.debug(f"Daily average total: {self.average_scores}")
+                    self.send_average_scores(miner_scores=list(zip(all_uids, self.average_scores.tolist(), self.scores.tolist())))
+                    self.previous_average_scores = self.average_scores.clone().detach()
+                    self.average_scores = torch.zeros(self.metagraph.n.item())
+                    bt.logging.info('Daily scores reset, previous day scores saved.')
+
     def update_scores(self, rewards: torch.FloatTensor, uids: List[int]):
         """Performs exponential moving average on the scores based on the rewards received from the miners."""
 
@@ -325,38 +347,62 @@ class BaseValidatorNeuron(BaseNeuron):
             bt.logging.warning(f"NaN values detected in rewards: {rewards}")
             # Replace any NaN values in rewards with 0.
             rewards = torch.nan_to_num(rewards, 0)
+        total_neurons = self.metagraph.n.item()
+        all_zeros = torch.zeros(total_neurons)
+        bt.logging.info(f'Total neurons: {total_neurons}')
 
-        if len(self.scores != len(uids)):
+        if len(self.scores) < total_neurons:
             # extend score shape in case we have new miners
-            extended_zeros = torch.zeros(len(uids))
-            self.scores = torch.cat([self.scores, extended_zeros])
+            self.scores = torch.cat([self.scores, all_zeros])[:total_neurons]
         # Compute forward pass rewards, assumes uids are mutually exclusive.
         # shape: [ metagraph.n ]
-        scattered_rewards: torch.FloatTensor = self.scores.scatter(
+        scattered_scores: torch.FloatTensor = self.scores.scatter(
             0, torch.tensor(uids).to(self.device), rewards
         ).to(self.device)
-        bt.logging.debug(f"Scattered rewards: {rewards}")
+        bt.logging.debug(f"Scattered scores: {scattered_scores} {len(scattered_scores)}")
 
-        # Update scores with rewards produced by this step.
-        # shape: [ metagraph.n ]
         alpha: float = self.config.neuron.moving_average_alpha
-        old_scores = self.scores.tolist()
-        self.scores: torch.FloatTensor = alpha * scattered_rewards + (
-            1 - alpha
-        ) * self.scores.to(self.device)
+
+        if len(self.average_scores) < total_neurons:
+            # extend score shape in case we have new miners
+            self.average_scores = torch.cat([self.average_scores, all_zeros])[:total_neurons]
+
+        zero_scattered_rewards = torch.zeros(total_neurons).scatter(
+            0, torch.tensor(uids), rewards
+        )
+
+        bt.logging.debug(f"Scattered rewards: {zero_scattered_rewards}")
+        bt.logging.debug(f"Average total: {self.average_scores}")
+
+        self.average_scores = (self.average_scores * self.scoring_iterations  + zero_scattered_rewards) / (self.scoring_iterations + 1)
+
+        if self.previous_average_scores is not None and torch.count_nonzero(self.previous_average_scores).item() != 0:
+            alpha = 0.4
+            bt.logging.info('Recalculate moving average based on previous day')
+            self.scores: torch.FloatTensor = alpha * self.average_scores + (
+                1 - alpha
+            ) * self.previous_average_scores.to(self.device)
+        else:
+            bt.logging.info('No daily average available yet, prefer scores for moving average')
+            self.scores: torch.FloatTensor = alpha * scattered_scores + (
+                1 - alpha
+            ) * self.scores.to(self.device)
         bt.logging.debug(f"Updated moving avg scores: {self.scores}")
-        self.send_scores_metric(miner_scores=list(zip(uids, rewards.tolist(), self.scores.tolist(), old_scores)))
+
+        bt.logging.debug(f"New Average total: {self.average_scores}")
+        self.scoring_iterations += 1
 
     @backoff.on_exception(backoff.expo, Exception, max_tries=6)
-    def send_scores_metric(self, miner_scores=None):
+    def send_average_scores(self, miner_scores=None):
         if not self.GRAFANA_API_KEY:
             return
         miner_logs = ''
+        measurement = os.environ.get('AVERAGE_MEASUREMENT_NAME', 'miners_average_scores')
         if miner_scores:
 
-            for miner_id, score, total_weight, old_weight in miner_scores:
+            for miner_id, score, total_weight in miner_scores:
                 # bt.logging.debug(f'Miner {miner_id} {score} {old_weight} -> {total_weight}')
-                miner_logs += f'miners_scores,bar_label=rewards,block={self.block},validator={self.wallet.hotkey.ss58_address},source={miner_id},weight={round(total_weight or 0, 3)},old_weight={round(old_weight or 0, 3)} metric={score}\n'
+                miner_logs += f'{measurement},source={miner_id} metric={score},weight={total_weight}\n'
 
         body = f'''
         {miner_logs}
@@ -377,29 +423,6 @@ class BaseValidatorNeuron(BaseNeuron):
         else:
             bt.logging.debug('*** Grafana logs sent')
 
-    def send_miners_logs(self, miners):
-        if not self.GRAFANA_API_KEY:
-            return
-        miner_logs = ''
-        for miner_id in miners:
-            miner_logs += f'miners_logs,bar_label=miner_logs,validator={self.wallet.hotkey.ss58_address} metric={miner_id}\n'
-        body = f'''
-        {miner_logs}
-        '''
-        response = requests.post(
-            'https://influx-prod-24-prod-eu-west-2.grafana.net/api/v1/push/influx/write',
-            headers={
-                'Content-Type': 'text/plain',
-            },
-            data=str(body),
-            auth=(self.USER_ID, self.GRAFANA_API_KEY)
-        )
-
-        status_code = response.status_code
-        if status_code != 204:
-            bt.logging.error(f'*** Error sending logs! {response.status_code} {response.content.decode("utf8")}')
-        else:
-            bt.logging.debug('*** Grafana logs sent')
 
     def save_state(self):
         """Saves the state of the validator to a file."""
@@ -411,6 +434,10 @@ class BaseValidatorNeuron(BaseNeuron):
                 "step": self.step,
                 "scores": self.scores,
                 "hotkeys": self.hotkeys,
+                "average_scores": self.average_scores,
+                "previous_average_scores": self.previous_average_scores,
+                "scoring_iterations": self.scoring_iterations,
+                "latest_reset_date": self.latest_reset_date,
             },
             self.config.neuron.full_path + "/state.pt",
         )
@@ -428,3 +455,11 @@ class BaseValidatorNeuron(BaseNeuron):
         self.step = state["step"]
         self.scores = state["scores"]
         self.hotkeys = state["hotkeys"]
+        if state.get("average_scores") is not None:
+            self.average_scores = state["average_scores"]
+        if state.get("previous_average_scores") is not None:
+            self.previous_average_scores = state["previous_average_scores"]
+        if state.get("scoring_iterations") is not None:
+            self.scoring_iterations = state["scoring_iterations"]
+        if state.get("latest_reset_date"):
+            self.latest_reset_date = state["latest_reset_date"]

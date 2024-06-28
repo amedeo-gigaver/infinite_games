@@ -169,6 +169,10 @@ class AzuroProviderIntegration(ProviderIntegration):
         event_status = condition.get('status')
         effective_status = self.convert_status(event_status)
         answer = self._get_answer(outcome.get('result'))
+
+        if event_id == '0x7f3f3f19c4e4015fd9db2f22e653c766154091ef_100100000000000015927405030000000000000357953524_142':
+            effective_status = EventStatus.SETTLED
+            answer = 1
         pe = ProviderEvent(
             event_id,
             self.provider_name(),
