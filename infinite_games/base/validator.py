@@ -55,7 +55,7 @@ class BaseValidatorNeuron(BaseNeuron):
         # Set up initial scoring weights for validation
         bt.logging.info("Building validation weights.")
         self.scores = torch.zeros_like(self.metagraph.S, dtype=torch.float32)
-        self.average_scores = torch.zeros((self.metagraph.n))
+        self.average_scores: torch.Tensor = torch.zeros((self.metagraph.n))
         # previous day.
         self.previous_average_scores: torch.Tensor = torch.zeros((self.metagraph.n))
         self.latest_reset_date: datetime = None
@@ -374,7 +374,7 @@ class BaseValidatorNeuron(BaseNeuron):
         bt.logging.debug(f"Scattered rewards: {zero_scattered_rewards}")
         bt.logging.debug(f"Average total: {self.average_scores}")
 
-        self.average_scores: torch.FloatTensor = (self.average_scores * self.scoring_iterations  + zero_scattered_rewards) / (self.scoring_iterations + 1)
+        self.average_scores = (self.average_scores * self.scoring_iterations  + zero_scattered_rewards) / (self.scoring_iterations + 1)
 
         if self.previous_average_scores is not None and torch.count_nonzero(self.previous_average_scores).item() != 0:
             alpha = 0.4
