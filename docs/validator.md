@@ -66,11 +66,11 @@ Install dependencies
 ```bash
 pip install -r requirements.txt
 ```
-Enable `torch`:
+<!-- Enable `torch`:
 
 ```bash
 export USE_TORCH=1
-```
+``` -->
 
 The venv should be active whenever the neurons are run.
 
