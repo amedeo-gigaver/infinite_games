@@ -326,8 +326,8 @@ class BaseValidatorNeuron(BaseNeuron):
     def reset_daily_average_scores(self):
         """Current daily average scores are fixed and saved as previous day results for further moving average calculation"""
         if not self.latest_reset_date or (self.latest_reset_date.day < datetime.now().day and self.latest_reset_date.month <= datetime.now().month):
-            bt.logging.info('Resetting daily scores')
             if datetime.now().hour > 11:
+                bt.logging.info('Resetting daily scores')
                 self.latest_reset_date = datetime.now()
                 if self.average_scores is None:
                     bt.logging.error("Do not have average scores to set for previous day!")
