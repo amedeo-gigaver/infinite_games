@@ -203,6 +203,8 @@ The following commands will be useful for the management of your miner:
 
 `pm2 restart <pid>` # restart this pic
 
+`pm2 reload <pid>` # reload this pic
+
 `pm2 stop <pid>` # stops your pid
 
 `pm2 del <pid>` # deletes your pid
