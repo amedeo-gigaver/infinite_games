@@ -463,3 +463,4 @@ class BaseValidatorNeuron(BaseNeuron):
             self.scoring_iterations = state["scoring_iterations"]
         if state.get("latest_reset_date"):
             self.latest_reset_date = state["latest_reset_date"]
+            bt.logging.info(f'Latest score reset date: {self.latest_reset_date}')
