@@ -57,7 +57,7 @@ class Validator(BaseValidatorNeuron):
             self.event_provider: EventAggregator = await EventAggregator.create(
                 state_path=self.config.neuron.full_path + '/events.pickle',
                 integrations=[
-                    AzuroProviderIntegration(max_pending_events=5),
+                    AzuroProviderIntegration(max_pending_events=6),
                     PolymarketProviderIntegration()
                 ]
             )
@@ -170,11 +170,9 @@ class Validator(BaseValidatorNeuron):
                 bt.logging.info(f'uid: {uid.item()} got prediction for events: {len(miner_submitted)}')
 
         if miners_activity:
-            pass
-            # self.send_miners_logs(miners_activity)
+            bt.logging.info("Processed miner responses.")
         else:
             bt.logging.info('No miner submissions received')
-        bt.logging.info("Processed miner responses.")
         self.blocktime += 1
         while block_start == self.block:
             await asyncio.sleep(2)

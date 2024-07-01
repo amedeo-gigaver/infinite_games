@@ -17,7 +17,7 @@
 
 
 import copy
-from datetime import datetime
+from datetime import datetime, timezone
 import os
 import pathlib
 import backoff
@@ -326,7 +326,7 @@ class BaseValidatorNeuron(BaseNeuron):
     def reset_daily_average_scores(self):
         """Current daily average scores are fixed and saved as previous day results for further moving average calculation"""
         if not self.latest_reset_date or (self.latest_reset_date.day < datetime.now().day and self.latest_reset_date.month <= datetime.now().month):
-            if datetime.now().hour > 11:
+            if datetime.now(timezone.utc).hour > 11:
                 bt.logging.info('Resetting daily scores')
                 self.latest_reset_date = datetime.now()
                 if self.average_scores is None:
@@ -339,7 +339,7 @@ class BaseValidatorNeuron(BaseNeuron):
                     self.average_scores = torch.zeros(self.metagraph.n.item())
                     bt.logging.info('Daily scores reset, previous day scores saved.')
 
-    def update_scores(self, rewards: torch.FloatTensor, uids: List[int]):
+    def update_scores(self, rewards: torch.FloatTensor, uids: torch.LongTensor):
         """Performs exponential moving average on the scores based on the rewards received from the miners."""
 
         # Check if rewards contains NaN values.
@@ -357,7 +357,7 @@ class BaseValidatorNeuron(BaseNeuron):
         # Compute forward pass rewards, assumes uids are mutually exclusive.
         # shape: [ metagraph.n ]
         scattered_scores: torch.FloatTensor = self.scores.scatter(
-            0, torch.tensor(uids).to(self.device), rewards
+            0, uids.clone().detach(), rewards
         ).to(self.device)
         bt.logging.debug(f"Scattered scores: {scattered_scores} {len(scattered_scores)}")
 
@@ -368,13 +368,13 @@ class BaseValidatorNeuron(BaseNeuron):
             self.average_scores = torch.cat([self.average_scores, all_zeros])[:total_neurons]
 
         zero_scattered_rewards = torch.zeros(total_neurons).scatter(
-            0, torch.tensor(uids), rewards
+            0, uids.clone().detach(), rewards
         )
 
         bt.logging.debug(f"Scattered rewards: {zero_scattered_rewards}")
         bt.logging.debug(f"Average total: {self.average_scores}")
 
-        self.average_scores = (self.average_scores * self.scoring_iterations  + zero_scattered_rewards) / (self.scoring_iterations + 1)
+        self.average_scores = (self.average_scores * self.scoring_iterations + zero_scattered_rewards) / (self.scoring_iterations + 1)
 
         if self.previous_average_scores is not None and torch.count_nonzero(self.previous_average_scores).item() != 0:
             alpha = 0.4
@@ -463,3 +463,4 @@ class BaseValidatorNeuron(BaseNeuron):
             self.scoring_iterations = state["scoring_iterations"]
         if state.get("latest_reset_date"):
             self.latest_reset_date = state["latest_reset_date"]
+            bt.logging.info(f'Latest score reset date: {self.latest_reset_date}')

@@ -8,6 +8,8 @@ from datetime import datetime
 import json
 from typing import Any, AsyncIterator, Callable, Dict, List, Optional, Type
 
+from infinite_games.utils.misc import split_chunks
+
 
 @dataclass
 class Submission:
@@ -90,7 +92,9 @@ class EventAggregator:
         self.state_path = state_path
         # This hook called both when refetching events from provider
         self.event_update_hook_fn: Optional[Callable[[ProviderEvent], None]] = None
-        self.listen_delay_seconds = 10
+        self.WATCH_EVENTS_DELAY = 5
+        self.COLLECTOR_WATCH_EVENTS_DELAY = 30
+        self.MAX_PROVIDER_CONCURRENT_TASKS = 5
         # loop = asyncio.get_event_loop()
         # loop.create_task(self._watch_events())
 
@@ -131,7 +135,7 @@ class EventAggregator:
             except Exception:
                 bt.logging.error('Could not pull events.. Retry..')
                 print(traceback.format_exc())
-            await asyncio.sleep(self.listen_delay_seconds)
+            await asyncio.sleep(self.COLLECTOR_WATCH_EVENTS_DELAY)
 
     async def check_event(self, event_data: ProviderEvent):
         # self.log(f'Update Event {event_data.event_id}')
@@ -155,7 +159,7 @@ class EventAggregator:
                 print(traceback.format_exc())
             # bt.logging.debug(f'Fetching done {event_id}')
             # await asyncio.sleep(2)
-            
+  
     def log(self, msg):
         bt.logging.info(f'{self.__class__.__name__} {msg}')
 
@@ -191,7 +195,11 @@ class EventAggregator:
             # self.log(f'Watching: {len(self.registered_events.items())} events')
             # self.log_upcoming(50)
             try:
-                await asyncio.gather(*[self.check_event(event_data) for _, event_data in self.registered_events.items() if event_data.status in [EventStatus.PENDING, EventStatus.SETTLED]])
+                events_chunks = split_chunks(list(self.registered_events.items()), self.MAX_PROVIDER_CONCURRENT_TASKS)
+                async for events in events_chunks:
+                    # self.log(f'Checking next {len(events)} events..')
+                    await asyncio.gather(*[self.check_event(event_data) for _, event_data in events])
+                    await asyncio.sleep(self.WATCH_EVENTS_DELAY)
             except Exception as e:
                 self.error("Failed to get event")
                 self.error(e)
@@ -199,7 +207,6 @@ class EventAggregator:
 
             self.log(f'Watching: {len(self.registered_events.items())} events')
             self.log_upcoming(50)
-            await asyncio.sleep(self.listen_delay_seconds)
 
     def event_key(self, provider_name, event_id):
         return f'{provider_name}-{event_id}'
