@@ -207,6 +207,7 @@ class EventAggregator:
 
             self.log(f'Watching: {len(self.registered_events.items())} events')
             self.log_upcoming(50)
+            await asyncio.sleep(2)
 
     def event_key(self, provider_name, event_id):
         return f'{provider_name}-{event_id}'
@@ -298,7 +299,11 @@ class EventAggregator:
         self.log('** Loading events from disk **')
         try:
             with open(self.state_path, 'rb') as f:
-                self.registered_events = pickle.load(f)
+                try:
+                    self.registered_events = pickle.load(f)
+                except EOFError as eof:
+                    self.error('**** Could not load events! Your events file might be corrupted {eof}')
+                    raise eof
             bt.logging.debug(f'****** Loaded state from disk - events: {len(self.registered_events.keys())} ******')
         except FileNotFoundError:
             bt.logging.debug("No file found, initialize empty state")
