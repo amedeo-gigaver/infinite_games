@@ -165,9 +165,9 @@ class Validator(BaseValidatorNeuron):
                 else:
                     bt.logging.warning(f'Submission received, but this event is not open for submissions miner {uid=} {event_id=} {score=}')
                     continue
-            if len(miner_submitted) > 0:
+            # if len(miner_submitted) > 0:
 
-                bt.logging.info(f'uid: {uid.item()} got prediction for events: {len(miner_submitted)}')
+            #     bt.logging.info(f'uid: {uid.item()} got prediction for events: {len(miner_submitted)}')
 
         if miners_activity:
             bt.logging.info("Processed miner responses.")
