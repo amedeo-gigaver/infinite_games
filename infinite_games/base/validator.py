@@ -367,6 +367,10 @@ class BaseValidatorNeuron(BaseNeuron):
             # extend score shape in case we have new miners
             self.average_scores = torch.cat([self.average_scores, all_zeros])[:total_neurons]
 
+        if len(self.previous_average_scores) < total_neurons:
+            # extend score shape in case we have new miners
+            self.previous_average_scores = torch.cat([self.previous_average_scores, all_zeros])[:total_neurons]
+
         zero_scattered_rewards = torch.zeros(total_neurons).scatter(
             0, uids.clone().detach(), rewards
         )
