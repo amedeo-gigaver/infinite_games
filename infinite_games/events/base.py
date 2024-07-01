@@ -318,9 +318,9 @@ class EventAggregator:
     def miner_predict(self, pe: ProviderEvent, uid: int, answer: float, blocktime: int) -> Submission:
         submission: Submission = pe.miner_predictions.get(uid)
 
-        if submission:
-            if abs(submission.answer - answer) > 0.01:
-                bt.logging.info(f'Overriding miner {uid=} submission for {pe.event_id=} from {submission.answer} to {answer}')
+        # if submission:
+        #     if abs(submission.answer - answer) > 0.01:
+        #         bt.logging.info(f'Overriding miner {uid=} submission for {pe.event_id=} from {submission.answer} to {answer}')
         new_submission = Submission(
             submitted_ts=datetime.now().timestamp(),
             answer=answer,
