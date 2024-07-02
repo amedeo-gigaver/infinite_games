@@ -21,9 +21,14 @@ jobs:
       - name: Install dependencies
         run: sudo apt-get update && sudo apt-get install -y python3-pip
 
+      - name: Add server to known hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -p 5674 95.216.148.71 >> ~/.ssh/known_hosts
+
       - name: Deploy to server
         env:
-          SSH_AUTH_SOCK: ${{ secrets.SSH_AUTH_SOCK }}
+          SSH_AUTH_SOCK: ${{ steps.ssh-agent.outputs.ssh-agent }}
         run: |
           ssh -o StrictHostKeyChecking=no root@95.216.148.71 -p 5674 << 'EOF'
             cd /root/infinite_games
@@ -32,4 +37,4 @@ jobs:
             source venv/bin/activate
             pip install -r requirements.txt
             pm2 start neurons/validator.py --name validator --interpreter python3 -- --netuid 6 --subtensor.network finney --wallet.name ckeyg --wallet.hotkey hkeyg --logging.debug --logging.trace
-          EOF 
+          EOF
