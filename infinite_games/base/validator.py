@@ -333,7 +333,6 @@ class BaseValidatorNeuron(BaseNeuron):
             if now_ts - latest_reset_ts > RESET_HOURS:
                 if datetime.now(timezone.utc).hour > 10:
                     bt.logging.info(f'Resetting daily scores: {datetime.now(timezone.utc)}')
-                    self.latest_reset_date = datetime.now()
                     if self.average_scores is None:
                         bt.logging.error("Do not have average scores to set for previous day!")
                     else:
@@ -344,6 +343,7 @@ class BaseValidatorNeuron(BaseNeuron):
                         self.scoring_iterations = 0
                         self.average_scores = torch.zeros(self.metagraph.n.item())
                         bt.logging.info('Daily scores reset, previous day scores saved.')
+                    self.latest_reset_date = datetime.now()
 
     def update_scores(self, rewards: torch.FloatTensor, uids: torch.LongTensor):
         """Performs exponential moving average on the scores based on the rewards received from the miners."""
