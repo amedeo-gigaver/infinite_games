@@ -325,19 +325,25 @@ class BaseValidatorNeuron(BaseNeuron):
 
     def reset_daily_average_scores(self):
         """Current daily average scores are fixed and saved as previous day results for further moving average calculation"""
-        if not self.latest_reset_date or (self.latest_reset_date.day < datetime.now().day and self.latest_reset_date.month <= datetime.now().month):
-            if datetime.now(timezone.utc).hour > 11:
-                bt.logging.info('Resetting daily scores')
-                self.latest_reset_date = datetime.now()
-                if self.average_scores is None:
-                    bt.logging.error("Do not have average scores to set for previous day!")
-                else:
-                    all_uids = [uid for uid in range(self.metagraph.n.item())]
-                    bt.logging.debug(f"Daily average total: {self.average_scores}")
-                    self.send_average_scores(miner_scores=list(zip(all_uids, self.average_scores.tolist(), self.scores.tolist())))
-                    self.previous_average_scores = self.average_scores.clone().detach()
-                    self.average_scores = torch.zeros(self.metagraph.n.item())
-                    bt.logging.info('Daily scores reset, previous day scores saved.')
+        if self.latest_reset_date:
+            RESET_HOURS = 60 * 60 * 24
+            latest_reset_ts = self.latest_reset_date.timestamp()
+            now_ts = datetime.now().timestamp()
+            # bt.logging.info(f'{now_ts} - {latest_reset_ts}, {now_ts - latest_reset_ts} > {RESET_HOURS}')
+            if now_ts - latest_reset_ts > RESET_HOURS:
+                if datetime.now(timezone.utc).hour > 10:
+                    bt.logging.info(f'Resetting daily scores: {datetime.now(timezone.utc)}')
+                    if self.average_scores is None:
+                        bt.logging.error("Do not have average scores to set for previous day!")
+                    else:
+                        all_uids = [uid for uid in range(self.metagraph.n.item())]
+                        bt.logging.debug(f"Daily average total: {self.average_scores}")
+                        self.send_average_scores(miner_scores=list(zip(all_uids, self.average_scores.tolist(), self.scores.tolist())))
+                        self.previous_average_scores = self.average_scores.clone().detach()
+                        self.scoring_iterations = 0
+                        self.average_scores = torch.zeros(self.metagraph.n.item())
+                        bt.logging.info('Daily scores reset, previous day scores saved.')
+                    self.latest_reset_date = datetime.now()
 
     def update_scores(self, rewards: torch.FloatTensor, uids: torch.LongTensor):
         """Performs exponential moving average on the scores based on the rewards received from the miners."""
@@ -377,8 +383,10 @@ class BaseValidatorNeuron(BaseNeuron):
 
         bt.logging.debug(f"Scattered rewards: {zero_scattered_rewards}")
         bt.logging.debug(f"Average total: {self.average_scores}")
+        bt.logging.debug(f"Daily iteration: {self.scoring_iterations}")
 
         self.average_scores = (self.average_scores * self.scoring_iterations + zero_scattered_rewards) / (self.scoring_iterations + 1)
+        bt.logging.debug(f"New Average total: {self.average_scores}")
 
         if self.previous_average_scores is not None and torch.count_nonzero(self.previous_average_scores).item() != 0:
             alpha = 0.4
@@ -393,7 +401,6 @@ class BaseValidatorNeuron(BaseNeuron):
             ) * self.scores.to(self.device)
         bt.logging.debug(f"Updated moving avg scores: {self.scores}")
 
-        bt.logging.debug(f"New Average total: {self.average_scores}")
         self.scoring_iterations += 1
 
     @backoff.on_exception(backoff.expo, Exception, max_tries=6)
