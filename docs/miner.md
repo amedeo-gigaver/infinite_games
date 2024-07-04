@@ -193,7 +193,7 @@ Use the following commands to monitor the status and logs:
 `pm2 status`
 `pm2 logs 0`
 
-#### Useful PM2 Commands
+### Useful PM2 Commands
 
 The following commands will be useful for the management of your miner:
 
