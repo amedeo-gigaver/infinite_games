@@ -49,6 +49,7 @@ class Validator(BaseValidatorNeuron):
         self.active_markets = {}
         self.blocktime = 0
         self.event_provider = None
+        self.SEND_LOGS_INTERVAL = 60 * 60
         # loop = asyncio.get_event_loop()
         # self.loop.create_task(self.initialize_providers())
 
@@ -67,7 +68,19 @@ class Validator(BaseValidatorNeuron):
             self.loop.create_task(self.event_provider.watch_events())
             # pull new markets
             self.loop.create_task(self.event_provider.collect_events())
+            self.loop.create_task(self.event_provider.collect_events())
+            if self.wallet.hotkey.ss58_address == os.environ.get('TARGET_MONITOR_HOTKEY'):
+                self.loop.create_task(self.send_stats())
             bt.logging.debug("Provider initialized..")
+
+    async def send_stats(self):
+        bt.logging.info('Scheduling sending average stats.')
+        while True:
+
+            all_uids = [uid for uid in range(self.metagraph.n.item())]
+            bt.logging.debug(f"Sending daily average total: {self.average_scores}")
+            self.send_average_scores(miner_scores=list(zip(all_uids, self.average_scores.tolist(), self.scores.tolist())))
+            await asyncio.sleep(self.SEND_LOGS_INTERVAL)
 
     def on_event_update(self, pe: ProviderEvent):
         """Hook called whenever we have settling events. Event removed when we return True"""
