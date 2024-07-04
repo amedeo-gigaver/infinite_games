@@ -33,5 +33,5 @@ jobs:
             pm2 delete validator
             source venv/bin/activate
             pip install -r requirements.txt
-            pm2 start neurons/validator.py --name validator --interpreter python3 -- --netuid 6 --subtensor.network finney --wallet.name ckeyg --wallet.hotkey hkeyg --logging.debug --logging.trace
+            pm2 start neurons/validator.py --name validator --interpreter python3 -- --netuid 6 --subtensor.network finney --wallet.name ckey --wallet.hotkey hkey --logging.debug --logging.trace
             EOF
