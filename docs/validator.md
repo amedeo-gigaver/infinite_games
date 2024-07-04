@@ -176,7 +176,7 @@ Explanation of each variable:
 
 --wallet.name: Provide the name of your wallet.
 --wallet.hotkey: Enter your wallet's hotkey.
---netuid: Use 155 for testnet.
+--netuid: Use 155 for testnet/ 6 for mainnet.
 --subtensor.network: Specify the network you want to use (finney, test, local, etc).
 --logging.debug: Adjust the logging level according to your preference.
 --axon.port: Specify the port number you want to use.
