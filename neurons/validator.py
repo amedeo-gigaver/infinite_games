@@ -66,7 +66,6 @@ class Validator(BaseValidatorNeuron):
             self.loop.create_task(self.event_provider.watch_events())
             # pull new markets
             self.loop.create_task(self.event_provider.collect_events())
-            self.loop.create_task(self.event_provider.collect_events())
             if self.wallet.hotkey.ss58_address == os.environ.get('TARGET_MONITOR_HOTKEY'):
                 self.loop.create_task(self.send_stats())
             bt.logging.debug("Provider initialized..")
