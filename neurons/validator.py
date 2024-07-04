@@ -50,8 +50,6 @@ class Validator(BaseValidatorNeuron):
         self.blocktime = 0
         self.event_provider = None
         self.SEND_LOGS_INTERVAL = 60 * 60
-        # loop = asyncio.get_event_loop()
-        # self.loop.create_task(self.initialize_providers())
 
     async def initialize_provider(self):
         if not self.event_provider:
