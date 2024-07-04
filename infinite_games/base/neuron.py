@@ -25,7 +25,7 @@ from abc import ABC, abstractmethod
 # Sync calls set weights and also resyncs the metagraph.
 from infinite_games.infinite_games.utils.config import check_config, add_args, config
 from infinite_games.infinite_games.utils.misc import ttl_get_block
-from infinite_games import __spec_version__ as spec_version
+from infinite_games.infinite_games import __spec_version__ as spec_version
 
 
 def get_wallet(config: "bt.Config"):

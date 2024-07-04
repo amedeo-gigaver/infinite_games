@@ -10,9 +10,9 @@ from gql import gql, Client
 from gql.transport.aiohttp import AIOHTTPTransport
 import websockets
 
-from infinite_games.azurodictionaries.outcomes import OUTCOMES
+from infinite_games.infinite_games.azurodictionaries.outcomes import OUTCOMES
 
-from infinite_games.events.base import (
+from infinite_games.infinite_games.events.base import (
     EventAggregator, EventStatus, ProviderEvent, ProviderIntegration
 )
 

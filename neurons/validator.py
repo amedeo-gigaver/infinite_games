@@ -27,9 +27,9 @@ import infinite_games
 
 # import base validator class which takes care of most of the boilerplate
 from infinite_games.infinite_games.base.validator import BaseValidatorNeuron
-from infinite_games.events.base import EventAggregator, EventStatus, ProviderEvent, Submission
-from infinite_games.events.azuro import AzuroProviderIntegration
-from infinite_games.events.polymarket import PolymarketProviderIntegration
+from infinite_games.infinite_games.events.base import EventAggregator, EventStatus, ProviderEvent, Submission
+from infinite_games.infinite_games.events.azuro import AzuroProviderIntegration
+from infinite_games.infinite_games.events.polymarket import PolymarketProviderIntegration
 
 
 class Validator(BaseValidatorNeuron):
