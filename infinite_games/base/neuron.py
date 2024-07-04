@@ -116,11 +116,11 @@ class BaseNeuron(ABC):
 
         if self.should_sync_metagraph():
             self.resync_metagraph()
+            bt.logging.info('Synced Metagraph..')
 
         if set_weights_enabled and self.should_set_weights():
             bt.logging.info('********* SUBMIT WEIGHTS *********')
             self.set_weights()
-
         # Initial sync should not save state
         if save_state:
             self.save_state()
