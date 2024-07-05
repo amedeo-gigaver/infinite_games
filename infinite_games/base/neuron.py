@@ -54,6 +54,7 @@ class BaseNeuron(ABC):
 
     @property
     def block(self):
+        bt.logging.info('Reading block..')
         return ttl_get_block(self)
 
     def __init__(self, config=None):
