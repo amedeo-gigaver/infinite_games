@@ -54,7 +54,6 @@ class BaseNeuron(ABC):
 
     @property
     def block(self):
-        bt.logging.info('Reading block..')
         return ttl_get_block(self)
 
     def __init__(self, config=None):
@@ -113,7 +112,9 @@ class BaseNeuron(ABC):
         Wrapper for synchronizing the state of the network for the given miner or validator.
         """
         # Ensure miner or validator hotkey is still registered on the network.
+        bt.logging.info('Check neuron registration..')
         self.check_registered()
+        bt.logging.info('Check if need to stnc metagraph...')
 
         if self.should_sync_metagraph():
             self.resync_metagraph()
