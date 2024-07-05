@@ -107,7 +107,7 @@ class Validator(BaseValidatorNeuron):
             self.update_scores(torch.FloatTensor(scores), miner_uids)
             return True
         elif pe.status == EventStatus.DISCARDED:
-            bt.logging.info('Canceled event: {pe} removing from registry!')
+            bt.logging.info(f'Canceled event: {pe} removing from registry!')
             self.event_provider.remove_event(pe)
 
         return False
