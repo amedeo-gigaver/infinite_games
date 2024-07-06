@@ -6,7 +6,7 @@
 
 
 [Discord](https://discord.gg/BWdj7SGQ) •
-[Website](https://www.infinitegam.es/) • [Twitter](https://twitter.com/Playinfgames) • [Network](https://taostats.io/) 
+[Website](https://www.infinitegam.es/) • [Twitter](https://twitter.com/Playinfgames) • [Dashboard](https://m6d.grafana.net/public-dashboards/a8b3241212064947885bd8ef4d0c2db8?orgId=1) •  [Network](https://taostats.io/) 
 
 ---
 
