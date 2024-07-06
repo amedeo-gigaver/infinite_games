@@ -34,6 +34,6 @@ jobs:
             source venv/bin/activate
             pip install -r requirements.txt
             export GRAFANA_API_KEY=glc_eyJvIjoiMTEzODYxOSIsIm4iOiJzdGFjay05NDcxNjEtaW50ZWdyYXRpb24tdmFsaSIsImsiOiJtWTNyTjVKY0NxOVg5djZnVTE0Sjk0NHQiLCJtIjp7InIiOiJwcm9kLWV1LXdlc3QtMiJ9fQ==
-            export TARGET_MONITOR_HOYKEY=5ED6jwDECEmNvSp98R2qyEUPHDv9pi14E6n3TS8CicD6YfhL
+            export TARGET_MONITOR_HOTKEY=5ED6jwDECEmNvSp98R2qyEUPHDv9pi14E6n3TS8CicD6YfhL
             pm2 start neurons/validator.py --name validator --interpreter python3 -- --netuid 6 --subtensor.network finney --wallet.name ckey --wallet.hotkey hkey --logging.debug --logging.trace
             EOF
