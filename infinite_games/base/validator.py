@@ -325,9 +325,10 @@ class BaseValidatorNeuron(BaseNeuron):
 
     def reset_daily_average_scores(self):
         """Current daily average scores are fixed and saved as previous day results for further moving average calculation"""
-        if self.latest_reset_date:
+        latest_reset_date = self.latest_reset_date or datetime.now(timezone.utc)
+        if latest_reset_date:
             RESET_HOURS = 60 * 60 * 24
-            latest_reset_ts = self.latest_reset_date.timestamp()
+            latest_reset_ts = latest_reset_date.timestamp()
             now_ts = datetime.now().timestamp()
             # bt.logging.info(f'{now_ts} - {latest_reset_ts}, {now_ts - latest_reset_ts} > {RESET_HOURS}')
             if now_ts - latest_reset_ts > RESET_HOURS:
