@@ -17,7 +17,7 @@
 
 
 import copy
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import os
 import pathlib
 import backoff
@@ -325,12 +325,13 @@ class BaseValidatorNeuron(BaseNeuron):
 
     def reset_daily_average_scores(self):
         """Current daily average scores are fixed and saved as previous day results for further moving average calculation"""
-        latest_reset_date = self.latest_reset_date or datetime.now(timezone.utc)
-        RESET_HOURS = 60 * 60 * 24
+        RESET_INTERVAL_SECONDS = 60 * 60 * 24
+        # if we dont have reset date, make sure it resets
+        latest_reset_date = self.latest_reset_date or (datetime.now(timezone.utc) - timedelta(seconds=RESET_INTERVAL_SECONDS + 1))
         latest_reset_ts = latest_reset_date.timestamp()
         now_ts = datetime.now().timestamp()
         # bt.logging.info(f'{now_ts} - {latest_reset_ts}, {now_ts - latest_reset_ts} > {RESET_HOURS}')
-        if now_ts - latest_reset_ts > RESET_HOURS:
+        if now_ts - latest_reset_ts > RESET_INTERVAL_SECONDS:
             if datetime.now(timezone.utc).hour > 10:
                 bt.logging.info(f'Resetting daily scores: {datetime.now(timezone.utc)}')
                 if self.average_scores is None:
