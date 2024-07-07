@@ -21,12 +21,14 @@ import torch
 import unittest
 import bittensor as bt
 
-from infinite_games.neurons.validator import Validator
+from neurons.validator import Validator
 from bittensor.mock import wallet_mock
 from bittensor.mock.wallet_mock import MockWallet
 
-class TemplateValidatorNeuronTestCase:
+
+class TestTemplateValidatorNeuronTestCase:
 
     def test_validator_forward(self, mock_network):
-        
+        wallet, subtensor = mock_network
+        # subtensor = 
         Validator()

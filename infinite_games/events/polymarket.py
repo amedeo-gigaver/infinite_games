@@ -7,7 +7,7 @@ import asyncio
 from datetime import datetime, timedelta
 import requests
 
-from infinite_games.infinite_games.events.base import EventStatus, ProviderEvent, ProviderIntegration
+from infinite_games.events.base import EventStatus, ProviderEvent, ProviderIntegration
 
 
 class PolymarketProviderIntegration(ProviderIntegration):
