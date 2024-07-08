@@ -11,11 +11,11 @@ import bittensor as bt
 bt.debug(True)
 
 
-@fixture
-def event_loop():
-    loop = asyncio.get_event_loop()
-    yield loop
-    loop.close()
+# @fixture
+# def event_loop():
+#     loop = asyncio.get_event_loop()
+#     yield loop
+#     loop.close()
 
 
 @fixture(scope='session')

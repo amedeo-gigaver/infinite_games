@@ -71,7 +71,7 @@ class TestTemplateValidatorNeuronTestCase:
         assert 'Provider initialized..' in caplog.text, 'Event Provider has to be initialized!'
         assert 'Event for submission: 0' in caplog.text, 'There should be no events initially!'
         assert 'EventAggregator Start watcher...' in caplog.text, 'Event watcher should be started'
-        assert 'No miner submissions received' in caplog.text, 'There should not be any miner submissions!'
+        assert 'Processed miner responses.' not in caplog.text, 'There should not be any miner submissions!'
         v.stop_run_thread()
         assert v.event_provider
         assert v.event_provider.integrations
