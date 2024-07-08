@@ -75,7 +75,7 @@ class TestTemplateValidatorNeuronTestCase:
         v.stop_run_thread()
         assert v.event_provider
         assert v.event_provider.integrations
-        assert len(v.event_provider.registered_events) > 0
+        assert len(v.event_provider.registered_events) == 0
 
     async def test_validator_settled_event_scores(self, mock_network, caplog, monkeypatch, disable_event_updates):
         wallet, subtensor = mock_network
