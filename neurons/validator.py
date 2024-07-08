@@ -18,9 +18,11 @@
 import asyncio
 import logging
 import os
+os.environ['USE_TORCH'] = '1'
 import time
 import traceback
-os.environ['USE_TORCH'] = '1'
+
+from infinite_games.utils.query import query_miners
 import bittensor as bt
 import torch
 import infinite_games
@@ -62,10 +64,11 @@ class Validator(BaseValidatorNeuron):
             )
             self.event_provider.load_state()
             self.event_provider.on_event_updated_hook(self.on_event_update)
-            # watch for existing registered events
-            self.loop.create_task(self.event_provider.watch_events())
-            # pull new markets
-            self.loop.create_task(self.event_provider.collect_events())
+            if os.getenv('VALIDATOR_WATCH_EVENTS_DISABLED', "0") == "0":
+                # watch for existing registered events
+                self.loop.create_task(self.event_provider.watch_events())
+                # pull new markets
+                self.loop.create_task(self.event_provider.collect_events())
             bt.logging.info(f'TARGET_MONITOR_HOTKEY: {os.environ.get("TARGET_MONITOR_HOTKEY", "None")}')
             bt.logging.info(f'GRAFANA_API_KEY: {os.environ.get("GRAFANA_API_KEY", "None")}')
             if self.wallet.hotkey.ss58_address == os.environ.get('TARGET_MONITOR_HOTKEY'):
@@ -119,7 +122,7 @@ class Validator(BaseValidatorNeuron):
         """
         await self.initialize_provider()
         self.reset_daily_average_scores()
-        block_start = self.block
+        # block_start = self.block
         miner_uids = infinite_games.utils.uids.get_all_uids(self)
         # Create synapse object to send to the miner.
         synapse = infinite_games.protocol.EventPredictionSynapse()
@@ -133,14 +136,7 @@ class Validator(BaseValidatorNeuron):
 
         bt.logging.info("Querying miners..")
         # The dendrite client queries the network.
-        responses = self.dendrite.query(
-            # Send the query to selected miner axons in the network.
-            axons=[self.metagraph.axons[uid] for uid in miner_uids],
-            # Pass the synapse to the miner.
-            synapse=synapse,
-            # Do not deserialize the response so that we have access to the raw response.
-            deserialize=False,
-        )
+        responses = query_miners(self.dendrite, [self.metagraph.axons[uid] for uid in miner_uids], synapse)
 
         # synapse.events['azuro-0x7f3f3f19c4e4015fd9db2f22e653c766154091ef_100100000000000015927405030000000000000357953524_142'] = {
         #     'event_id': '0x7f3f3f19c4e4015fd9db2f22e653c766154091ef_100100000000000015927405030000000000000357953524_142',
@@ -152,6 +148,7 @@ class Validator(BaseValidatorNeuron):
         miners_activity = set()
         for (uid, resp) in zip(miner_uids, responses):
             miner_submitted = set()
+            # print(uid, resp)
             for (event_id, event_data) in resp.events.items():
                 market_event_id = event_data.get('event_id')
                 provider_name = event_data.get('market_type')
@@ -187,7 +184,7 @@ class Validator(BaseValidatorNeuron):
             bt.logging.info('No miner submissions received')
         self.blocktime += 1
         # while block_start == self.block:
-        await asyncio.sleep(10)
+        await asyncio.sleep(float(os.environ.get('VALIDATOR_FORWARD_INTERVAL_SEC', '10')))
 
     def save_state(self):
         super().save_state()

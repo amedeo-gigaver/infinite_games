@@ -41,7 +41,7 @@ def check_config(cls, config: "bt.Config"):
     if not os.path.exists(config.neuron.full_path):
         os.makedirs(config.neuron.full_path, exist_ok=True)
 
-    if not config.neuron.dont_save_events:
+    if not config.neuron.dont_save_events and os.environ.get('ENV') != 'pytest':
         # Add custom event logger for the events.
         logger.level("EVENTS", no=38, icon="📝")
         logger.add(
@@ -121,7 +121,7 @@ def add_args(cls, parser):
             "--neuron.disable_set_weights",
             action="store_true",
             help="Disables setting weights.",
-            default=os.getenv("NEURON_DISABLE_SET_WEIGHTS", "1") == "1",
+            default=os.getenv("NEURON_DISABLE_SET_WEIGHTS", "0") == "1",
         )
 
         parser.add_argument(

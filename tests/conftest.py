@@ -1,17 +1,74 @@
+import asyncio
 import os
 
-os.environ['NEUTUID'] = "155"
-from bittensor.mock.wallet_mock import MockWallet
+from bittensor.mock.wallet_mock import MockWallet, get_mock_wallet
 from bittensor.mock import MockSubtensor
 from pytest import fixture
+import shutil
+
+import bittensor as bt
+
+bt.debug(True)
 
 
 @fixture
-def mock_network(monkeypatch):
-    w = MockWallet()
+def event_loop():
+    loop = asyncio.get_event_loop()
+    yield loop
+    loop.close()
+
+
+@fixture(scope='session')
+def netuid():
+    try:
+        netuid = int(os.environ.get('NETUID'))
+        if netuid < 255:
+            raise Exception('Please set netuid higher than 255')
+    except ValueError:
+        raise Exception('Environment variable NETUID should be set as integer > 255')
+    return netuid
+
+
+@fixture(scope='session')
+def test_network(netuid):
+    w = get_mock_wallet()
     s = MockSubtensor()
-    s.create_subnet(155)
-    monkeypatch.setattr('infinite_games.base.neuron.get_wallet', lambda a: w)
-    monkeypatch.setattr('infinite_games.base.neuron.get_subtensor', lambda a: s)
+    s.create_subnet(netuid)
+    uid = s.force_register_neuron(netuid, w.hotkey.ss58_address, w.coldkey.ss58_address, 20, 20)
+    print(f'Main neuron {w.hotkey.ss58_address} registered')
+    assert uid is not None, f'Failed to register {w} in {netuid}'
+    remaining_wallets = [get_mock_wallet() for uid in range(1, 256)]
+    for w in remaining_wallets:
+        uid = s.force_register_neuron(netuid, w.hotkey.ss58_address, w.coldkey.ss58_address, 20, 20)
+    print('All subnet neurons registered')
 
     yield w, s
+
+
+@fixture
+def mock_network(monkeypatch, test_network, netuid):
+    w, s = test_network
+    monkeypatch.setattr('infinite_games.base.neuron.get_wallet', lambda a: w)
+    monkeypatch.setattr('infinite_games.base.neuron.get_subtensor', lambda a: s)
+    neuron_path = os.path.expanduser(
+        "{}/{}/{}/netuid{}/{}".format(
+            '~/.bittensor/miners',  # TODO: change from ~/.bittensor/miners to ~/.bittensor/neurons
+            'default',
+            'default',
+            netuid,
+            'validator',
+        )
+    )
+    print('Reset neuron path: ', neuron_path)
+    try:
+        shutil.rmtree(neuron_path)
+    except FileNotFoundError:
+        pass
+    yield w, s
+
+
+@fixture
+def disable_event_updates():
+    os.environ['VALIDATOR_WATCH_EVENTS_DISABLED'] = '1'
+    yield
+    os.environ['VALIDATOR_WATCH_EVENTS_DISABLED'] = '0'

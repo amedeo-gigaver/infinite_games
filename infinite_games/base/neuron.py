@@ -84,11 +84,11 @@ class BaseNeuron(ABC):
         bt.logging.info("Setting up bittensor objects.")
 
         # The wallet holds the cryptographic key pairs for the miner.
-        self.wallet = get_wallet(config)
-        bt.logging.info(f"Wallet: {self.wallet}")
+        self.wallet = get_wallet(self.config)
+        bt.logging.info(f"Wallet: {self.wallet} {self.wallet.hotkey.ss58_address}")
 
         # The subtensor is our connection to the Bittensor blockchain.
-        self.subtensor = get_subtensor(config)
+        self.subtensor = get_subtensor(self.config)
         bt.logging.info(f"Subtensor: {self.subtensor}")
 
         # The metagraph holds the state of the network, letting us know about other validators and miners.

@@ -213,7 +213,7 @@ class BaseValidatorNeuron(BaseNeuron):
         """
         if self.is_running:
             bt.logging.debug("Stopping validator in background thread.")
-            self.wandb_run.finish()
+            # self.wandb_run.finish()
             self.should_exit = True
             self.thread.join(5)
             self.is_running = False
@@ -384,13 +384,13 @@ class BaseValidatorNeuron(BaseNeuron):
 
         bt.logging.debug(f"Scattered rewards: {zero_scattered_rewards}")
         bt.logging.debug(f"Average total: {self.average_scores}")
-        bt.logging.debug(f"Daily iteration: {self.scoring_iterations}")
+        bt.logging.debug(f"Daily iteration: {self.scoring_iterations + 1}")
 
         self.average_scores = (self.average_scores * self.scoring_iterations + zero_scattered_rewards) / (self.scoring_iterations + 1)
         bt.logging.debug(f"New Average total: {self.average_scores}")
 
+        alpha = 0.4
         if self.previous_average_scores is not None and torch.count_nonzero(self.previous_average_scores).item() != 0:
-            alpha = 0.4
             bt.logging.info('Recalculate moving average based on previous day')
             self.scores: torch.FloatTensor = alpha * self.average_scores + (
                 1 - alpha
