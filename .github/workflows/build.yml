@@ -1,4 +1,4 @@
-name: Deploy to Server
+name: Build
 
 on:
   pull_request:
