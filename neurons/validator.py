@@ -186,8 +186,8 @@ class Validator(BaseValidatorNeuron):
         else:
             bt.logging.info('No miner submissions received')
         self.blocktime += 1
-        # while block_start == self.block:
-        await asyncio.sleep(10)
+        while block_start == self.block:
+            await asyncio.sleep(10)
 
     def save_state(self):
         super().save_state()
