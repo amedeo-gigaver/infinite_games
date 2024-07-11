@@ -132,7 +132,8 @@ class EventAggregator:
             try:
                 tasks = [self._sync_provider(integration) for _, integration in self.integrations.items()]
                 await asyncio.gather(*tasks)
-            except Exception:
+            except Exception as e:
+                bt.logging.error(e)
                 bt.logging.error('Could not pull events.. Retry..')
                 print(traceback.format_exc())
             await asyncio.sleep(self.COLLECTOR_WATCH_EVENTS_DELAY)
