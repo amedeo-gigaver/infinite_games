@@ -161,15 +161,16 @@ class Validator(BaseValidatorNeuron):
                 market_event_id = event_data.get('event_id')
                 provider_name = event_data.get('market_type')
                 score = event_data.get('probability')
-                bt.logging.debug(f'Got miner submission {uid=} {event_id=}')
-                # if uid != 4:
-                #     continue
-                if not score:
-                    # bt.logging.debug(f'uid: {uid.item()} no prediction for {event_id} sent, skip..')
-                    continue
+
                 provider_event = self.event_provider.get_registered_event(provider_name, market_event_id)
+                bt.logging.debug(f'Got miner submission {uid=} {event_id=} {score is None} {provider_event}')
                 if not provider_event:
                     # bt.logging.warning(f'Miner submission for non registered event detected  {uid=} {provider_name=} {market_event_id=}')
+                    continue
+                # if uid != 4:
+                #     continue
+                if score is None:
+                    # bt.logging.debug(f'uid: {uid.item()} no prediction for {event_id} sent, skip..')
                     continue
                 integration = self.event_provider.integrations.get(provider_event.market_type)
                 if not integration:
