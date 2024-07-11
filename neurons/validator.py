@@ -86,15 +86,20 @@ class Validator(BaseValidatorNeuron):
         if pe.status == EventStatus.SETTLED:
             bt.logging.info(f'Settled event: {pe} {pe.description[:100]} answer: {pe.answer}')
             miner_uids = infinite_games.utils.uids.get_all_uids(self)
-            bt.logging.info(f'Miners to update: {len(miner_uids)} from {self.metagraph.n.item()}')
             correct_ans = pe.answer
             if correct_ans is None:
                 bt.logging.info(f"Unknown answer for event, discarding : {pe}")
                 return True
 
+            predictions = pe.miner_predictions
             scores = []
+            if not predictions:
+                bt.logging.warning(f"No predictions for {pe} skipping..")
+                return True
+
+            bt.logging.info(f'Miners to update: {len(miner_uids)} submissions: {len(predictions.keys())} from {self.metagraph.n.item()}')
             for uid in miner_uids:
-                submission: Submission = (pe.miner_predictions or {}).get(uid.item())
+                submission: Submission = predictions.get(uid.item())
                 ans = None
                 if submission:
                     ans = submission.answer
