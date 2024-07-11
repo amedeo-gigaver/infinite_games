@@ -94,7 +94,7 @@ class EventAggregator:
         self.event_update_hook_fn: Optional[Callable[[ProviderEvent], None]] = None
         self.WATCH_EVENTS_DELAY = 5
         self.COLLECTOR_WATCH_EVENTS_DELAY = 30
-        self.MAX_PROVIDER_CONCURRENT_TASKS = 5
+        self.MAX_PROVIDER_CONCURRENT_TASKS = 3
         # loop = asyncio.get_event_loop()
         # loop.create_task(self._watch_events())
 
