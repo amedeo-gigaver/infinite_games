@@ -163,7 +163,7 @@ class Validator(BaseValidatorNeuron):
                 score = event_data.get('probability')
 
                 provider_event = self.event_provider.get_registered_event(provider_name, market_event_id)
-                bt.logging.debug(f'Got miner submission {uid=} {event_id=} {score is None} {provider_event}')
+                # bt.logging.debug(f'Got miner submission {uid=} {event_id=} {score is None} {provider_event}')
                 if not provider_event:
                     # bt.logging.warning(f'Miner submission for non registered event detected  {uid=} {provider_name=} {market_event_id=}')
                     continue
@@ -185,7 +185,7 @@ class Validator(BaseValidatorNeuron):
                     continue
             # if len(miner_submitted) > 0:
 
-            bt.logging.info(f'uid: {uid.item()} got prediction for events: {len(miner_submitted)}')
+            # bt.logging.info(f'uid: {uid.item()} got prediction for events: {len(miner_submitted)}')
 
         if miners_activity:
             bt.logging.info("Processed miner responses.")
