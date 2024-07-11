@@ -174,16 +174,16 @@ class PolymarketProviderIntegration(ProviderIntegration):
             if first:
                 try:
                     resp = await self._request("https://clob.polymarket.com/sampling-markets")
+                    nxt = resp
+                    first = False
                 except Exception as e:
                     self.error(str(e))
-                nxt = resp
-                first = False
             else:
                 try:
                     resp = await self._request("https://clob.polymarket.com/sampling-markets?next_cursor={}".format(cursor))
+                    nxt = resp
                 except Exception as e:
                     self.error(str(e))
-                nxt = resp
 
             if resp:
 
