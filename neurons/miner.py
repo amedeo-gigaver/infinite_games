@@ -102,6 +102,7 @@ class Miner(BaseMinerNeuron):
             if cached_market is not None:
                 if cached_market.status == MinerCacheStatus.COMPLETED:
                     market["probability"] = cached_market.event.probability
+                    bt.logging.info("{} Assign cache {} prob to polymarket event {}".format(synapse.dendrite.hotkey, market.event.probability, market.event.event_id))
             else:
                 new_market = MinerCacheObject.init_from_market(market)
                 await self.cache.add(cid, self._generate_prediction, new_market)
@@ -143,12 +144,12 @@ class Miner(BaseMinerNeuron):
         # TODO(developer): Define how miners should blacklist requests.
         if synapse.dendrite.hotkey not in self.metagraph.hotkeys:
             # Ignore requests from unrecognized entities.
-            bt.logging.trace(
+            bt.logging.debug(
                 f"Blacklisting unrecognized hotkey {synapse.dendrite.hotkey}"
             )
             return True, "Unrecognized hotkey"
 
-        bt.logging.trace(
+        bt.logging.debug(
             f"Not Blacklisting recognized hotkey {synapse.dendrite.hotkey}"
         )
         return False, "Hotkey recognized!"
@@ -180,7 +181,7 @@ class Miner(BaseMinerNeuron):
         prirority = float(
             self.metagraph.S[caller_uid]
         )  # Return the stake as the priority.
-        bt.logging.trace(
+        bt.logging.debug(
             f"Prioritizing {synapse.dendrite.hotkey} with value: ", prirority
         )
         return prirority

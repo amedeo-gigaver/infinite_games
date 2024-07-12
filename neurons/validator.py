@@ -145,6 +145,7 @@ class Validator(BaseValidatorNeuron):
             synapse=synapse,
             # Do not deserialize the response so that we have access to the raw response.
             deserialize=False,
+            # timeout=40
         )
 
         # synapse.events['azuro-0x7f3f3f19c4e4015fd9db2f22e653c766154091ef_100100000000000015927405030000000000000357953524_142'] = {
@@ -204,6 +205,7 @@ class Validator(BaseValidatorNeuron):
 
 # The main function parses the configuration and runs the validator.
 bt.debug(True)
+bt.trace(True)
 if __name__ == "__main__":
     with Validator() as validator:
         while True:
