@@ -172,7 +172,6 @@ class Validator(BaseValidatorNeuron):
                 if score is None:
                     # bt.logging.debug(f'uid: {uid.item()} no prediction for {event_id} sent, skip..')
                     continue
-                bt.logging.debug(f'Got miner submission {uid=} {event_id=} {score is not None} {provider_event}')
                 integration = self.event_provider.integrations.get(provider_event.market_type)
                 if not integration:
                     bt.logging.error(f'No integration found to register miner submission {uid=} {event_id=} {score=}')
@@ -205,7 +204,7 @@ class Validator(BaseValidatorNeuron):
 
 # The main function parses the configuration and runs the validator.
 bt.debug(True)
-bt.trace(True)
+# bt.trace(True)
 if __name__ == "__main__":
     with Validator() as validator:
         while True:
