@@ -133,8 +133,8 @@ class Validator(BaseValidatorNeuron):
         synapse.init(events_available_for_submission)
         # print("Synapse body hash", synapse.computed_body_hash)
         bt.logging.info(f'Axons: {len(self.metagraph.axons)}')
-        for axon in self.metagraph.axons:
-            bt.logging.info(f'IP: {axon.ip}, hotkey id: {axon.hotkey}')
+        # for axon in self.metagraph.axons:
+        #     bt.logging.info(f'IP: {axon.ip}, hotkey id: {axon.hotkey}')
 
         bt.logging.info("Querying miners..")
         # The dendrite client queries the network.
