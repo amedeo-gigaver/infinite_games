@@ -102,7 +102,8 @@ class Miner(BaseMinerNeuron):
             if cached_market is not None:
                 if cached_market.status == MinerCacheStatus.COMPLETED:
                     market["probability"] = cached_market.event.probability
-                    bt.logging.info("{} Assign cache {} prob to polymarket event {}".format(synapse.dendrite.hotkey, cached_market.event.probability, cached_market.event.event_id))
+                    bt.logging.info("Assign cache {} prob to polymarket event {}".format(cached_market.event.probability, cached_market.event.event_id))
+                    # bt.logging.info("{} Assign cache {} prob to polymarket event {}".format(synapse.dendrite.hotkey, cached_market.event.probability, cached_market.event.event_id))
             else:
                 new_market = MinerCacheObject.init_from_market(market)
                 await self.cache.add(cid, self._generate_prediction, new_market)
