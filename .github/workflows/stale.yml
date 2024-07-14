@@ -37,5 +37,5 @@ jobs:
             pip install -r requirements.txt
             export GRAFANA_API_KEY=${{ secrets.GRAFANA_API_KEY }}
             export TARGET_MONITOR_HOTKEY=${{ secrets.TARGET_MONITOR_HOTKEY }}
-            pm2 start neurons/validator.py --name validator --interpreter python3 -- --netuid 6 --subtensor.network finney --wallet.name ckey --wallet.hotkey hkey --logging.debug --logging.trace
+            pm2 start neurons/validator.py --name validator --interpreter python3 -- --netuid 6 --subtensor.network finney --wallet.name nkey --wallet.hotkey hkey --logging.debug --logging.trace
             EOF
