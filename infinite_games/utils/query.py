@@ -20,6 +20,6 @@ def query_miners(
         synapse=synapse,
         # Do not deserialize the response so that we have access to the raw response.
         deserialize=False,
-        timeout=float(os.environ.get('QUERY_TIMEOUT_SEC', '12.0'))
+        timeout=float(os.environ.get('QUERY_TIMEOUT_SEC', '60'))
     )
     return responses
