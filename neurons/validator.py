@@ -127,7 +127,7 @@ class Validator(BaseValidatorNeuron):
         """
         await self.initialize_provider()
         self.reset_daily_average_scores()
-        # block_start = self.block
+        block_start = self.block
         miner_uids = infinite_games.utils.uids.get_all_uids(self)
         # Create synapse object to send to the miner.
         synapse = infinite_games.protocol.EventPredictionSynapse()
