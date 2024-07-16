@@ -41,7 +41,7 @@ def check_config(cls, config: "bt.Config"):
     if not os.path.exists(config.neuron.full_path):
         os.makedirs(config.neuron.full_path, exist_ok=True)
 
-    if not config.neuron.dont_save_events:
+    if not config.neuron.dont_save_events and os.environ.get('ENV') != 'pytest':
         # Add custom event logger for the events.
         logger.level("EVENTS", no=38, icon="📝")
         logger.add(
@@ -61,7 +61,7 @@ def add_args(cls, parser):
     Adds relevant arguments to the parser for operation.
     """
     # Netuid Arg: The netuid of the subnet to connect to.
-    parser.add_argument("--netuid", type=int, help="Subnet netuid", default=1)
+    parser.add_argument("--netuid", type=int, help="Subnet netuid", default=os.getenv("NETUID", 1))
 
     neuron_type = (
         "validator" if "miner" not in cls.__name__.lower() else "miner"
@@ -121,14 +121,14 @@ def add_args(cls, parser):
             "--neuron.disable_set_weights",
             action="store_true",
             help="Disables setting weights.",
-            default=False,
+            default=os.getenv("NEURON_DISABLE_SET_WEIGHTS", "0") == "1",
         )
 
         parser.add_argument(
             "--neuron.moving_average_alpha",
             type=float,
             help="Moving average alpha parameter, how much to add of the new observation.",
-            default=0.05,
+            default=float(os.getenv("NEURON_MOVING_AVERAGE_ALPHA", 0.05)),
         )
 
         parser.add_argument(
@@ -138,7 +138,7 @@ def add_args(cls, parser):
             # Note: the validator needs to serve an Axon with their IP or they may
             #   be blacklisted by the firewall of serving peers on the network.
             help="Set this flag to not attempt to serve an Axon.",
-            default=False,
+            default=os.getenv("NEURON_AXON_OFF", "0") == "1",
         )
 
         parser.add_argument(

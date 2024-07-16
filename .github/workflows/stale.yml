@@ -19,6 +19,12 @@ jobs:
       - name: Create .ssh directory
         run: mkdir -p ~/.ssh
 
+      - name: Install packages
+        run: pip install -r requirements_dev.txt
+
+      - name: Tests
+        run: pytest
+
       - name: Deploy to server
         env:
           SSH_AUTH_SOCK: /tmp/ssh_agent.sock
