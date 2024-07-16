@@ -134,13 +134,14 @@ class PolymarketProviderIntegration(ProviderIntegration):
         while self.lock.locked():
             await asyncio.sleep(1)
         retried = 0
-
+        error_response = ''
         while retried < max_retries:
             # to keep up/better sync with lock of other requests
             await asyncio.sleep(0.1)
             try:
                 async with self.session.get(url) as resp:
                     if resp.status != 200:
+                        error_response = resp.content
                         if retried >= max_retries:
                             return
                         if resp.status == 429:
@@ -151,6 +152,7 @@ class PolymarketProviderIntegration(ProviderIntegration):
                         payload = await resp.json()
                         return payload
             except Exception as e:
+                error_response = str(e)
                 if retried >= max_retries:
                     self.error(e)
                     # return
@@ -159,7 +161,7 @@ class PolymarketProviderIntegration(ProviderIntegration):
                 retried += 1
                 await asyncio.sleep(1 + retried * expo_backoff)
 
-        self.error(f'Unable to get response {url}')
+        self.error(f'Unable to get response {url} {error_response}')
 
     async def sync_events(self, start_from: int = None) -> AsyncIterator[ProviderEvent]:
         self.log(f"syncing events {start_from=} ")
@@ -174,16 +176,16 @@ class PolymarketProviderIntegration(ProviderIntegration):
             if first:
                 try:
                     resp = await self._request("https://clob.polymarket.com/sampling-markets")
+                    nxt = resp
+                    first = False
                 except Exception as e:
                     self.error(str(e))
-                nxt = resp
-                first = False
             else:
                 try:
                     resp = await self._request("https://clob.polymarket.com/sampling-markets?next_cursor={}".format(cursor))
+                    nxt = resp
                 except Exception as e:
                     self.error(str(e))
-                nxt = resp
 
             if resp:
 

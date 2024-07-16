@@ -89,15 +89,20 @@ class Validator(BaseValidatorNeuron):
         if pe.status == EventStatus.SETTLED:
             bt.logging.info(f'Settled event: {pe} {pe.description[:100]} answer: {pe.answer}')
             miner_uids = infinite_games.utils.uids.get_all_uids(self)
-            bt.logging.info(f'Miners to update: {len(miner_uids)} from {self.metagraph.n.item()}')
             correct_ans = pe.answer
             if correct_ans is None:
                 bt.logging.info(f"Unknown answer for event, discarding : {pe}")
                 return True
 
+            predictions = pe.miner_predictions
             scores = []
+            if not predictions:
+                bt.logging.warning(f"No predictions for {pe} skipping..")
+                return True
+
+            bt.logging.info(f'Miners to update: {len(miner_uids)} submissions: {len(predictions.keys())} from {self.metagraph.n.item()}')
             for uid in miner_uids:
-                submission: Submission = (pe.miner_predictions or {}).get(uid.item())
+                submission: Submission = predictions.get(uid.item())
                 ans = None
                 if submission:
                     ans = submission.answer
@@ -153,17 +158,17 @@ class Validator(BaseValidatorNeuron):
                 market_event_id = event_data.get('event_id')
                 provider_name = event_data.get('market_type')
                 score = event_data.get('probability')
-                # if uid != 4:
-                #     continue
-                if not score:
-                    # bt.logging.debug(f'uid: {uid.item()} no prediction for {event_id} sent, skip..')
-                    continue
+
                 provider_event = self.event_provider.get_registered_event(provider_name, market_event_id)
                 if not provider_event:
                     # bt.logging.warning(f'Miner submission for non registered event detected  {uid=} {provider_name=} {market_event_id=}')
                     continue
+                # if uid != 4:
+                #     continue
+                if score is None:
+                    # bt.logging.debug(f'uid: {uid.item()} no prediction for {event_id} sent, skip..')
+                    continue
                 integration = self.event_provider.integrations.get(provider_event.market_type)
-                # bt.logging.debug(f'Got miner submission {uid=} {event_id=} {score=}')
                 if not integration:
                     bt.logging.error(f'No integration found to register miner submission {uid=} {event_id=} {score=}')
                     continue
@@ -172,19 +177,19 @@ class Validator(BaseValidatorNeuron):
                     miner_submitted.add(event_id)
                     self.event_provider.miner_predict(provider_event, uid.item(), score, self.block)
                 else:
-                    bt.logging.warning(f'Submission received, but this event is not open for submissions miner {uid=} {event_id=} {score=}')
+                    # bt.logging.warning(f'Submission received, but this event is not open for submissions miner {uid=} {event_id=} {score=}')
                     continue
             # if len(miner_submitted) > 0:
 
-            #     bt.logging.info(f'uid: {uid.item()} got prediction for events: {len(miner_submitted)}')
+            # bt.logging.info(f'uid: {uid.item()} got prediction for events: {len(miner_submitted)}')
 
         if miners_activity:
             bt.logging.info("Processed miner responses.")
         else:
             bt.logging.info('No miner submissions received')
         self.blocktime += 1
-        # while block_start == self.block:
-        await asyncio.sleep(float(os.environ.get('VALIDATOR_FORWARD_INTERVAL_SEC', '10')))
+        while block_start == self.block:
+            await asyncio.sleep(float(os.environ.get('VALIDATOR_FORWARD_INTERVAL_SEC', '10')))
 
     def save_state(self):
         super().save_state()
@@ -195,6 +200,7 @@ class Validator(BaseValidatorNeuron):
 
 # The main function parses the configuration and runs the validator.
 bt.debug(True)
+# bt.trace(True)
 if __name__ == "__main__":
     with Validator() as validator:
         while True:

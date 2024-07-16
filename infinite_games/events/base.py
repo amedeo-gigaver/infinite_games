@@ -94,7 +94,7 @@ class EventAggregator:
         self.event_update_hook_fn: Optional[Callable[[ProviderEvent], None]] = None
         self.WATCH_EVENTS_DELAY = 5
         self.COLLECTOR_WATCH_EVENTS_DELAY = 30
-        self.MAX_PROVIDER_CONCURRENT_TASKS = 5
+        self.MAX_PROVIDER_CONCURRENT_TASKS = 3
         # loop = asyncio.get_event_loop()
         # loop.create_task(self._watch_events())
 
@@ -132,7 +132,8 @@ class EventAggregator:
             try:
                 tasks = [self._sync_provider(integration) for _, integration in self.integrations.items()]
                 await asyncio.gather(*tasks)
-            except Exception:
+            except Exception as e:
+                bt.logging.error(e)
                 bt.logging.error('Could not pull events.. Retry..')
                 print(traceback.format_exc())
             await asyncio.sleep(self.COLLECTOR_WATCH_EVENTS_DELAY)
@@ -186,6 +187,14 @@ class EventAggregator:
                 time_msg = f'resolve: {event.resolve_date}' if event.resolve_date else f'starts: {event.starts}'
                 self.log(f'#{i + 1} : {event.description[:100]}  {time_msg} status: {event.status} {event.event_id}')
 
+    def log_submission_status(self, n):
+        self.log(f'*** (Submissions) {n} events ***')
+        sooner_events = self.get_upcoming_events(n)
+        if sooner_events:
+            for i, event in enumerate(sooner_events):
+                miner_uids = list(event.miner_predictions.keys())
+                self.log(f'#{i + 1} : {event.description[:100]} submissions: {len(miner_uids)} {miner_uids}')
+
     async def watch_events(self):
         """In base implementation we try to update/check each registered event via get_single_event"""
         self.log("Start watcher...")
@@ -207,6 +216,7 @@ class EventAggregator:
 
             self.log(f'Watching: {len(self.registered_events.items())} events')
             self.log_upcoming(50)
+            self.log_submission_status(50)
             await asyncio.sleep(2)
 
     def event_key(self, provider_name, event_id):
