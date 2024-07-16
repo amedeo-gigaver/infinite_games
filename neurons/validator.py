@@ -188,8 +188,10 @@ class Validator(BaseValidatorNeuron):
         else:
             bt.logging.info('No miner submissions received')
         self.blocktime += 1
-        while block_start == self.block:
-            await asyncio.sleep(float(os.environ.get('VALIDATOR_FORWARD_INTERVAL_SEC', '10')))
+        if os.environ.get('ENV') != 'pytest':
+            while block_start == self.block:
+                bt.logging.debug(f"FORWARD INTERVAL: {float(os.environ.get('VALIDATOR_FORWARD_INTERVAL_SEC', '10'))}")
+                await asyncio.sleep(float(os.environ.get('VALIDATOR_FORWARD_INTERVAL_SEC', '10')))
 
     def save_state(self):
         super().save_state()

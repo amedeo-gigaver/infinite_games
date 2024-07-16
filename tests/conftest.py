@@ -29,6 +29,17 @@ def netuid():
     return netuid
 
 
+# this is mock that forces to update blocks, but waiting
+# for this fix https://github.com/opentensor/bittensor/pull/2138
+# class AutoBlockMockSubtensor(MockSubtensor):
+#     def __init__(self, *args, **kwargs) -> None:
+#         super().__init__(*args, **kwargs)
+
+#     def get_current_block(self) -> int:
+#         self.do_block_step()
+#         return super().get_current_block()
+
+
 @fixture(scope='session')
 def test_network(netuid):
     w = get_mock_wallet()

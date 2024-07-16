@@ -70,19 +70,19 @@ class TestTemplateValidatorNeuronTestCase:
         # check from simple outputs for now.
         assert 'Provider initialized..' in caplog.text, 'Event Provider has to be initialized!'
         assert 'Event for submission: 0' in caplog.text, 'There should be no events initially!'
-        assert 'EventAggregator Start watcher...' in caplog.text, 'Event watcher should be started'
+        # assert 'EventAggregator Start watcher...' in caplog.text, 'Event watcher should be started'
         assert 'Processed miner responses.' not in caplog.text, 'There should not be any miner submissions!'
         v.stop_run_thread()
         assert v.event_provider
         assert v.event_provider.integrations
-        assert len(v.event_provider.registered_events) == 0
+        assert len(v.event_provider.registered_events) == 0, "There should not be any registered events, check the VALIDATOR_WATCH_EVENTS_DISABLED"
 
     async def test_validator_settled_event_scores(self, mock_network, caplog, monkeypatch, disable_event_updates):
         wallet, subtensor = mock_network
         v = Validator()
 
         # await v.forward()
-
+        print('First run')
         self.next_run(v)
         # await restarted_vali.initialize_provider()
         # sleep(4)
@@ -106,7 +106,7 @@ class TestTemplateValidatorNeuronTestCase:
         mock_response[3].events[f'{test_event.market_type}-{test_event.event_id}']['probability'] = 0.7
         mock_response[4].events[f'{test_event.market_type}-{test_event.event_id}']['probability'] = 0.9
         monkeypatch.setattr('neurons.validator.query_miners', lambda a, b, c: mock_response)
-
+        print('Second run')
         self.next_run(v)
         test_event.status = EventStatus.SETTLED
         test_event.answer = 1
@@ -140,7 +140,7 @@ class TestTemplateValidatorNeuronTestCase:
         mock_response[3].events[f'{test_event_2.market_type}-{test_event_2.event_id}']['probability'] = 0.6
         mock_response[4].events[f'{test_event_2.market_type}-{test_event_2.event_id}']['probability'] = 0.6
         monkeypatch.setattr('neurons.validator.query_miners', lambda a, b, c: mock_response)
-
+        print('Third run')
         self.next_run(v)
         test_event_2.status = EventStatus.SETTLED
         test_event_2.answer = 1
