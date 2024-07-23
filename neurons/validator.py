@@ -59,7 +59,7 @@ class Validator(BaseValidatorNeuron):
     async def initialize_provider(self):
         if not self.event_provider:
             self.event_provider: EventAggregator = await EventAggregator.create(
-                state_path=self.config.neuron.full_path + '/events.pickle',
+                state_path=self.config.neuron.full_path + '/events-v2.pickle',
                 integrations=self.integrations
             )
             self.event_provider.load_state()
