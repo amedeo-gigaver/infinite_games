@@ -110,11 +110,28 @@ See [here](docs/mechanism.md) for a discussion of our mechanism.
 
 ## Roadmap
 
-We first aim at adjusting the scoring rule by updating to a variation of the *model 2* described above. We will likely implement several other updates in order to make the mechanism more robust. One of them could be a commit-reveal step for the predictions submitted by miners. Some updates may be due to experimental data.
+- Scoring with exponentially decreasing weights until settlement date and linear differentiation mechanism - July 25th 
+- Synthetic event generation with central resolution using ACLED data - approx. July 29th
+- Synthetic event generation with central resolution with various API modules: elections API, court rulings - data, space flights - early August
+- Synthetic event generation with UMA resolution - human verifiers resolve our events through the OOv2 - early August
+- Scoring with exponential differentiation mechanism,  new entropy scoring component and new improvement rate scoring component - early to mid August
+- Mining competition in partnership with Crunch DAO
+- Synthetic event generation from news data using an LLM - August
+- Aggregation of miners’ predictions - through simple cutoff for benchmark events - August
+- Synthetic event generation with trustless resolution using UMA - we use the UMA Data Asserter framework for our event resolutions that then go through a challenge period - late August, September
+- More advanced aggregation mechanism based on sequential scoring - September
+
+Other items on our roadmap involve:
+- commit-reveal on the miners' predictions
+- make the prediction framework more LLM specific and create mechanisms that explicitely generate data for the fine-tuning of prediction focused LLMs
+- consider other prediction markets such as Metacalculus and Manifold (mostly as benchmark events)
+- using Reuters or WSJ headlines for event generation
+
+<!-- We first aim at adjusting the scoring rule by updating to a variation of the *model 2* described above. We will likely implement several other updates in order to make the mechanism more robust. One of them could be a commit-reveal step for the predictions submitted by miners. Some updates may be due to experimental data.
 
 We would also possibly like to make the prediction framework more LLM specific and create mechanisms that explicitely generate data for the fine-tuning of prediction focused LLMs.
 
-We plan to extend the set of predicted events to other prediction markets and event providers (Manifold, Metacalculus, Metacalculus). Our main goal is to obtain a continuous feed of organic events by using e.g WSJ headlines or Reuters' API. 
+We plan to extend the set of predicted events to other prediction markets and event providers (Manifold, Metacalculus, Metacalculus). Our main goal is to obtain a continuous feed of organic events by using e.g WSJ headlines or Reuters' API. -->
 
 <!-- In the limit, miners could update the weights of an entire LLM.-->
 
