@@ -1,5 +1,6 @@
 
 import os
+import traceback
 from typing import AsyncIterator, Optional
 import aiohttp
 import backoff
@@ -70,11 +71,11 @@ class PolymarketProviderIntegration(ProviderIntegration):
         end_date_iso = payload.get('end_date_iso')
         if end_date_iso:
             end_date_iso = end_date_iso.replace('Z', '+00:00')
-        resolve_date = datetime.fromisoformat(end_date_iso).replace(tzinfo=None)
+        resolve_date = datetime.fromisoformat(end_date_iso).replace(tzinfo=timezone.utc)
         start_date = None
 
         if payload['game_start_time']:
-            start_date = datetime.fromisoformat(payload['game_start_time'].replace('Z', '+00:00')).replace(tzinfo=None)
+            start_date = datetime.fromisoformat(payload['game_start_time'].replace('Z', '+00:00')).replace(tzinfo=timezone.utc)
         # from pprint import pprint
         # pprint(market)
         # if 'will-scottie-scheffler-win-the-us-open' in market.get('market_slug'):
@@ -217,5 +218,6 @@ class PolymarketProviderIntegration(ProviderIntegration):
                     except Exception as e:
 
                         self.error(f"Error parse market {market.get('market_slug')} {e} {market}")
+                        self.error(traceback.format_exc())
 
             await asyncio.sleep(15)
