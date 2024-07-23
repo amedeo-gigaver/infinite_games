@@ -47,7 +47,7 @@ class AzuroProviderIntegration(ProviderIntegration):
 
     def available_for_submission(self, pe: ProviderEvent) -> bool:
         # self.log(f'Can submit? {pe} {pe.starts} > {datetime.now()} {pe.starts > datetime.now()}')
-        return self.latest_submit_date(pe) > datetime.now() and pe.status != EventStatus.DISCARDED
+        return self.latest_submit_date(pe) > datetime.now(timezone.utc) and pe.status != EventStatus.DISCARDED
 
     def convert_status(self, azuro_status):
         return {
@@ -300,7 +300,7 @@ class AzuroProviderIntegration(ProviderIntegration):
                         start_date,
                         resolve_date=None,
                         answer=None,
-                        local_updated_at=datetime.now(),
+                        local_updated_at=datetime.now(timezone.utc),
                         status=self.convert_status(event_status),
                         miner_predictions={},
                         metadata={
