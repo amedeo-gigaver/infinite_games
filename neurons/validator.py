@@ -147,6 +147,7 @@ class Validator(BaseValidatorNeuron):
 
                             wk = math.exp(-(total_intervals/(total_intervals - current_interval_no )) + 1)
                         weights_sum += wk
+                        # bt.logging.info(f'answer for {uid=} {interval_start_minutes=} {ans=} total={total_intervals} curr={current_interval_no} {wk=} ')
                         if ans is None:
                             mk.append(0)
                             continue
@@ -161,14 +162,18 @@ class Validator(BaseValidatorNeuron):
                     penalty_brier_score = max(final_avg_brier - 0.75 , 0)
 
                     scores.append(penalty_brier_score)
-            min_miner = min(score for score in scores if score > 0.0)
-            max_miner = max(score for score in scores if score > 0.0)
             scores = torch.FloatTensor(scores)
-            bt.logging.info(f'Scoring {min_miner=} {max_miner=} {scores}')
-            alpha = 1/3
-            beta = 2/3
-            non_zeros = scores != 0
-            scores[non_zeros] = alpha * scores[non_zeros] + (beta * (scores[non_zeros] - min_miner) / (max_miner - min_miner))
+            if all(score.item() <= 0.0 for score in scores):
+                # bt.logging.info('All effective scores zero for this event!')
+                pass
+            else:
+                min_miner = min(score for score in scores if score > 0.0)
+                max_miner = max(score for score in scores if score > 0.0)
+                bt.logging.info(f'Scoring {min_miner=} {max_miner=} {scores}')
+                alpha = 1/3
+                beta = 2/3
+                non_zeros = scores != 0
+                scores[non_zeros] = alpha * scores[non_zeros] + (beta * (scores[non_zeros] - min_miner) / (max_miner - min_miner))
             bt.logging.info(f'With bonus scores {scores}')
             self.update_scores(scores, miner_uids)
             return True

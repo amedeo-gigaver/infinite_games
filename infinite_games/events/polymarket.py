@@ -30,7 +30,6 @@ class PolymarketProviderIntegration(ProviderIntegration):
 
     def available_for_submission(self, pe: ProviderEvent):
         max_date_for_submission = self.latest_submit_date(pe)
-        bt.logging.info(f'AVAILABLE FOR SUBMISSION?? {pe} {max_date_for_submission=} now={datetime.now().date()}')
         # self.log(f'Can submit? {pe} resolve date: {pe.resolve_date} , condition: {datetime.now().date()} < {one_day_before_resolve.date()} {datetime.now().date() < one_day_before_resolve.date()}')
         return datetime.now(timezone.utc) < max_date_for_submission and pe.status != EventStatus.DISCARDED
 

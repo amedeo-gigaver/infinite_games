@@ -236,7 +236,6 @@ class EventAggregator:
             self.update_event(pe)
         else:
             integration = self.integrations.get(pe.market_type)
-            bt.logging.info(self.integrations)
             if not integration:
                 bt.logging.error(f'No integration found for event {pe.market_type} - {pe.event_id}')
                 return
