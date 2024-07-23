@@ -211,7 +211,7 @@ class PolymarketProviderIntegration(ProviderIntegration):
                             continue
                         # for Polymarket we only fetch next 2-3 days events
                         # self.log(f'{pe.resolve_date.date()} limited to? {datetime.now().date() + timedelta(days=3)} {datetime.now().date() + timedelta(days=3) > pe.resolve_date.date()}')
-                        if datetime.now().date() + timedelta(days=4) < pe.resolve_date.date():
+                        if datetime.now(timezone.utc).date() + timedelta(days=14) < pe.resolve_date.date():
                             continue
                         yield pe
                     except Exception as e:
