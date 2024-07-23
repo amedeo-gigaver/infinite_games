@@ -1,5 +1,5 @@
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List
 
 from infinite_games.events.base import ProviderEvent
@@ -7,7 +7,7 @@ from infinite_games.protocol import EventPredictionSynapse
 
 
 def after(**kwargs):
-    return datetime.now() + timedelta(**kwargs)
+    return datetime.now(timezone.utc) + timedelta(**kwargs)
 
 
 def fake_synapse_response(events: List[ProviderEvent]):

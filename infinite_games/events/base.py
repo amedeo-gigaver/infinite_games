@@ -4,11 +4,16 @@ import pickle
 import traceback
 import bittensor as bt
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 import json
 from typing import Any, AsyncIterator, Callable, Dict, List, Optional, Type
 
 from infinite_games.utils.misc import split_chunks
+
+
+# defines a time window for grouping submissions based on a specified number of minutes
+CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES = 60 * 4
+CLUSTER_EPOCH_2024 = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0, month=1, day=1)
 
 
 @dataclass
@@ -33,6 +38,7 @@ class EventStatus:
 @dataclass
 class ProviderEvent:
     event_id: str
+    registered_date: datetime
     market_type: str
     description: str
     starts: datetime
@@ -40,7 +46,7 @@ class ProviderEvent:
     answer: Optional[int]
     local_updated_at: datetime
     status: EventStatus
-    miner_predictions: Dict[int, Submission]
+    miner_predictions: Dict[int, Dict[int, Dict[any, any]]]
     metadata: Dict[str, Any]
 
     def __str__(self) -> str:
@@ -65,6 +71,9 @@ class ProviderIntegration:
     def available_for_submission(self, pe: ProviderEvent) -> bool:
         return True
 
+    def latest_submit_date(self, pe: ProviderEvent) -> timedelta:
+        return pe.starts or pe.resolve_date
+
     def log(self, msg):
         bt.logging.debug(f'{self.provider_name().capitalize()}: {msg}')
 
@@ -81,9 +90,6 @@ class ProviderIntegration:
 class EventAggregator:
 
     def __init__(self, state_path: str):
-        self.registered_events: Dict[str, ProviderEvent] = {
-
-        }
 
         self.registered_events: Dict[str, ProviderEvent] = {
 
@@ -230,6 +236,7 @@ class EventAggregator:
             self.update_event(pe)
         else:
             integration = self.integrations.get(pe.market_type)
+            bt.logging.info(self.integrations)
             if not integration:
                 bt.logging.error(f'No integration found for event {pe.market_type} - {pe.event_id}')
                 return
@@ -249,6 +256,7 @@ class EventAggregator:
         # self.log(f'Updating event: {description}, {start_time} status: {event_status}', )
         self.registered_events[key] = ProviderEvent(
             pe.event_id,
+            pe.registered_date,
             pe.market_type,
             pe.description,
             pe.starts,
@@ -269,6 +277,7 @@ class EventAggregator:
             except Exception as e:
                 bt.logging.error(f'Failed to call update hook for event {key}')
                 bt.logging.error(e)
+                bt.logging.error(traceback.format_exc())
                 print(traceback.format_exc())
 
         return True
@@ -280,6 +289,15 @@ class EventAggregator:
     def get_event(self, event_id):
         return self.registered_events.get(self.get_event_key(event_id))
 
+    def get_integration(self, pe: ProviderEvent) -> ProviderIntegration:
+        integration = self.integrations.get(pe.market_type)
+        if not integration:
+            bt.logging.error(f'No integration found for event {pe.market_type} - {pe.event_id}')
+            return
+        if integration.max_pending_events and len(self.get_provider_pending_events(integration)) >= integration.max_pending_events:
+            return
+        return integration
+    
     def remove_event(self, pe: ProviderEvent) -> bool:
         """Removed event"""
         key = self.event_key(provider_name=pe.market_type, event_id=pe.event_id)
@@ -325,6 +343,21 @@ class EventAggregator:
         submission = self.registered_events.get(self.event_key(event_id), {}).get(uid)
         return submission
 
+    def _interval_aggregate_function(self, interval_submissions: List[Submission]):
+        avg = sum(submissions.answer for submissions in interval_submissions) / len(interval_submissions)
+        return avg
+
+    def _resolve_previous_intervals(self, pe: ProviderEvent, uid: int, last_interval_start_minutes: int) -> bool:
+        intervals = pe.miner_predictions.get(uid)
+        if not intervals:
+            return
+
+        for interval_start_minutes, interval_data in intervals.items():
+            total = interval_data.get('total_score')
+            if (last_interval_start_minutes is None or interval_start_minutes < last_interval_start_minutes) and total is None:
+                interval_data['total_score'] = self._interval_aggregate_function(interval_data['entries'] or [])
+        return True
+
     def miner_predict(self, pe: ProviderEvent, uid: int, answer: float, blocktime: int) -> Submission:
         submission: Submission = pe.miner_predictions.get(uid)
 
@@ -336,5 +369,32 @@ class EventAggregator:
             answer=answer,
             blocktime=blocktime
         )
-        pe.miner_predictions[uid] = new_submission
+
+        if pe.market_type == 'polymarket':
+                
+            now = datetime.now(timezone.utc)
+            minutes_since_epoch = int((now - CLUSTER_EPOCH_2024).total_seconds()) // 60
+            interval_start_minutes = minutes_since_epoch - (minutes_since_epoch % (CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES))
+            bt.logging.info(f'Submission {uid=} for {interval_start_minutes} {now}')
+            # aggregate all previous intervals if not yet
+            self._resolve_previous_intervals(pe, uid, interval_start_minutes)
+
+            if not (uid in pe.miner_predictions):
+                pe.miner_predictions[uid] = {}
+            if not (interval_start_minutes in pe.miner_predictions[uid]):
+                pe.miner_predictions[uid][interval_start_minutes] = {
+                    'entries': [],
+                    'total_score': None
+                }
+
+            pe.miner_predictions[uid][interval_start_minutes]['entries'].append(
+                new_submission
+            )
+        else:
+            if not (uid in pe.miner_predictions):
+                pe.miner_predictions[uid] = {}
+            pe.miner_predictions[uid][0] = {
+                'total_score': answer,
+                'entries': [new_submission]
+            }
         return submission

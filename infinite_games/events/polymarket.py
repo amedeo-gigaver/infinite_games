@@ -1,10 +1,11 @@
 
+import os
 from typing import AsyncIterator, Optional
 import aiohttp
 import backoff
-
+import bittensor as bt
 import asyncio
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import requests
 
 from infinite_games.events.base import EventStatus, ProviderEvent, ProviderIntegration
@@ -24,10 +25,14 @@ class PolymarketProviderIntegration(ProviderIntegration):
     def provider_name(self):
         return 'polymarket'
 
+    def latest_submit_date(self, pe: ProviderEvent):
+        return pe.resolve_date - timedelta(seconds=86400)
+
     def available_for_submission(self, pe: ProviderEvent):
-        one_day_before_resolve = pe.resolve_date - timedelta(seconds=86400)
+        max_date_for_submission = self.latest_submit_date(pe)
+        bt.logging.info(f'AVAILABLE FOR SUBMISSION?? {pe} {max_date_for_submission=} now={datetime.now().date()}')
         # self.log(f'Can submit? {pe} resolve date: {pe.resolve_date} , condition: {datetime.now().date()} < {one_day_before_resolve.date()} {datetime.now().date() < one_day_before_resolve.date()}')
-        return datetime.now().date() < one_day_before_resolve.date() and pe.status != EventStatus.DISCARDED
+        return datetime.now(timezone.utc) < max_date_for_submission and pe.status != EventStatus.DISCARDED
 
     def convert_status(self, closed_bool):
         return {
@@ -80,12 +85,13 @@ class PolymarketProviderIntegration(ProviderIntegration):
 
         return ProviderEvent(
             event_id,
+            datetime.now(timezone.utc),
             self.provider_name(),
             payload.get('question') + '.' + payload.get('description'),
             start_date,
             resolve_date,
             self._get_answer(payload),
-            datetime.now(),
+            datetime.now(timezone.utc),
             self.convert_status(payload.get('closed')),
             {},
             {

@@ -16,19 +16,21 @@
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 import sys
 from time import sleep
+from freezegun import freeze_time
 import torch
 import unittest
 import bittensor as bt
 
-from infinite_games.events.base import EventStatus, ProviderEvent
+from infinite_games.events.base import CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES, EventStatus, ProviderEvent
 from infinite_games.protocol import EventPredictionSynapse
 from neurons.validator import Validator
 from bittensor.mock import wallet_mock
 from bittensor.mock.wallet_mock import MockWallet
 
+from tests.providers import MockAzuroProviderIntegration, MockPolymarketProviderIntegration
 from tests.utils import after, fake_synapse_response
 
 
@@ -77,59 +79,77 @@ class TestTemplateValidatorNeuronTestCase:
         assert v.event_provider.integrations
         assert len(v.event_provider.registered_events) == 0, "There should not be any registered events, check the VALIDATOR_WATCH_EVENTS_DISABLED"
 
-    async def test_validator_settled_event_scores(self, mock_network, caplog, monkeypatch, disable_event_updates):
+    async def test_validator_settled_event_scores_polymarket(self, mock_network, caplog, monkeypatch, disable_event_updates):
         wallet, subtensor = mock_network
-        v = Validator()
+        v = Validator(integrations=[
+            MockAzuroProviderIntegration(max_pending_events=6), 
+            MockPolymarketProviderIntegration()
+        ])
 
         # await v.forward()
         print('First run')
-        self.next_run(v)
-        # await restarted_vali.initialize_provider()
-        # sleep(4)
-        # v.stop_run_thread()
-        test_event = ProviderEvent(
-            '0x8f3f3f19c4e4015fd9db2f22e653c766154091ef_100100000000000015927404810000000000000365390949_2000',
-            'azuro', 'Test event', after(hours=4), None,
-            None, datetime.now(), EventStatus.PENDING,
-            {},
-            {
-                'conditionId': 'conditionid',
-                'slug': 'soccer-game-slug',
-                'league': 'league'
-            }
-        )
-        assert v.event_provider.register_event(test_event) is True
-        assert v.event_provider.registered_events.get(f'{test_event.market_type}-{test_event.event_id}')
-        assert len(v.event_provider.registered_events) == 1
-        assert v.event_provider.integrations
-        mock_response = fake_synapse_response(v.event_provider.get_events_for_submission())
-        mock_response[3].events[f'{test_event.market_type}-{test_event.event_id}']['probability'] = 0.7
-        mock_response[4].events[f'{test_event.market_type}-{test_event.event_id}']['probability'] = 0.9
-        monkeypatch.setattr('neurons.validator.query_miners', lambda a, b, c: mock_response)
-        print('Second run')
-        self.next_run(v)
+        initial_date = datetime(year=2024, month=1, day=3)
+        with freeze_time(initial_date):
+            self.next_run(v)
+            # await restarted_vali.initialize_provider()
+            # sleep(4)
+            # v.stop_run_thread()
+            test_event = ProviderEvent(
+                '0x8f3f3f19c4e4015fd9db2f22e653c766154091ef_100100000000000015927404810000000000000365390949_2000',
+                datetime.now(timezone.utc),
+                'polymarket', 'Test event 1', None, after(hours=12),
+                None, datetime.now(timezone.utc), EventStatus.PENDING,
+                {},
+                {
+                    # 'conditionId': 'conditionid',
+                    # 'slug': 'soccer-game-slug',
+                    # 'league': 'league'
+                }
+            )
+            assert v.event_provider.register_event(test_event) is True
+            assert v.event_provider.registered_events.get(f'{test_event.market_type}-{test_event.event_id}')
+            assert len(v.event_provider.registered_events) == 1
+            assert v.event_provider.integrations
+            mock_response = fake_synapse_response(v.event_provider.get_events_for_submission())
+            mock_response[3].events[f'{test_event.market_type}-{test_event.event_id}']['probability'] = 0.7
+            mock_response[4].events[f'{test_event.market_type}-{test_event.event_id}']['probability'] = 0.9
+            monkeypatch.setattr('neurons.validator.query_miners', lambda a, b, c: mock_response)
+            print('Second run')
+            self.next_run(v)
+
+        second_window = initial_date + timedelta(minutes=CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES)
+        with freeze_time(second_window):
+            self.next_run(v)
+        third_window = initial_date + timedelta(minutes=CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES * 2)
+        with freeze_time(third_window):
+            self.next_run(v)
+
+        fourth_window = initial_date + timedelta(minutes=CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES * 3)
+        with freeze_time(fourth_window):
+            self.next_run(v)
+
         test_event.status = EventStatus.SETTLED
         test_event.answer = 1
         v.event_provider.update_event(test_event)
         assert v.scores[2] == 0.0
         # 0.7, 0.9
         # uid 3 and 4 calculated based on respective brier score -> moving average
-        assert round(v.scores[3].item(), 4) == 0.3640
-        assert round(v.scores[4].item(), 4) == 0.3960
+        assert round(v.scores[3].item(), 4) == 0.0427
+        assert round(v.scores[4].item(), 4) == 0.5973
 
-        assert round(v.average_scores[3].item(), 2) == 0.91
-        assert round(v.average_scores[4].item(), 2) == 0.99
-
+        assert round(v.average_scores[3].item(), 2) == 0.0533
+        assert round(v.average_scores[4].item(), 2) == 0.7467
 
         test_event_2 = ProviderEvent(
             '0x9f3f3f19c4e4015fd9db2f22e653c766154091ef_100100000000000015927404810000000000000365390949_2000',
-            'azuro', 'Test event 2', after(hours=4), None,
-            None, datetime.now(), EventStatus.PENDING,
+            datetime.now(timezone.utc),
+            'polymarket', 'Test event 2', None, after(days=4),
+            None, datetime.now(timezone.utc), EventStatus.PENDING,
             {},
             {
-                'conditionId': 'conditionid2',
-                'slug': 'soccer-game-slug2',
-                'league': 'league2'
+                # 'conditionId': 'conditionid2',
+                # 'slug': 'soccer-game-slug2',
+                # 'league': 'league2'
             }
         )
         assert v.event_provider.register_event(test_event_2) is True
@@ -153,6 +173,54 @@ class TestTemplateValidatorNeuronTestCase:
 
         assert round(v.average_scores[3].item(), 4) == 0.8750
         assert round(v.average_scores[4].item(), 4) == 0.9150
-        # restarted_vali = Validator()
 
-        # assert len(restarted_vali.event_provider.registered_events) > 0, 'Validator should have saved some new events from previous run'
+    async def test_validator_settled_event_scores_azuro(self, mock_network, caplog, monkeypatch, disable_event_updates):
+        wallet, subtensor = mock_network
+        v = Validator(integrations=[
+            MockAzuroProviderIntegration(max_pending_events=6), 
+            MockPolymarketProviderIntegration()
+        ])
+
+        # await v.forward()
+        print('First run')
+        initial_date = datetime(year=2024, month=1, day=3)
+        with freeze_time(initial_date):
+            self.next_run(v)
+            # await restarted_vali.initialize_provider()
+            # sleep(4)
+            # v.stop_run_thread()
+            test_event = ProviderEvent(
+                '0x8f3f3f19c4e4015fd9db2f22e653c766154091ef_100100000000000015927404810000000000000365390949_2000',
+                datetime.now(timezone.utc),
+                'azuro', 'Test event 1', after(hours=12), None,
+                None, datetime.now(timezone.utc), EventStatus.PENDING,
+                {},
+                {
+                    # 'conditionId': 'conditionid',
+                    # 'slug': 'soccer-game-slug',
+                    # 'league': 'league'
+                }
+            )
+            assert v.event_provider.register_event(test_event) is True
+            assert v.event_provider.registered_events.get(f'{test_event.market_type}-{test_event.event_id}')
+            assert len(v.event_provider.registered_events) == 1
+            assert v.event_provider.integrations
+            mock_response = fake_synapse_response(v.event_provider.get_events_for_submission())
+            mock_response[3].events[f'{test_event.market_type}-{test_event.event_id}']['probability'] = 0.7
+            mock_response[4].events[f'{test_event.market_type}-{test_event.event_id}']['probability'] = 0.9
+            monkeypatch.setattr('neurons.validator.query_miners', lambda a, b, c: mock_response)
+            print('Second run')
+            self.next_run(v)
+
+        test_event.status = EventStatus.SETTLED
+        test_event.answer = 1
+        v.event_provider.update_event(test_event)
+        assert v.scores[2] == 0.0
+        # 0.7, 0.9
+        # uid 3 and 4 calculated based on respective brier score -> moving average
+        assert round(v.scores[3].item(), 4) == 0.2427
+        assert round(v.scores[4].item(), 4) == 0.7973
+
+        assert round(v.average_scores[3].item(), 2) == 0.3033
+        assert round(v.average_scores[4].item(), 2) == 0.9967
+

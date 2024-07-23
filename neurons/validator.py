@@ -16,7 +16,9 @@
 # DEALINGS IN THE SOFTWARE.
 
 import asyncio
+from datetime import datetime, timedelta, timezone
 import logging
+import math
 import os
 os.environ['USE_TORCH'] = '1'
 import time
@@ -29,7 +31,7 @@ import infinite_games
 
 # import base validator class which takes care of most of the boilerplate
 from infinite_games.base.validator import BaseValidatorNeuron
-from infinite_games.events.base import EventAggregator, EventStatus, ProviderEvent, Submission
+from infinite_games.events.base import CLUSTER_EPOCH_2024, CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES, EventAggregator, EventStatus, ProviderEvent, ProviderIntegration, Submission
 from infinite_games.events.azuro import AzuroProviderIntegration
 from infinite_games.events.polymarket import PolymarketProviderIntegration
 
@@ -43,7 +45,7 @@ class Validator(BaseValidatorNeuron):
     This class provides reasonable default behavior for a validator such as keeping a moving average of the scores of the miners and using them to set weights at the end of each epoch. Additionally, the scores are reset for new hotkeys at the end of each epoch.
     """
 
-    def __init__(self, config=None):
+    def __init__(self, integrations, config=None):
         super(Validator, self).__init__(config=config)
 
         bt.logging.info("load_state()")
@@ -52,15 +54,13 @@ class Validator(BaseValidatorNeuron):
         self.blocktime = 0
         self.event_provider = None
         self.SEND_LOGS_INTERVAL = 60 * 60
+        self.integrations = integrations
 
     async def initialize_provider(self):
         if not self.event_provider:
             self.event_provider: EventAggregator = await EventAggregator.create(
                 state_path=self.config.neuron.full_path + '/events.pickle',
-                integrations=[
-                    AzuroProviderIntegration(max_pending_events=6),
-                    PolymarketProviderIntegration()
-                ]
+                integrations=self.integrations
             )
             self.event_provider.load_state()
             self.event_provider.on_event_updated_hook(self.on_event_update)
@@ -95,24 +95,82 @@ class Validator(BaseValidatorNeuron):
                 return True
 
             predictions = pe.miner_predictions
-            scores = []
             if not predictions:
                 bt.logging.warning(f"No predictions for {pe} skipping..")
                 return True
-
+            integration: ProviderIntegration = self.event_provider.get_integration(pe)
+            # if not integration:
+            #     bt.logging.error(f'no integration found for event {pe}. will skip this event!')
+            #     return True
+            cutoff = integration.latest_submit_date(pe)
             bt.logging.info(f'Miners to update: {len(miner_uids)} submissions: {len(predictions.keys())} from {self.metagraph.n.item()}')
+            bt.logging.info(f'Register: {pe.registered_date} cutoff: {cutoff} tz {cutoff.tzinfo}, resolve: {pe.resolve_date}')
+            cutoff_minutes_since_epoch = int((cutoff - CLUSTER_EPOCH_2024).total_seconds()) // 60
+            cutoff_interval_start_minutes = cutoff_minutes_since_epoch - (cutoff_minutes_since_epoch % CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES)
+
+            start_minutes_since_epoch = int((pe.registered_date - CLUSTER_EPOCH_2024).total_seconds()) // 60
+            start_interval_start_minutes = start_minutes_since_epoch - (start_minutes_since_epoch % CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES)
+            total_intervals = (cutoff_interval_start_minutes - start_interval_start_minutes) // CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES
+            first_n_intervals = 1
+            bt.logging.info(f'{integration.__class__.__name__} {first_n_intervals=} intervals: {pe.registered_date=} {pe.resolve_date=} {cutoff=} total={total_intervals}')
+            scores = []
             for uid in miner_uids:
-                submission: Submission = predictions.get(uid.item())
-                ans = None
-                if submission:
-                    ans = submission.answer
-                # bt.logging.debug(f'Submission of {uid=} {ans=}')
-                if ans is None:
-                    scores.append(0)
+                prediction_intervals = predictions.get(uid.item())
+                if pe.market_type == 'azuro':
+                    if not prediction_intervals:
+                        scores.append(0)
+                        continue
+
+                    ans = prediction_intervals[0]['total_score']
+                    brier_score = 1 - ((ans - correct_ans)**2)
+                    scores.append(brier_score)
                 else:
-                    ans = max(0, min(1, ans))  # Clamp the answer
-                    scores.append(1 - ((ans - correct_ans)**2))
-            self.update_scores(torch.FloatTensor(scores), miner_uids)
+
+                    self.event_provider._resolve_previous_intervals(pe, uid.item(), None)
+                    if not prediction_intervals:
+                        scores.append(0)
+                        continue
+                    mk = []
+
+                    weights_sum = 0
+
+                    for interval_start_minutes in range(start_interval_start_minutes, cutoff_interval_start_minutes, CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES):
+                        interval_data = prediction_intervals.get(interval_start_minutes, {
+                            'total_score': None
+                        })
+                        ans: float = interval_data['total_score']
+                        current_interval_no = (interval_start_minutes - start_interval_start_minutes) // CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES
+
+                        if current_interval_no + 1 <= first_n_intervals:
+                            wk = 1
+                        else:
+
+                            wk = math.exp(-(total_intervals/(total_intervals - current_interval_no )) + 1)
+                        weights_sum += wk
+                        if ans is None:
+                            mk.append(0)
+                            continue
+                        ans = max(0, min(1, ans))  # Clamp the answer
+                        # bt.logging.debug(f'Submission of {uid=} {ans=}')
+                        brier_score = 1 - ((ans - correct_ans)**2)
+                        mk.append(wk * brier_score)
+                        bt.logging.info(f'answer for {uid=} {interval_start_minutes=} {ans=} total={total_intervals} curr={current_interval_no} {wk=} ')
+                    final_avg_brier = sum(mk) / weights_sum
+                    bt.logging.info(f'final avg brier answer for {uid=} {final_avg_brier=}')
+                    # 1/2 does not bring any value, add penalty for that
+                    penalty_brier_score = max(final_avg_brier - 0.75 , 0)
+
+                    scores.append(penalty_brier_score)
+            min_miner = min(score for score in scores if score > 0.0)
+            max_miner = max(score for score in scores if score > 0.0)
+            scores = torch.FloatTensor(scores)
+            bt.logging.info(f'Scoring {min_miner=} {max_miner=} {scores}')
+            alpha = 1/3
+            beta = 2/3
+            non_zeros = scores != 0
+            scores[non_zeros] = alpha * scores[non_zeros] + (beta * (scores[non_zeros] - min_miner) / (max_miner - min_miner))
+            bt.logging.info(f'With bonus scores {scores}')
+            self.update_scores(scores, miner_uids)
             return True
         elif pe.status == EventStatus.DISCARDED:
             bt.logging.info(f'Canceled event: {pe} removing from registry!')
@@ -204,7 +262,10 @@ class Validator(BaseValidatorNeuron):
 bt.debug(True)
 # bt.trace(True)
 if __name__ == "__main__":
-    with Validator() as validator:
+    with Validator(integrations=[
+            AzuroProviderIntegration(max_pending_events=6),
+            PolymarketProviderIntegration()
+        ]) as validator:
         while True:
             validator.print_info()
             bt.logging.info("Validator running...", time.time())
