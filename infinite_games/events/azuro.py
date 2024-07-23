@@ -294,6 +294,7 @@ class AzuroProviderIntegration(ProviderIntegration):
                         continue
                     yield ProviderEvent(
                         outcome.get('id'),
+                        datetime.now(timezone.utc),
                         self.provider_name(),
                         game.get('title') + ' ,' + OUTCOMES[outcome['outcomeId']].get('_comment'),
                         start_date,
