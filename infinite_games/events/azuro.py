@@ -168,7 +168,7 @@ class AzuroProviderIntegration(ProviderIntegration):
             return None
         condition = outcome['condition']
         game = condition['game']
-        start_date = datetime.fromtimestamp(int(game["startsAt"]))
+        start_date = datetime.fromtimestamp(int(game["startsAt"])).replace(tzinfo=timezone.utc)
         event_status = condition.get('status')
         effective_status = self.convert_status(event_status)
         answer = self._get_answer(outcome.get('result'))
@@ -269,7 +269,7 @@ class AzuroProviderIntegration(ProviderIntegration):
         for game in result["games"]:
 
             game_events = 0
-            start_date = datetime.fromtimestamp(int(game["startsAt"]))
+            start_date = datetime.fromtimestamp(int(game["startsAt"])).replace(tzinfo=timezone.utc)
             if not game.get('startsAt'):
                 bt.logging.warning(f"Azuro game {game.get('slug')} doesnt have start time, skipping..")
                 continue
