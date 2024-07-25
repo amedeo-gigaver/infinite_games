@@ -74,7 +74,7 @@ According to the article, the performance of LLMs likely depends significantly o
 Validators record the miners' predictions and score them once the events settle. At each event settlement, a score is added to the moving average of the miner's score. This simple model ensures that all validators score the miners at roughly the same time. Importantly, we implement a **cutoff** for the submission time of a prediction. The cutoff is currently set at 24 hours for Polymarket events and at the start of the relevant sporting event on Azuro (think kick-off of a soccer match). The cutoff is needed since as the event nears resolution the probability of the true outcome tends to one.
 
 ## Scoring rule
-*We launched our subnet with model 1 and will then move to a variation of model 2.*
+*We are currently using model 2*
 
 Denote by $S(p_i, o_i)$ the quadratic scoring rule (the Brier score) for a prediction $p_i$ of a binary event $E_i$ and where $o_i$ is $1$ if $E_i$ is realized and $0$ otherwise. With a renormalization we have that $S(p_i, 1)= 1- (1-p_i)^2$ if $o_i$ is $1$ and $S(p_i,0)=1-p_i^2$ if $o_i$ is $0$. A quadratic scoring rule is strictly proper i.e it strictly incentivizes miners to report their true prediction. 
 
@@ -84,10 +84,17 @@ The validators directly use a **quadratic scoring rule** on the miners' predicti
 
 We give miners a score of $0$ on the events for which they did not submit a prediction.
 
-
 ### model 2
 
-In this model, we discard the moving average update and validators record the scores they obtained at settlement time. The validators then all update the aggregated scores of miners at an agreed upon time. 
+The validator stores the time series of the miner's predictions and computes the Brier score of each element of the time series. It hence obtains a new time series of Brier scores. A number $n$ of intervals is set between the issues date and the resolution date. The validator then computes a weighted average of the Brier scores, where the weight is exponentially decreasing with time, in interval $k$ it has value $exp(-\frac{n}{k} +1)$ where $k$ starts at $n$ and decreases to $1$.
+
+The final score is a linear combination of the weighted average and of alinear component that depends on how good is the miner compared to other miners.
+
+This is described in details [here](https://hackmd.io/@nielsma/S1sB8xO_C).
+
+
+### model 3
+
 
 We implement a **sequentially shared quadratic scoring rule**. This allows us crucially to aggregate information as well as to score $0$ miners that do not bring new information to the market.
 The scoring rule functions by scoring each miner relatively to the previous one. The score of the miner $j$ is then $S_j = S(p_j, o_i) - S(p_{j-1}, o_i)$ where $p_{j-1}$ is the submission of the previous miner. Importantly this payoff can be negative, therefore in practice when aggregating the scores of a miner we add a $\max(-,0)$ operation. 
@@ -95,13 +102,12 @@ The scoring rule functions by scoring each miner relatively to the previous one.
 The aggregated score of a miner that a validator sends to the blockchain is the following:
 
 $$\frac{1}{N} \sum_j S_j$$
+
 where $N$ is the number of events that the validator registered as settled during the tempo.
 
-We also give miners a score of $0$ on the events for which they did not submit a prediction.
+A simpler version of this model is, instead of paying the miner for their delta to the previous prediction, pay them for their delta to the Polymarket probability at the submission time i.e $S(p_j, o_i) - S(\text{price on polymarket at t}, o_i)$ where $p_j$ is submitted at $t$.
 
-In the first iteration of the model, instead of paying the miner for their delta to the previous prediction, in the case of e.g Polymarket we will likely pay them for their delta to the Polymarket probability at the submission time i.e $S(p_j, o_i) - S(\text{price on polymarket at t}, o_i)$ where $p_j$ is submitted at $t$.
-
-Furthermore, we also want to score the progress or the stability of a given miner independently, as well as not introduce a latency game among miners (as incentivized by the sequential scoring rule). That’s why we are in the process of designing a custom scoring rule.
+We also want to incorporate a progress or stability component in the scoring rule, as well as not introduce a latency game among miners to submit their predictions (as incentivized by the sequential scoring rule). 
 
 
 ## Incentive compability
