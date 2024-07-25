@@ -2,7 +2,9 @@
 
 # Validator
 
-Your validator will be sending binary outcomes events to miners. In the first phase of the subnet the events will come from external APIs. Currently the validator fetches events from [Polymarket](https://polymarket.com/) and [Azuro](https://azuro.org/), a prediction market and an exclusive outcomes market respectively. Every time an event settles, your validator will score the miners that submitted a prediction for that event. The core validator logic is contained in the `neurons/validator.py` file.
+Your validator will be sending binary outcomes events to miners. In the first phase of the subnet the events will come from external APIs. Currently the validator fetches events from [Polymarket](https://polymarket.com/) and [Azuro](https://azuro.org/), a prediction market and an exclusive outcomes market respectively. Every time an event settles, your validator will score the miners that submitted a prediction for that event. The core validator logic is contained in the `neurons/validator.py` file. 
+
+The main computational prerequisite is related to storage. Validators are now storing the entire time-series of a miner's predictions for a given event, cf. the [scoring doc](https://hackmd.io/@nielsma/S1sB8xO_C). 
 
 **IMPORTANT**
 
@@ -10,7 +12,7 @@ Before attempting to register on mainnet, we strongly recommend that you run a v
 
 | Environment | Netuid |
 | ----------- | -----: |
-| Mainnet     |      TBD |
+| Mainnet     |      6 |
 | Testnet     |    155 |
 
 
@@ -26,10 +28,12 @@ Before attempting to register on mainnet, we strongly recommend that you run a v
 - Requires **Python 3.10.**
 - [Bittensor](https://github.com/opentensor/bittensor#install)
 
-Below are the computational prerequisites for validators.
+Below are the computational prerequisites for validators. 
 
-- Currently computing requirements are minimal. A "Starter" server on [Render](https://render.com/) for $7/month should be enough. As we optimize the fetching and processing of events these requirements may evolve.
-- The validator should have some free storage since currently the disk can be filled to 50-100MB at some point.
+- Validators should have at least 4GB of RAM. We expect daily requirements to be lower but this would provide sufficient margin.
+- On [Render](https://render.com/) a sufficient setup would be the one for $28/month with Premium AMD and 4GB RAM. 
+
+As we optimize the fetching and processing of events these requirements may evolve.
 
 # Getting Started
 
