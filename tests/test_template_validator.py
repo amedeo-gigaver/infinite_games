@@ -316,8 +316,8 @@ class TestTemplateValidatorNeuronTestCase:
         assert v.scores[2] == 0.0
         # 0.7, 0.9
         # uid 3 and 4 calculated based on respective brier score -> moving average
-        assert round(v.scores[3].item(), 4) == 0.2427
-        assert round(v.scores[4].item(), 4) == 0.7973
+        assert round(v.scores[3].item(), 4) == 0.0427
+        assert round(v.scores[4].item(), 4) == 0.5973
 
-        assert round(v.average_scores[3].item(), 3) == 0.303
-        assert round(v.average_scores[4].item(), 3) == 0.997
+        assert round(v.average_scores[3].item(), 3) == 0.053
+        assert round(v.average_scores[4].item(), 3) == 0.747

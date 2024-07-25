@@ -360,8 +360,7 @@ class EventAggregator:
     def miner_predict(self, pe: ProviderEvent, uid: int, answer: float, interval_start_minutes: int, blocktime: int) -> Submission:
         submission: Submission = pe.miner_predictions.get(uid)
 
-        if pe.market_type == 'polymarket':
-                
+        if pe.market_type == 'polymarket':  
             # aggregate all previous intervals if not yet
             # self._resolve_previous_intervals(pe, uid, interval_start_minutes)
 

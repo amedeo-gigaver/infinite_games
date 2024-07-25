@@ -123,7 +123,7 @@ class Validator(BaseValidatorNeuron):
 
                     ans = prediction_intervals[0]['total_score']
                     brier_score = 1 - ((ans - correct_ans)**2)
-                    scores.append(brier_score)
+                    scores.append(max(brier_score - 0.75, 0))
                 else:
 
                     # self.event_provider._resolve_previous_intervals(pe, uid.item(), None)
