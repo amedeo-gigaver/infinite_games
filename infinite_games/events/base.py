@@ -357,43 +357,31 @@ class EventAggregator:
                 interval_data['total_score'] = self._interval_aggregate_function(interval_data['entries'] or [])
         return True
 
-    def miner_predict(self, pe: ProviderEvent, uid: int, answer: float, blocktime: int) -> Submission:
+    def miner_predict(self, pe: ProviderEvent, uid: int, answer: float, interval_start_minutes: int, blocktime: int) -> Submission:
         submission: Submission = pe.miner_predictions.get(uid)
-
-        # if submission:
-        #     if abs(submission.answer - answer) > 0.01:
-        #         bt.logging.info(f'Overriding miner {uid=} submission for {pe.event_id=} from {submission.answer} to {answer}')
-        new_submission = Submission(
-            submitted_ts=datetime.now().timestamp(),
-            answer=answer,
-            blocktime=blocktime
-        )
 
         if pe.market_type == 'polymarket':
                 
-            now = datetime.now(timezone.utc)
-            minutes_since_epoch = int((now - CLUSTER_EPOCH_2024).total_seconds()) // 60
-            interval_start_minutes = minutes_since_epoch - (minutes_since_epoch % (CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES))
-            bt.logging.info(f'Submission {uid=} for {interval_start_minutes} {now}')
             # aggregate all previous intervals if not yet
-            self._resolve_previous_intervals(pe, uid, interval_start_minutes)
+            # self._resolve_previous_intervals(pe, uid, interval_start_minutes)
 
             if not (uid in pe.miner_predictions):
                 pe.miner_predictions[uid] = {}
             if not (interval_start_minutes in pe.miner_predictions[uid]):
                 pe.miner_predictions[uid][interval_start_minutes] = {
-                    'entries': [],
-                    'total_score': None
+                    # 'entries': [],
+                    'total_score': None,
+                    'count': 0
                 }
-
-            pe.miner_predictions[uid][interval_start_minutes]['entries'].append(
-                new_submission
-            )
+            old_average = pe.miner_predictions[uid][interval_start_minutes]['total_score']
+            old_count = pe.miner_predictions[uid][interval_start_minutes]['count']
+            pe.miner_predictions[uid][interval_start_minutes]['total_score'] = ((old_average or 0) * old_count + answer) / (old_count + 1)
+            pe.miner_predictions[uid][interval_start_minutes]['count'] = old_count + 1
         else:
             if not (uid in pe.miner_predictions):
                 pe.miner_predictions[uid] = {}
             pe.miner_predictions[uid][0] = {
                 'total_score': answer,
-                'entries': [new_submission]
+                'count': 1
             }
         return submission

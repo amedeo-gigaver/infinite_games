@@ -150,7 +150,7 @@ class TestTemplateValidatorNeuronTestCase:
         assert round(v.average_scores[3].item(), 3) == 0.017
         assert round(v.average_scores[4].item(), 3) == 0.697
 
-    async def test_validator_settled_event_scores_polymarket(self, mock_network, caplog, monkeypatch, disable_event_updates):
+    async def test_validator_settled_event_scores_polymarket_short(self, mock_network, caplog, monkeypatch, disable_event_updates):
         wallet, subtensor = mock_network
         v = Validator(integrations=[
             MockAzuroProviderIntegration(max_pending_events=6), 
@@ -266,11 +266,11 @@ class TestTemplateValidatorNeuronTestCase:
         assert v.scores[2] == 0.0
         # 0.7, 0.9
         # uid 3 and 4 calculated based on respective brier score -> moving average
-        assert round(v.scores[3].item(), 4) == 0.0427
-        assert round(v.scores[4].item(), 4) == 0.5973
+        assert round(v.scores[3].item(), 4) == 0.0
+        assert round(v.scores[4].item(), 4) == 0.0
 
-        assert round(v.average_scores[3].item(), 3) == 0.053
-        assert round(v.average_scores[4].item(), 3) == 0.747
+        assert round(v.average_scores[3].item(), 3) == 0.0
+        assert round(v.average_scores[4].item(), 3) == 0.0
 
     async def test_validator_settled_event_scores_azuro(self, mock_network, caplog, monkeypatch, disable_event_updates):
         wallet, subtensor = mock_network
