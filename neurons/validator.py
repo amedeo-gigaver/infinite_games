@@ -105,14 +105,20 @@ class Validator(BaseValidatorNeuron):
             cutoff = integration.latest_submit_date(pe)
             bt.logging.info(f'Miners to update: {len(miner_uids)} submissions: {len(predictions.keys())} from {self.metagraph.n.item()}')
             bt.logging.info(f'Register: {pe.registered_date} cutoff: {cutoff} tz {cutoff.tzinfo}, resolve: {pe.resolve_date}')
+
+            # we take either now or cutoff whatever is lowest(event can be settled earlier
             cutoff_minutes_since_epoch = int((cutoff - CLUSTER_EPOCH_2024).total_seconds()) // 60
             cutoff_interval_start_minutes = cutoff_minutes_since_epoch - (cutoff_minutes_since_epoch % CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES)
-
+            now = datetime.now(timezone.utc)
+            now_minutes_since_epoch = int((now - CLUSTER_EPOCH_2024).total_seconds()) // 60
+            now_interval_start_minutes = now_minutes_since_epoch - (now_minutes_since_epoch % CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES)
+            bt.logging.info(f'Comparing cutoff to now: {cutoff=}: {cutoff_interval_start_minutes}, {now=} {now_interval_start_minutes}')
+            effective_finish_start_minutes = min(cutoff_interval_start_minutes, now_interval_start_minutes)
             start_minutes_since_epoch = int((pe.registered_date - CLUSTER_EPOCH_2024).total_seconds()) // 60
             start_interval_start_minutes = start_minutes_since_epoch - (start_minutes_since_epoch % CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES)
-            total_intervals = (cutoff_interval_start_minutes - start_interval_start_minutes) // CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES
+            total_intervals = (effective_finish_start_minutes - start_interval_start_minutes) // CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES
             first_n_intervals = 1
-            bt.logging.info(f'{integration.__class__.__name__} {first_n_intervals=} intervals: {pe.registered_date=} {pe.resolve_date=} {cutoff=} total={total_intervals}')
+            bt.logging.info(f'{integration.__class__.__name__} {first_n_intervals=} intervals: {pe.registered_date=} {effective_finish_start_minutes=} {pe.resolve_date=} {cutoff=}  total={total_intervals}')
             scores = []
             for uid in miner_uids:
                 prediction_intervals = predictions.get(uid.item())
@@ -134,7 +140,7 @@ class Validator(BaseValidatorNeuron):
 
                     weights_sum = 0
 
-                    for interval_start_minutes in range(start_interval_start_minutes, cutoff_interval_start_minutes, CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES):
+                    for interval_start_minutes in range(start_interval_start_minutes, effective_finish_start_minutes, CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES):
                         interval_data = prediction_intervals.get(interval_start_minutes, {
                             'total_score': None
                         })
