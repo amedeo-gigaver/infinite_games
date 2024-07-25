@@ -243,11 +243,11 @@ class Validator(BaseValidatorNeuron):
                     miners_activity.add(uid)
                     miner_submitted.add(event_id)
                     self.event_provider.miner_predict(provider_event, uid.item(), score, interval_start_minutes, self.block)
-                    bt.logging.info(f'Submission {uid=} for {interval_start_minutes} saved')
                 else:
                     # bt.logging.warning(f'Submission received, but this event is not open for submissions miner {uid=} {event_id=} {score=}')
                     continue
-            # if len(miner_submitted) > 0:
+            if len(miner_submitted) > 0:
+                bt.logging.info(f'Submission {uid=} for {interval_start_minutes} saved, events: {len(miner_submitted)}')
 
             # bt.logging.info(f'uid: {uid.item()} got prediction for events: {len(miner_submitted)}')
 
