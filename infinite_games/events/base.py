@@ -255,7 +255,7 @@ class EventAggregator:
         # self.log(f'Updating event: {description}, {start_time} status: {event_status}', )
         self.registered_events[key] = ProviderEvent(
             pe.event_id,
-            pe.registered_date,
+            self.registered_events[key].registered_date or pe.registered_date,
             pe.market_type,
             pe.description,
             pe.starts,
