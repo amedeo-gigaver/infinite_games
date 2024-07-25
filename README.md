@@ -86,7 +86,7 @@ We give miners a score of $0$ on the events for which they did not submit a pred
 
 ### model 2
 
-The validator stores the time series of the miner's predictions and computes the Brier score of each element of the time series. It hence obtains a new time series of Brier scores. A number $n$ of intervals is set between the issues date and the resolution date. The validator then computes a weighted average of the Brier scores, where the weight is exponentially decreasing with time, in interval $k$ it has value $exp(-\frac{n}{k} +1)$ where $k$ starts at $n$ and decreases to $1$.
+The validator stores **the time series of the miner's predictions** and computes the Brier score of each element of the time series. It hence obtains a new time series of Brier scores. A number $n$ of intervals is set between the issues date and the resolution date. The validator then computes a **weighted average of the Brier scores**, where the weight is exponentially decreasing with time, in interval $k$ it has value $exp(-\frac{n}{k} +1)$ where $k$ starts at $n$ and decreases to $1$.
 
 The final score is a linear combination of the weighted average and of alinear component that depends on how good is the miner compared to other miners.
 
