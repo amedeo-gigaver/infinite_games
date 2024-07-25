@@ -3,3 +3,4 @@ pytest
 pytest-mock
 pytest-env
 pytest-asyncio
+freezegun==1.5.1
