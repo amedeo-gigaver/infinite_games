@@ -31,7 +31,7 @@ Before attempting to register on mainnet, we strongly recommend that you run a v
 Below are the computational prerequisites for validators. 
 
 - Validators should have at least 4GB of RAM. We expect daily requirements to be lower but this would provide sufficient margin.
-- On [Render](https://render.com/) a sufficient setup would be the one for $28/month with Premium AMD and 4GB RAM. 
+- On [Digital Ocean](https://www.digitalocean.com/) a sufficient setup would be the one for $28/month with Premium AMD and 4GB RAM. 
 
 As we optimize the fetching and processing of events these requirements may evolve.
 
