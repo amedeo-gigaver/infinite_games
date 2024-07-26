@@ -4,7 +4,7 @@ from typing import AsyncIterator
 import backoff
 import bittensor as bt
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import json
 from gql import gql, Client
 from gql.transport.aiohttp import AIOHTTPTransport
@@ -42,9 +42,12 @@ class AzuroProviderIntegration(ProviderIntegration):
     async def _close(self):
         self.session = await self.client.close_async()
 
+    def latest_submit_date(self, pe: ProviderEvent):
+        return pe.starts
+
     def available_for_submission(self, pe: ProviderEvent) -> bool:
         # self.log(f'Can submit? {pe} {pe.starts} > {datetime.now()} {pe.starts > datetime.now()}')
-        return pe.starts > datetime.now() and pe.status != EventStatus.DISCARDED
+        return self.latest_submit_date(pe) > datetime.now(timezone.utc) and pe.status != EventStatus.DISCARDED
 
     def convert_status(self, azuro_status):
         return {
@@ -165,7 +168,7 @@ class AzuroProviderIntegration(ProviderIntegration):
             return None
         condition = outcome['condition']
         game = condition['game']
-        start_date = datetime.fromtimestamp(int(game["startsAt"]))
+        start_date = datetime.fromtimestamp(int(game["startsAt"])).replace(tzinfo=timezone.utc)
         event_status = condition.get('status')
         effective_status = self.convert_status(event_status)
         answer = self._get_answer(outcome.get('result'))
@@ -175,12 +178,13 @@ class AzuroProviderIntegration(ProviderIntegration):
         #     answer = 1
         pe = ProviderEvent(
             event_id,
+            datetime.now(timezone.utc),
             self.provider_name(),
             game.get('title') + ' ,' + OUTCOMES[outcome['outcomeId']].get('_comment'),
             start_date,
             None,
             answer,
-            datetime.now(),
+            datetime.now(timezone.utc),
             effective_status,
             None,
             {
@@ -265,7 +269,7 @@ class AzuroProviderIntegration(ProviderIntegration):
         for game in result["games"]:
 
             game_events = 0
-            start_date = datetime.fromtimestamp(int(game["startsAt"]))
+            start_date = datetime.fromtimestamp(int(game["startsAt"])).replace(tzinfo=timezone.utc)
             if not game.get('startsAt'):
                 bt.logging.warning(f"Azuro game {game.get('slug')} doesnt have start time, skipping..")
                 continue
@@ -290,12 +294,13 @@ class AzuroProviderIntegration(ProviderIntegration):
                         continue
                     yield ProviderEvent(
                         outcome.get('id'),
+                        datetime.now(timezone.utc),
                         self.provider_name(),
                         game.get('title') + ' ,' + OUTCOMES[outcome['outcomeId']].get('_comment'),
                         start_date,
                         resolve_date=None,
                         answer=None,
-                        local_updated_at=datetime.now(),
+                        local_updated_at=datetime.now(timezone.utc),
                         status=self.convert_status(event_status),
                         miner_predictions={},
                         metadata={

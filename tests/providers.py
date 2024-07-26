@@ -1,32 +1,19 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 import backoff
+from infinite_games.events.azuro import AzuroProviderIntegration
 from infinite_games.events.base import EventStatus, ProviderEvent, ProviderIntegration
+from infinite_games.events.polymarket import PolymarketProviderIntegration
 from tests.utils import after
 
 
-class MockAzuroProviderIntegration(ProviderIntegration):
-    def __init__(self, max_pending_events=None) -> None:
-        super().__init__(max_pending_events=max_pending_events)
-        self.session = None
-        # self.ws_connection = None
-        # asyncio.create_task()
-
-    async def _ainit(self) -> 'MockAzuroProviderIntegration':
-        pass
-
-    def provider_name(self):
-        return 'azuro'
-
-    async def _connect(self):
-        self.session = await self.client.connect_async(reconnecting=True)
-
-    async def _close(self):
-        self.session = await self.client.close_async()
+class MockAzuroProviderIntegration(AzuroProviderIntegration):
+    def latest_submit_date(self, pe: ProviderEvent):
+        return pe.starts
 
     def available_for_submission(self, pe: ProviderEvent) -> bool:
         # self.log(f'Can submit? {pe} {pe.starts} > {datetime.now()} {pe.starts > datetime.now()}')
-        return pe.starts > datetime.now() and pe.status != EventStatus.DISCARDED
+        return pe.starts > datetime.now(timezone.utc) and pe.status != EventStatus.DISCARDED
 
     def convert_status(self, azuro_status):
         return {
@@ -35,7 +22,6 @@ class MockAzuroProviderIntegration(ProviderIntegration):
             'Canceled': EventStatus.DISCARDED,
             'Paused': EventStatus.PENDING
         }.get(azuro_status, EventStatus.PENDING)
-
 
     def _get_answer(self, status):
         if status == 'Won':
@@ -46,7 +32,6 @@ class MockAzuroProviderIntegration(ProviderIntegration):
             return None
 
     async def get_event_by_id(self, event_id) -> dict:
-        
         return None
 
     async def get_single_event(self, event_id) -> ProviderEvent:
@@ -75,6 +60,15 @@ class MockAzuroProviderIntegration(ProviderIntegration):
             }
         )
         return pe
+
+    # @backoff.on_exception(backoff.expo, Exception, max_time=300)
+    async def sync_events(self, start_from: int = None):
+        return None
+
+
+class MockPolymarketProviderIntegration(PolymarketProviderIntegration):
+    def latest_submit_date(self, pe: ProviderEvent):
+        return pe.resolve_date
 
     # @backoff.on_exception(backoff.expo, Exception, max_time=300)
     async def sync_events(self, start_from: int = None):

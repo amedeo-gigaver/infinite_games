@@ -1,10 +1,12 @@
 
+import os
+import traceback
 from typing import AsyncIterator, Optional
 import aiohttp
 import backoff
-
+import bittensor as bt
 import asyncio
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import requests
 
 from infinite_games.events.base import EventStatus, ProviderEvent, ProviderIntegration
@@ -24,10 +26,13 @@ class PolymarketProviderIntegration(ProviderIntegration):
     def provider_name(self):
         return 'polymarket'
 
+    def latest_submit_date(self, pe: ProviderEvent):
+        return pe.resolve_date - timedelta(seconds=86400)
+
     def available_for_submission(self, pe: ProviderEvent):
-        one_day_before_resolve = pe.resolve_date - timedelta(seconds=86400)
+        max_date_for_submission = self.latest_submit_date(pe)
         # self.log(f'Can submit? {pe} resolve date: {pe.resolve_date} , condition: {datetime.now().date()} < {one_day_before_resolve.date()} {datetime.now().date() < one_day_before_resolve.date()}')
-        return datetime.now().date() < one_day_before_resolve.date() and pe.status != EventStatus.DISCARDED
+        return datetime.now(timezone.utc) < max_date_for_submission and pe.status != EventStatus.DISCARDED
 
     def convert_status(self, closed_bool):
         return {
@@ -66,11 +71,11 @@ class PolymarketProviderIntegration(ProviderIntegration):
         end_date_iso = payload.get('end_date_iso')
         if end_date_iso:
             end_date_iso = end_date_iso.replace('Z', '+00:00')
-        resolve_date = datetime.fromisoformat(end_date_iso).replace(tzinfo=None)
+        resolve_date = datetime.fromisoformat(end_date_iso).replace(tzinfo=timezone.utc)
         start_date = None
 
         if payload['game_start_time']:
-            start_date = datetime.fromisoformat(payload['game_start_time'].replace('Z', '+00:00')).replace(tzinfo=None)
+            start_date = datetime.fromisoformat(payload['game_start_time'].replace('Z', '+00:00')).replace(tzinfo=timezone.utc)
         # from pprint import pprint
         # pprint(market)
         # if 'will-scottie-scheffler-win-the-us-open' in market.get('market_slug'):
@@ -80,12 +85,13 @@ class PolymarketProviderIntegration(ProviderIntegration):
 
         return ProviderEvent(
             event_id,
+            datetime.now(timezone.utc),
             self.provider_name(),
             payload.get('question') + '.' + payload.get('description'),
             start_date,
             resolve_date,
             self._get_answer(payload),
-            datetime.now(),
+            datetime.now(timezone.utc),
             self.convert_status(payload.get('closed')),
             {},
             {
@@ -206,11 +212,12 @@ class PolymarketProviderIntegration(ProviderIntegration):
                             continue
                         # for Polymarket we only fetch next 2-3 days events
                         # self.log(f'{pe.resolve_date.date()} limited to? {datetime.now().date() + timedelta(days=3)} {datetime.now().date() + timedelta(days=3) > pe.resolve_date.date()}')
-                        if datetime.now().date() + timedelta(days=4) < pe.resolve_date.date():
+                        if datetime.now(timezone.utc).date() + timedelta(days=14) < pe.resolve_date.date():
                             continue
                         yield pe
                     except Exception as e:
 
                         self.error(f"Error parse market {market.get('market_slug')} {e} {market}")
+                        self.error(traceback.format_exc())
 
             await asyncio.sleep(15)

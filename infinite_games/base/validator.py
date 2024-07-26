@@ -389,7 +389,7 @@ class BaseValidatorNeuron(BaseNeuron):
         self.average_scores = (self.average_scores * self.scoring_iterations + zero_scattered_rewards) / (self.scoring_iterations + 1)
         bt.logging.debug(f"New Average total: {self.average_scores}")
 
-        alpha = 0.4
+        alpha = 0.8
         if self.previous_average_scores is not None and torch.count_nonzero(self.previous_average_scores).item() != 0:
             bt.logging.info('Recalculate moving average based on previous day')
             self.scores: torch.FloatTensor = alpha * self.average_scores + (
