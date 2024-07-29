@@ -10,6 +10,10 @@ def after(**kwargs):
     return datetime.now(timezone.utc) + timedelta(**kwargs)
 
 
+def before(**kwargs):
+    return datetime.now(timezone.utc) - timedelta(**kwargs)
+
+
 def fake_synapse_response(events: List[ProviderEvent]):
     uid_responses = []
     for uid in range(0, 256):

@@ -128,6 +128,11 @@ class Validator(BaseValidatorNeuron):
                         continue
 
                     ans = prediction_intervals[0]['total_score']
+                    if ans is None:
+                        scores.append(0)
+                        continue
+                    ans = max(0, min(1, ans))  # Clamp the answer
+
                     brier_score = 1 - ((ans - correct_ans)**2)
                     scores.append(max(brier_score - 0.75, 0))
                 else:
@@ -161,7 +166,7 @@ class Validator(BaseValidatorNeuron):
                         # bt.logging.debug(f'Submission of {uid=} {ans=}')
                         brier_score = 1 - ((ans - correct_ans)**2)
                         mk.append(wk * brier_score)
-                        bt.logging.info(f'answer for {uid=} {interval_start_minutes=} {ans=} total={total_intervals} curr={current_interval_no} {wk=} ')
+                        bt.logging.info(f'answer for {uid=} {interval_start_minutes=} {ans=} total={total_intervals} curr={current_interval_no} {wk=} {brier_score=}')
                     final_avg_brier = sum(mk) / weights_sum
                     bt.logging.info(f'final avg brier answer for {uid=} {final_avg_brier=}')
                     # 1/2 does not bring any value, add penalty for that
