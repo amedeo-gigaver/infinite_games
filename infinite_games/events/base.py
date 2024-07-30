@@ -323,7 +323,7 @@ class EventAggregator:
         return events
 
     def get_events(self) -> AsyncIterator[ProviderEvent]:
-        """Get events that are available for submission"""
+        """Get all events"""
         events = []
         for _, pe in self.registered_events.items():
             integration = self.integrations.get(pe.market_type)

@@ -214,7 +214,7 @@ class Validator(BaseValidatorNeuron):
         # for axon in self.metagraph.axons:
         #     bt.logging.info(f'IP: {axon.ip}, hotkey id: {axon.hotkey}')
 
-        bt.logging.info("Querying miners..")
+        bt.logging.info("Querying miners.. ")
         # The dendrite client queries the network.
         responses = query_miners(self.dendrite, [self.metagraph.axons[uid] for uid in miner_uids], synapse)
 
