@@ -179,6 +179,7 @@ class PolymarketProviderIntegration(ProviderIntegration):
         count = 0
 
         while cursor != "LTE=":
+            resp = None
             if first:
                 try:
                     resp = await self._request("https://clob.polymarket.com/sampling-markets")
