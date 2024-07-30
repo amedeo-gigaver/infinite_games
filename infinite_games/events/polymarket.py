@@ -179,6 +179,7 @@ class PolymarketProviderIntegration(ProviderIntegration):
         count = 0
 
         while cursor != "LTE=":
+            resp = None
             if first:
                 try:
                     resp = await self._request("https://clob.polymarket.com/sampling-markets")
@@ -219,5 +220,6 @@ class PolymarketProviderIntegration(ProviderIntegration):
 
                         self.error(f"Error parse market {market.get('market_slug')} {e} {market}")
                         self.error(traceback.format_exc())
-
+            else:
+                return
             await asyncio.sleep(15)

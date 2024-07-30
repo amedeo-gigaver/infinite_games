@@ -221,8 +221,8 @@ class EventAggregator:
                 print(traceback.format_exc())
 
             self.log(f'Watching: {len(self.registered_events.items())} events')
-            self.log_upcoming(50)
-            self.log_submission_status(50)
+            self.log_upcoming(200)
+            self.log_submission_status(200)
             await asyncio.sleep(2)
 
     def event_key(self, provider_name, event_id):
@@ -320,6 +320,17 @@ class EventAggregator:
                 continue
             if integration.available_for_submission(pe):
                 events.append(pe)
+        return events
+
+    def get_events(self) -> AsyncIterator[ProviderEvent]:
+        """Get all events"""
+        events = []
+        for _, pe in self.registered_events.items():
+            integration = self.integrations.get(pe.market_type)
+            if not integration:
+                bt.logging.warning(f'No integration found for event {pe}')
+                continue
+            events.append(pe)
         return events
 
     def load_state(self):
