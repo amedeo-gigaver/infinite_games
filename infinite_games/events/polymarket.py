@@ -220,5 +220,6 @@ class PolymarketProviderIntegration(ProviderIntegration):
 
                         self.error(f"Error parse market {market.get('market_slug')} {e} {market}")
                         self.error(traceback.format_exc())
-
+            else:
+                return
             await asyncio.sleep(15)
