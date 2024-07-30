@@ -130,6 +130,7 @@ class Validator(BaseValidatorNeuron):
                     ans = prediction_intervals[0]['total_score']
                     brier_score = 1 - ((ans - correct_ans)**2)
                     scores.append(max(brier_score - 0.75, 0))
+                    bt.logging.info(f'answer for {uid=} for {pe.event_id=} {ans=} {brier_score=}')
                 else:
 
                     # self.event_provider._resolve_previous_intervals(pe, uid.item(), None)
@@ -223,7 +224,6 @@ class Validator(BaseValidatorNeuron):
         now = datetime.now(timezone.utc)
         minutes_since_epoch = int((now - CLUSTER_EPOCH_2024).total_seconds()) // 60
         interval_start_minutes = minutes_since_epoch - (minutes_since_epoch % (CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES))
-        
         for (uid, resp) in zip(miner_uids, responses):
             miner_submitted = set()
             # print(uid, resp)
@@ -231,8 +231,8 @@ class Validator(BaseValidatorNeuron):
                 market_event_id = event_data.get('event_id')
                 provider_name = event_data.get('market_type')
                 score = event_data.get('probability')
-
                 provider_event = self.event_provider.get_registered_event(provider_name, market_event_id)
+                bt.logging.info(f'Submission {uid=} for {interval_start_minutes=} {event_id=}, {score=}')
                 if not provider_event:
                     # bt.logging.warning(f'Miner submission for non registered event detected  {uid=} {provider_name=} {market_event_id=}')
                     continue
