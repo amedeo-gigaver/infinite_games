@@ -212,9 +212,9 @@ class EventAggregator:
             try:
                 events_chunks = split_chunks(list(self.registered_events.items()), self.MAX_PROVIDER_CONCURRENT_TASKS)
                 async for events in events_chunks:
-                    # self.log(f'Checking next {len(events)} events..')
                     await asyncio.gather(*[self.check_event(event_data) for _, event_data in events])
                     await asyncio.sleep(self.WATCH_EVENTS_DELAY)
+                    self.log(f'Updating events..')
             except Exception as e:
                 self.error("Failed to get event")
                 self.error(e)

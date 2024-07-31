@@ -132,9 +132,9 @@ class Validator(BaseValidatorNeuron):
                         scores.append(0)
                         continue
                     ans = max(0, min(1, ans))  # Clamp the answer
-
                     brier_score = 1 - ((ans - correct_ans)**2)
                     scores.append(max(brier_score - 0.75, 0))
+                    bt.logging.info(f'settled answer for {uid=} for {pe.event_id=} {ans=} {brier_score=}')
                 else:
 
                     # self.event_provider._resolve_previous_intervals(pe, uid.item(), None)
@@ -214,7 +214,7 @@ class Validator(BaseValidatorNeuron):
         # for axon in self.metagraph.axons:
         #     bt.logging.info(f'IP: {axon.ip}, hotkey id: {axon.hotkey}')
 
-        bt.logging.info("Querying miners.. ")
+        bt.logging.info("Querying miners..")
         # The dendrite client queries the network.
         responses = query_miners(self.dendrite, [self.metagraph.axons[uid] for uid in miner_uids], synapse)
 
