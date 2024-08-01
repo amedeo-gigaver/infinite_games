@@ -43,24 +43,12 @@ class AcledProviderIntegration(ProviderIntegration):
         return event.get('answer')
 
     def construct_provider_event(self, event_id, event):
-        # if not event.get('end_date'):
-        #     self.error(f'Skip event without end date: {event["event_id"]}!')
-        #     # pprint(payload)
-        #     return
         end_date = event.get('end_date')
         start_date = event.get('start_date')
         end_date = datetime.fromtimestamp(end_date, tz=timezone.utc)
         start_date = datetime.fromtimestamp(start_date, tz=timezone.utc)
-        
         cutoff = event.get('cutoff')
         cutoff = datetime.fromtimestamp(cutoff, tz=timezone.utc)
-
-        # from pprint import pprint
-        # pprint(market)
-        # if 'will-scottie-scheffler-win-the-us-open' in market.get('market_slug'):
-        #     self.log(f'(DEBUG) {market.get('condition_id')} FORCE TEST CLOSE')
-        #     payload['closed'] = True
-        #     payload["tokens"][0]["winner"] = True
 
         return ProviderEvent(
             event_id,
@@ -138,7 +126,6 @@ class AcledProviderIntegration(ProviderIntegration):
                 if retried >= max_retries:
                     self.error(e)
                     # return
-                # self.log(f'Retry {url}.. {retried + 1}')
             finally:
                 retried += 1
                 await asyncio.sleep(1 + retried * expo_backoff)
@@ -155,9 +142,7 @@ class AcledProviderIntegration(ProviderIntegration):
                 if not pe:
                     continue
                 if not self.available_for_submission(pe):
-                    # self.log(f'Settle is {pe.resolve_date.date()} , ignore event {pe}')
                     continue
                 yield pe
-                
         else:
                 return
