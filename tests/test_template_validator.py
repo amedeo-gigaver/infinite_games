@@ -133,7 +133,6 @@ class TestTemplateValidatorNeuronTestCase:
         assert round(v.average_scores[3].item(), 3) == 0.083
         assert round(v.average_scores[4].item(), 3) == 0.083
 
-
     async def test_validator_settled_event_scores_polymarket_aggregation_interval(
             self, mock_network, caplog, monkeypatch, disable_event_updates
     ):

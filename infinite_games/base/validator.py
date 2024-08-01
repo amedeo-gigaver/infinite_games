@@ -20,6 +20,8 @@ import copy
 from datetime import datetime, timedelta, timezone
 import os
 import pathlib
+import time
+import traceback
 import backoff
 import requests
 import torch
@@ -293,9 +295,19 @@ class BaseValidatorNeuron(BaseNeuron):
 
         # Copies state of metagraph before syncing.
         previous_metagraph = copy.deepcopy(self.metagraph)
-
         # Sync the metagraph.
-        self.metagraph.sync(subtensor=self.subtensor)
+
+        synced = False
+        # Sync the metagraph.
+        while not synced:
+            try:
+
+                self.metagraph.sync(subtensor=self.subtensor)
+                synced = True
+            except Exception as e:
+                bt.logging.error(f"Try to resync metagraph {e}")
+                bt.logging.error(traceback.format_exc())
+                time.sleep(4)
 
         # Check if the metagraph axon info has changed.
         if previous_metagraph.axons == self.metagraph.axons:
