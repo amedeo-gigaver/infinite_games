@@ -371,7 +371,15 @@ class EventAggregator:
     def miner_predict(self, pe: ProviderEvent, uid: int, answer: float, interval_start_minutes: int, blocktime: int) -> Submission:
         submission: Submission = pe.miner_predictions.get(uid)
 
-        if pe.market_type == 'polymarket':  
+        if pe.market_type == 'polymarket':
+            if not (uid in pe.miner_predictions):
+                pe.miner_predictions[uid] = {}
+            pe.miner_predictions[uid][0] = {
+                'total_score': answer,
+                'count': 1
+            }
+            
+        else:
             # aggregate all previous intervals if not yet
             # self._resolve_previous_intervals(pe, uid, interval_start_minutes)
 
@@ -387,11 +395,5 @@ class EventAggregator:
             old_count = pe.miner_predictions[uid][interval_start_minutes]['count']
             pe.miner_predictions[uid][interval_start_minutes]['total_score'] = ((old_average or 0) * old_count + answer) / (old_count + 1)
             pe.miner_predictions[uid][interval_start_minutes]['count'] = old_count + 1
-        else:
-            if not (uid in pe.miner_predictions):
-                pe.miner_predictions[uid] = {}
-            pe.miner_predictions[uid][0] = {
-                'total_score': answer,
-                'count': 1
-            }
+
         return submission

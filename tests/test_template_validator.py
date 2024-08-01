@@ -32,7 +32,7 @@ from neurons.validator import Validator
 from bittensor.mock import wallet_mock
 from bittensor.mock.wallet_mock import MockWallet
 
-from tests.providers import MockAzuroProviderIntegration, MockPolymarketProviderIntegration
+from tests.providers import MockAcledProviderIntegration, MockAzuroProviderIntegration, MockPolymarketProviderIntegration
 from tests.utils import after, before, fake_synapse_response
 
 
@@ -84,6 +84,56 @@ class TestTemplateValidatorNeuronTestCase:
     #     assert v.event_provider.integrations
     #     assert len(v.event_provider.registered_events) > 0, "There should be at least one registered event"
 
+    async def test_validator_acled_events(
+            self, mock_network, caplog, monkeypatch
+    ):
+        wallet, subtensor = mock_network
+        acled_provider = MockAcledProviderIntegration()
+        v = Validator(integrations=[
+            acled_provider
+        ])
+
+        # await v.forward()
+        print('First run')
+        initial_date = datetime(year=2024, month=1, day=3)
+        with freeze_time(initial_date):
+            self.next_run(v)
+            # await restarted_vali.initialize_provider()
+            # sleep(4)
+            # v.stop_run_thread()
+            sleep(2)
+            print('Second run')
+            mock_response = fake_synapse_response(v.event_provider.get_events_for_submission())
+            mock_response[3].events['acled-dbcba93a-fe3b-4092-b918-8231b23f2faa']['probability'] = 1
+            mock_response[4].events['acled-dbcba93a-fe3b-4092-b918-8231b23f2faa']['probability'] = 1
+            monkeypatch.setattr('neurons.validator.query_miners', lambda a, b, c: mock_response)
+            self.next_run(v)
+        for window in range(1, 42):
+
+            window_time = initial_date + timedelta(minutes=CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES * window)
+            with freeze_time(window_time):
+                self.next_run(v)
+
+        # based on providers.py hardcode values
+        settle_date = initial_date + timedelta(days=7)
+        v.event_provider.registered_events['acled-7b787c68-d6df-4138-a10b-0de76eeec5c3']
+        with freeze_time(settle_date):
+
+            test_event = await acled_provider.get_single_event('dbcba93a-fe3b-4092-b918-8231b23f2faa')
+
+            test_event.status = EventStatus.SETTLED
+            test_event.answer = 1
+            v.event_provider.update_event(test_event)
+
+            self.next_run(v)
+
+        assert round(v.scores[3].item(), 4) == 0.0667
+        assert round(v.scores[4].item(), 4) == 0.0667
+
+        assert round(v.average_scores[3].item(), 3) == 0.083
+        assert round(v.average_scores[4].item(), 3) == 0.083
+
+
     async def test_validator_settled_event_scores_polymarket_aggregation_interval(
             self, mock_network, caplog, monkeypatch, disable_event_updates
     ):
@@ -125,7 +175,7 @@ class TestTemplateValidatorNeuronTestCase:
             self.next_run(v)
             mock_response = fake_synapse_response(v.event_provider.get_events_for_submission())
             mock_response[3].events[f'{test_event.market_type}-{test_event.event_id}']['probability'] = 0.5
-            mock_response[4].events[f'{test_event.market_type}-{test_event.event_id}']['probability'] = 0.5
+            mock_response[4].events[f'{test_event.market_type}-{test_event.event_id}']['probability'] = 0.9
             monkeypatch.setattr('neurons.validator.query_miners', lambda a, b, c: mock_response)
             self.next_run(v)
 
@@ -146,11 +196,11 @@ class TestTemplateValidatorNeuronTestCase:
         assert v.scores[2] == 0.0
         # 0.7, 0.9
         # uid 3 and 4 calculated based on respective brier score -> moving average
-        assert round(v.scores[3].item(), 4) == 0.0138
-        assert round(v.scores[4].item(), 4) == 0.5578
+        assert round(v.scores[3].item(), 4) == 0.0
+        assert round(v.scores[4].item(), 4) == 0.0
 
-        assert round(v.average_scores[3].item(), 3) == 0.017
-        assert round(v.average_scores[4].item(), 3) == 0.697
+        assert round(v.average_scores[3].item(), 3) == 0.0
+        assert round(v.average_scores[4].item(), 3) == 0.0
 
     async def test_validator_settled_event_scores_polymarket_short(self, mock_network, caplog, monkeypatch, disable_event_updates):
         wallet, subtensor = mock_network
