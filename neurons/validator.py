@@ -20,6 +20,8 @@ from datetime import datetime, timedelta, timezone
 import logging
 import math
 import os
+
+from infinite_games.events.acled import AcledProviderIntegration
 os.environ['USE_TORCH'] = '1'
 import time
 import traceback
@@ -289,7 +291,8 @@ bt.debug(True)
 if __name__ == "__main__":
     with Validator(integrations=[
             AzuroProviderIntegration(max_pending_events=6),
-            PolymarketProviderIntegration()
+            PolymarketProviderIntegration(),
+            AcledProviderIntegration()
         ]) as validator:
         while True:
             validator.print_info()

@@ -168,7 +168,7 @@ class TestTemplateValidatorNeuronTestCase:
             assert v.event_provider.integrations
             mock_response = fake_synapse_response(v.event_provider.get_events_for_submission())
             mock_response[3].events[f'{test_event.market_type}-{test_event.event_id}']['probability'] = 0.7
-            mock_response[4].events[f'{test_event.market_type}-{test_event.event_id}']['probability'] = 0.9
+            mock_response[4].events[f'{test_event.market_type}-{test_event.event_id}']['probability'] = 0.5
             monkeypatch.setattr('neurons.validator.query_miners', lambda a, b, c: mock_response)
             print('Second run')
             self.next_run(v)
