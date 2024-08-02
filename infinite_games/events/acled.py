@@ -3,11 +3,11 @@ from typing import AsyncIterator, Optional
 import aiohttp
 import asyncio
 from datetime import datetime, timezone
+import bittensor
 
 from infinite_games.events.base import (
     EventStatus, ProviderEvent, ProviderIntegration
 )
-
 
 class AcledProviderIntegration(ProviderIntegration):
     def __init__(self, max_pending_events=None) -> None:
@@ -49,7 +49,7 @@ class AcledProviderIntegration(ProviderIntegration):
         start_date = datetime.fromtimestamp(start_date, tz=timezone.utc)
         cutoff = event.get('cutoff')
         cutoff = datetime.fromtimestamp(cutoff, tz=timezone.utc)
-
+        
         return ProviderEvent(
             event_id,
             datetime.now(timezone.utc),
@@ -98,6 +98,7 @@ class AcledProviderIntegration(ProviderIntegration):
         if not payload:
             return None
         pe: Optional[ProviderEvent] = self.construct_provider_event(event_id, payload)
+        bittensor.logging.info(f'Retrieved event: {pe} {pe.status} {pe.starts}')
         return pe
 
     async def _request(self, url, max_retries=3, expo_backoff=2):
