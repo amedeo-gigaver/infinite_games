@@ -145,7 +145,8 @@ class EventAggregator:
             await asyncio.sleep(self.COLLECTOR_WATCH_EVENTS_DELAY)
 
     async def check_event(self, event_data: ProviderEvent):
-        # self.log(f'Update Event {event_data.event_id}')
+        self.log(f'Update Event {event_data}')
+
         if event_data.status in [EventStatus.PENDING, EventStatus.SETTLED]:
             integration = self.integrations.get(event_data.market_type)
             if not integration:
@@ -209,16 +210,18 @@ class EventAggregator:
             self.log(f'Update events: {len(self.registered_events.items())}')
             # self.log(f'Watching: {len(self.registered_events.items())} events')
             # self.log_upcoming(50)
-            try:
-                events_chunks = split_chunks(list(self.registered_events.items()), self.MAX_PROVIDER_CONCURRENT_TASKS)
-                async for events in events_chunks:
-                    await asyncio.gather(*[self.check_event(event_data) for _, event_data in events])
-                    await asyncio.sleep(self.WATCH_EVENTS_DELAY)
-                    self.log(f'Updating events..')
-            except Exception as e:
-                self.error("Failed to get event")
-                self.error(e)
-                print(traceback.format_exc())
+            if len(self.registered_events.items()) != 0:
+
+                try:
+                    events_chunks = split_chunks(list(self.registered_events.items()), self.MAX_PROVIDER_CONCURRENT_TASKS)
+                    async for events in events_chunks:
+                        await asyncio.gather(*[self.check_event(event_data) for _, event_data in events])
+                        await asyncio.sleep(self.WATCH_EVENTS_DELAY)
+                        self.log(f'Updating events..')
+                except Exception as e:
+                    self.error("Failed to get event")
+                    self.error(e)
+                    print(traceback.format_exc())
 
             self.log(f'Watching: {len(self.registered_events.items())} events')
             self.log_upcoming(200)
