@@ -17,9 +17,28 @@ code: run the miner without setting up an OpenAI key
 
 2. Baseline Miner 2 (LLM integration)
 
-We integrate the LLM prompting [pipeline](https://github.com/dannyallover/llm_forecasting.git) with news retrieval developed by the authors of the forecasting LLM paper quoted in the readme. As is it only uses [Google News](https://news.google.com/home?hl=en-US&gl=US&ceid=US:en) for news retrieval (the original model from the article used 4 other different sources). It is also based on a single GPT4 base model. You will hence need to add your OpenAI key to your .env file.
+We integrate the LLM prompting [pipeline](https://github.com/dannyallover/llm_forecasting.git) with news retrieval developed by the authors of the forecasting LLM paper quoted in the readme. In the current form it only uses [Google News](https://news.google.com/home?hl=en-US&gl=US&ceid=US:en) for news retrieval while the original model from the article used 4 other different sources (Newscatcher, Newsdata.io, Aylien, NewsAPI.org).
+This pipeline can work with different base models.
 
-code: add an OpenAI key to your local environment 
+**version 1**
+GPT4 as base model. 
+
+code: add an OpenAI key to your local environment
+
+**version 2**
+GPT-3.5 or GPT4 Mini as base model.
+
+code: not pushed yet
+
+**version 3**
+Gemini as base model.
+
+code: not pushed yet
+
+
+## Sample data for generated events from ACLED
+
+We join [here](docs/protest-data-3days.json) a dataset of events that stretches over 6 months (from January 2024 to June 2024) which represents the type of events that will be sent to miners from [ACLED](https://acleddata.com/) data.
 
 ## Cutoff
 
