@@ -23,22 +23,41 @@ This pipeline can work with different base models.
 **version 1**
 GPT4 as base model. 
 
-code: add an OpenAI key to your local environment
+steps: 
+- add an OpenAI key (OPENAI_KEY) to your local environment
 
 **version 2**
-GPT-3.5 or GPT4 Mini as base model.
+GPT-3.5 and GPT4 Mini as base models.
 
-code: not pushed yet
+steps:
+- add an OpenAI key to your local environment
+- add the parameter 1 to the `get_prediction` function in `miner.py`
+
+```llm_prediction = (await self.llm.get_prediction(market, 1))```
 
 **version 3**
-Gemini as base model.
+GPT-3.5, GPT4 Mini and Gemini as base models
 
-code: not pushed yet
+steps:
+- add an OpenAI key and a Google Gemini key (GOOGLE_AI_KEY) to your local environment
+- add the parameter 2 to the `get_prediction` function in `miner.py`
+
+```llm_prediction = (await self.llm.get_prediction(market, 2))```
 
 
 ## Sample data for generated events from ACLED
 
-We join [here](docs/protest-data-3days.json) a dataset of events that stretches over 6 months (from January 2024 to June 2024) which represents the type of events that will be sent to miners from [ACLED](https://acleddata.com/) data.
+We join [here](docs/protest-data-3days.json) and [here](docs/Protests-events-7-days.json) two dataset of events that stretches over 6 months (from January 2024 to June 2024) which represents the type of events that will be sent to miners from [ACLED](https://acleddata.com/) data.
+
+This first set of events will have the following structure:
+"will the amount of protests in [country] during [3 days window or 1 week window] be above [30 day moving average] ?"
+
+**Key details**:
+- the countries will initially be EU countries (with non degenerate protest rates) and the US. This is the exact list: ['Germany', 'United Kingdom', 'France', 'Italy', 'Spain', 'Poland', 'Romania', 'Netherlands', 'Belgium', 'Ireland', 'Sweden', 'Czech Republic', 'Greece', 'Portugal', 'Hungary', 'Austria', 'Serbia', 'Bulgaria', 'Denmark', 'United States']
+- the cutoff will be set at the start of the time window
+- events will be generated daily but they will only resolve on Tuesday-Wednesday due to the schedule ACLED follows to update its data.
+
+Miners will have to retrieve protest data relevant to each of the countries listed above in order to improve their predictions. 
 
 ## Cutoff
 
