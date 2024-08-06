@@ -179,7 +179,11 @@ class BaseValidatorNeuron(BaseNeuron):
                     break
 
                 # Sync metagraph and potentially set weights.
-                self.sync()
+                try:
+                    self.sync()
+                except Exception as e:
+                    bt.logging.error(e)
+                    bt.logging.error(traceback.format_exc())
 
                 self.step += 1
 
