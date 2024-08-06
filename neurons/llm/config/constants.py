@@ -95,6 +95,7 @@ MODEL_NAME_TO_SOURCE = {
     "gpt-3.5-turbo-16k": OAI_SOURCE,
     "gpt-3.5-turbo": OAI_SOURCE,
     "gpt-4-1106-preview": OAI_SOURCE,
+    "gpt-4o-mini-2024-07-18": OAI_SOURCE,
     "gemini-pro": GOOGLE_SOURCE,
     "togethercomputer/llama-2-7b-chat": TOGETHER_AI_SOURCE,
     "togethercomputer/llama-2-13b-chat": TOGETHER_AI_SOURCE,

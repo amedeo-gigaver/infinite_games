@@ -18,3 +18,4 @@ openai==1.6.1
 anthropic==0.28.0
 generativeai==0.0.1
 tiktoken==0.7.0
+google-generativeai==0.7.2

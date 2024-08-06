@@ -385,6 +385,7 @@ async def retrieve_summarize_and_rank_articles(
         question,
         background_info=background_info,
         resolution_criteria=resolution_criteria,
+        model=config["SEARCH_QUERY_MODEL_NAME"]
     )
     # Flatten and deduplicate the search queries
     search_queries_list_nc = utils.flatten_list(search_queries_list_nc)
