@@ -3,7 +3,7 @@ from datetime import datetime
 import re
 
 from . import ranking, summarize, ensemble
-from .config.keys import OPENAI_KEY
+from .config.keys import OPENAI_KEY, GOOGLE_AI_KEY
 from .prompts.prompts import PROMPT_DICT
 
 
@@ -84,11 +84,27 @@ class Forecaster:
             "ALIGNMENT_MODEL_NAME": "gpt-3.5-turbo-1106",
             "AGGREGATION_MODEL_NAME": "gpt-4",
         },
+        2: {
+            "SEARCH_QUERY_MODEL_NAME": "gemini-pro",
+            "SUMMARIZATION_MODEL_NAME": "gemini-pro",
+            "RANKING_MODEL_NAME": "gemini-pro",
+            "BASE_REASONING_MODEL_NAMES": ["gemini-pro", "gemini-pro"],
+            "ALIGNMENT_MODEL_NAME": "gemini-pro",
+            "AGGREGATION_MODEL_NAME": "gemini-pro",
+        },
+        3: {
+            "SEARCH_QUERY_MODEL_NAME": "gemini-pro",
+            "SUMMARIZATION_MODEL_NAME": "gemini-pro",
+            "RANKING_MODEL_NAME": "gemini-pro",
+            "BASE_REASONING_MODEL_NAMES": ["gpt-3.5-turbo-1106", "gpt-3.5-turbo-1106"],
+            "ALIGNMENT_MODEL_NAME": "gemini-pro",
+            "AGGREGATION_MODEL_NAME": "gemini-pro",
+        }
         # You can add more setups here.
     }
 
     async def get_prediction(self, market, models_setup_option: int = 0):
-        if OPENAI_KEY is None or models_setup_option not in [0, 1]:
+        if (OPENAI_KEY is None and GOOGLE_AI_KEY is None) or models_setup_option not in [0, 1, 2, 3]:
             return None
 
         retrieval_config = _get_retrieval_config(self.model_setups[models_setup_option])
@@ -145,5 +161,5 @@ class Forecaster:
             meta_prompt_template=reasoning_config["AGGREGATION_PROMPT_TEMPLATE"],
             meta_temperature=reasoning_config["AGGREGATION_TEMPERATURE"],
         )
-
+        print(ensemble_dict["meta_prediction"])
         return float(ensemble_dict["meta_prediction"])

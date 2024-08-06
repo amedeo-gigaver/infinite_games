@@ -25,6 +25,7 @@ class MinerCacheStatus(enum.Enum):
 class MarketType(enum.Enum):
     POLYMARKET = 1
     AZURO = 2
+    ACLED = 3
 
 
 class Event(BaseModel):
@@ -44,6 +45,8 @@ class Event(BaseModel):
                     return values.data["resolve_date"] - 86400 - 3600  # 1 day + 1 hour
                 elif values.data['market_type'] == MarketType.AZURO:
                     return values.data["starts"] - 1800  # 30 minutes
+                elif values.data['market_type'] == MarketType.ACLED:
+                    return values.data["starts"] - 600  # 10 minutes
                 return None
             except KeyError:
                 raise ValueError(f"Invalid market type: {v}")

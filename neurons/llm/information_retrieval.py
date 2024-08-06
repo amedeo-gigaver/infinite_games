@@ -680,6 +680,7 @@ async def get_search_queries_for_all_sources(
     resolution_criteria="",
     max_words_newscatcher=5,
     max_words_gnews=8,
+    model="gpt-4-1106-preview"
 ):
     """
     Get search queries for a single question. For both Newscatcher and GNews.
@@ -743,6 +744,7 @@ async def get_search_queries_for_all_sources(
         search_query_prompts_list_gnews + search_query_prompts_list_nc,
         num_keywords=num_queries,
         return_response=True,
+        model_name=model,
     )
     # Split the search queries into two lists, one for Newscatcher and one for GNews
     search_queries_list_gnews = search_queries_list[

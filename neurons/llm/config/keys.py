@@ -16,7 +16,7 @@ NEWSCASTCHER_KEY = ""
 OPENAI_KEY = os.getenv("OPENAI_KEY", None)
 ANTHROPIC_KEY = ""
 TOGETHER_KEY = ""
-GOOGLE_AI_KEY = ""
+GOOGLE_AI_KEY = os.getenv("GOOGLE_AI_KEY", None)
 HF_ACCESS_TOKEN = ""
 
 keys = {

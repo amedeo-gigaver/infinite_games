@@ -82,6 +82,8 @@ class Miner(BaseMinerNeuron):
                 bt.logging.info(
                     "Assign {} prob to azuro event {}".format(market.event.probability, market.event.event_id)
                 )
+            else:
+                market.event.probability = 0.5
         except Exception as e:
             bt.logging.error("Failed to assign, probability, {}".format(e))
 

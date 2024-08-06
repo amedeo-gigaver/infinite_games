@@ -6,17 +6,18 @@ import time
 # Related third-party imports
 import openai
 import anthropic
+import google.generativeai as google_ai
 
 # Local application/library-specific imports
 from .config.constants import (
     OAI_SOURCE,
     ANTHROPIC_SOURCE,
-    TOGETHER_AI_SOURCE
+    TOGETHER_AI_SOURCE, GOOGLE_SOURCE
 )
 from .config.keys import (
     ANTHROPIC_KEY,
     OPENAI_KEY,
-    TOGETHER_KEY,
+    TOGETHER_KEY, GOOGLE_AI_KEY,
 )
 from .utils import model_utils, string_utils
 
@@ -36,8 +37,8 @@ if OPENAI_KEY:
 #         base_url="https://api.together.xyz/v1",
 #     )
     
-# if GOOGLE_AI_KEY:
-#     google_ai.configure(api_key=GOOGLE_AI_KEY)
+if GOOGLE_AI_KEY:
+    google_ai.configure(api_key=GOOGLE_AI_KEY)
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -180,7 +181,30 @@ def get_response_from_together_ai_model(
 def get_response_from_google_model(
     model_name, prompt, max_tokens, temperature, wait_time
 ):
-    return ""
+    """
+    Make an API call to the Together AI API and retry on failure after a specified wait time.
+
+    Args:
+        model (str): Name of the model to use (such as "gemini-pro").
+        prompt (str): Initial prompt for the API call.
+        max_tokens (int): Maximum number of tokens to sample.
+        temperature (float): Sampling temperature.
+        wait_time (int): Time to wait before retrying, in seconds.
+
+    Returns:
+        str: Response string from the API call.
+    """
+    model = google_ai.GenerativeModel(model_name)
+
+    response = model.generate_content(
+        prompt,
+        generation_config=google_ai.types.GenerationConfig(
+            candidate_count=1,
+            max_output_tokens=max_tokens,
+            temperature=temperature,
+        ),
+    )
+    return response.text
 
 
 def get_response_from_model(
@@ -260,6 +284,17 @@ async def get_async_response(
                     max_tokens=4096,
                 )
                 return response.content[0].text
+            elif model_source == GOOGLE_SOURCE:
+                model = google_ai.GenerativeModel(model_name)
+                response = await model.generate_content_async(
+                    prompt,
+                    generation_config=google_ai.types.GenerationConfig(
+                        candidate_count=1,
+                        max_output_tokens=max_tokens,
+                        temperature=temperature,
+                    ),
+                )
+                return response.text
             elif model_source == TOGETHER_AI_SOURCE:
                 chat_completion = await asyncio.to_thread(
                     client.chat.completions.create,
