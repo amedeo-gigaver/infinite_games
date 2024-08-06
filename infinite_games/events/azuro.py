@@ -257,6 +257,9 @@ class AzuroProviderIntegration(ProviderIntegration):
                 "where": {
                     "status": "Created",
                     "hasActiveConditions": True,
+                    "sport_": {
+                        "name_in": ["Football", "Tennis", "Basketball"]
+                    },
                     "startsAt_gt": start_from
                 },
                 "start": 0, "per_page": 10
@@ -267,7 +270,6 @@ class AzuroProviderIntegration(ProviderIntegration):
         # pprint(result['games'])
         max_outcome_per_game = 1
         for game in result["games"]:
-
             game_events = 0
             start_date = datetime.fromtimestamp(int(game["startsAt"]), tz=timezone.utc)
             if not game.get('startsAt'):
