@@ -36,13 +36,25 @@ steps:
 ```llm_prediction = (await self.llm.get_prediction(market, 1))```
 
 **version 3**
-GPT-3.5, GPT4 Mini and Gemini as base models
+
+Gemini as base model
 
 steps:
-- add an OpenAI key and a Google Gemini key (GOOGLE_AI_KEY) to your local environment
+- add a Google Gemini key (GOOGLE_AI_KEY) to your local environment
 - add the parameter 2 to the `get_prediction` function in `miner.py`
 
 ```llm_prediction = (await self.llm.get_prediction(market, 2))```
+
+**version 4**
+GPT-3.5 (used for reasoning) and Gemini as base models
+
+steps:
+- add an OpenAI key and a Google Gemini key (GOOGLE_AI_KEY) to your local environment
+- add the parameter 3 to the `get_prediction` function in `miner.py`
+
+```llm_prediction = (await self.llm.get_prediction(market, 3))```
+
+You can set up your own configurations.
 
 
 ## Sample data for generated events from ACLED
