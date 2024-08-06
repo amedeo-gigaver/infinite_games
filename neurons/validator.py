@@ -229,7 +229,7 @@ class Validator(BaseValidatorNeuron):
         now = datetime.now(timezone.utc)
         minutes_since_epoch = int((now - CLUSTER_EPOCH_2024).total_seconds()) // 60
         interval_start_minutes = minutes_since_epoch - (minutes_since_epoch % (CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES))
-        
+
         for (uid, resp) in zip(miner_uids, responses):
             miner_submitted = set()
             # print(uid, resp)
@@ -252,14 +252,15 @@ class Validator(BaseValidatorNeuron):
                     bt.logging.error(f'No integration found to register miner submission {uid=} {event_id=} {score=}')
                     continue
                 if integration.available_for_submission(provider_event):
+                    bt.logging.info(f'Submission {uid=} for {interval_start_minutes} {event_id}')
                     miners_activity.add(uid)
                     miner_submitted.add(event_id)
                     self.event_provider.miner_predict(provider_event, uid.item(), score, interval_start_minutes, self.block)
                 else:
                     # bt.logging.warning(f'Submission received, but this event is not open for submissions miner {uid=} {event_id=} {score=}')
                     continue
-            if len(miner_submitted) > 0:
-                bt.logging.info(f'Submission {uid=} for {interval_start_minutes} saved, events: {len(miner_submitted)}')
+            # if len(miner_submitted) > 0:
+                # bt.logging.info(f'Submission {uid=} for {interval_start_minutes} saved, events: {len(miner_submitted)}')
 
             # bt.logging.info(f'uid: {uid.item()} got prediction for events: {len(miner_submitted)}')
 
