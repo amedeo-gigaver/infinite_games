@@ -36,17 +36,21 @@ class Event(BaseModel):
     starts: Optional[int]
     resolve_date: Optional[int]
     cutoff: Optional[int]
+    retries: int = Field(2, min=0, max=1)
+    next_try: Optional[int]
+    prev_prob: Optional[float] = Field(..., min=0, max=1)
 
     @field_validator('cutoff', mode='after')
     def calculate_cutoff(cls, v, values):
         if v is None:
             try:
                 if values.data['market_type'] == MarketType.POLYMARKET:
-                    return values.data["resolve_date"] - 86400 - 3600  # 1 day + 1 hour
+                    return values.data["resolve_date"] - 86400  # 1 day
                 elif values.data['market_type'] == MarketType.AZURO:
-                    return values.data["starts"] - 1800  # 30 minutes
+                    return values.data["starts"] - 600  # 10 minutes
                 elif values.data['market_type'] == MarketType.ACLED:
                     return values.data["starts"] - 600  # 10 minutes
+
                 return None
             except KeyError:
                 raise ValueError(f"Invalid market type: {v}")
@@ -61,7 +65,9 @@ class Event(BaseModel):
             description=market["description"],
             starts=market["starts"],
             resolve_date=market["resolve_date"],
-            cutoff=None
+            cutoff=market["cutoff"] if "cutoff" in market else None,
+            next_try=market["next_try"] if "next_try" in market else None,
+            prev_prob=market["prev_prob"] if "prev_prob" in market else None
         )
 
 
@@ -81,6 +87,11 @@ class MinerCacheObject(BaseModel):
             event=Event.init_from_market(market),
             status=status
         )
+
+    def set_for_rerun(self):
+        self.event.prev_prob = self.event.probability
+        self.event.probability = None
+        self.status = MinerCacheStatus.NOT_STARTED
 
 
 class MinerCache:
@@ -106,6 +117,7 @@ class MinerCache:
         except Exception as e:
             bt.logging.warning("Fail to load cache file {}".format(e))
 
+
     async def add(self, key, coro, market: MinerCacheObject):
         async with self._lock:
             self.cache[key] = market
@@ -119,10 +131,11 @@ class MinerCache:
         async with self._lock:
             keys_for_deletion: list[str] = []
             for key, market in self.cache.items():
-                if market.status == MinerCacheStatus.COMPLETED:
-                    expired = (market.event.starts or market.event.resolve_date) + 2*86400
+                if market.status == MinerCacheStatus.COMPLETED and market.event.retries == 0:
+                    expired = market.event.cutoff + 2*86400
                     if expired < int(datetime.utcnow().timestamp()):
                         keys_for_deletion.append(key)
+                        bt.logging.info("Task {} to be removed".format(key))
 
             for key in keys_for_deletion:
                 del self.cache[key]

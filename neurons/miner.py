@@ -33,6 +33,23 @@ if os.getenv("OPENAI_KEY"):
     from llm.forecasting import Forecaster
 
 
+async def _calculate_next_try(market: MinerCacheObject) -> (int, int):
+    """
+    This function calculates the next point in time that you want to run a probability recalculation for
+    your event. It also calculates the number of (remaining) retries that should be done in this event.
+
+    This implementation only assigns a recalculation at the cutoff point of every event.
+
+    Args:
+        market (MinerCacheObject): The object that contains all the information for the event.
+
+    Returns:
+        (int, int): The number of retries left, the timestamp of next probability calculation
+
+    """
+    return market.event.retries - 1, market.event.cutoff
+
+
 class Miner(BaseMinerNeuron):
     """
     Miner neuron class. You may also want to override the blacklist and priority functions according to your needs.
@@ -63,27 +80,29 @@ class Miner(BaseMinerNeuron):
             llm_prediction = (await self.llm.get_prediction(market)) if self.llm else None
             if llm_prediction is not None:
                 market.event.probability = llm_prediction
-                bt.logging.info(
-                    "Assign llm prediction {} to event {} ".format(market.event.probability, market.event.event_id)
-                )
-                return
 
             # Polymarket
-            if market.event.market_type == MarketType.POLYMARKET and self.polymarket is not None:
+            elif market.event.market_type == MarketType.POLYMARKET and self.polymarket is not None:
                 x = await self.polymarket.get_event_by_id(market.event.event_id)
                 market.event.probability = x["tokens"][0]["price"]
-                bt.logging.info(
-                    "Assign {} prob to polymarket event {}".format(market.event.probability, market.event.event_id)
-                )
+
             # Azuro
             elif market.event.market_type == MarketType.AZURO and self.azuro is not None:
                 x = await self.azuro.get_event_by_id(market.event.event_id)
                 market.event.probability = 1.0 / float(x["outcome"]["currentOdds"])
-                bt.logging.info(
-                    "Assign {} prob to azuro event {}".format(market.event.probability, market.event.event_id)
-                )
+
             else:
                 market.event.probability = 0.5
+
+            bt.logging.info(
+                "({}) Calculate {} prob to {} event {}, retries left: {}".format(
+                    "No LLM" if llm_prediction is None else "LLM",
+                    market.event.probability,
+                    market.event.market_type.name,
+                    market.event.event_id,
+                    market.event.retries
+                )
+            )
         except Exception as e:
             bt.logging.error("Failed to assign, probability, {}".format(e))
 
@@ -97,17 +116,35 @@ class Miner(BaseMinerNeuron):
             self.providers_set = True
             await self.initialize_providers()
 
-        bt.logging.info("Incoming Events {}".format(len(synapse.events.items())))
+        today = datetime.now()
+        bt.logging.info("[{}] Incoming Events {}".format(today, len(synapse.events.items())))
 
         for cid, market in synapse.events.items():
             cached_market: typing.Optional[MinerCacheObject] = await self.cache.get(cid)
             if cached_market is not None:
                 if cached_market.status == MinerCacheStatus.COMPLETED:
-                    market["probability"] = cached_market.event.probability
-                    bt.logging.info("Assign cache {} prob to polymarket event {}".format(cached_market.event.probability, cached_market.event.event_id))
-                    # bt.logging.info("{} Assign cache {} prob to polymarket event {}".format(synapse.dendrite.hotkey, cached_market.event.probability, cached_market.event.event_id))
+                    # Check IF it is time for a re-calculation of the probability.
+                    if cached_market.event.retries > 0 and cached_market.event.next_try <= int(today.timestamp()):
+
+                        # Set the stored object in a rerun state.
+                        cached_market.set_for_rerun()
+
+                        # After this re-run, set the next.
+                        cached_market.event.retries, cached_market.event.next_try = _calculate_next_try(cached_market)
+
+                        await self.cache.add(cid, self._generate_prediction, cached_market)
+                    else:
+                        market["probability"] = cached_market.event.probability
+                        bt.logging.info(
+                            "Assign cache {} prob to {} event {}".format(
+                                cached_market.event.probability,
+                                cached_market.event.market_type.name,
+                                cached_market.event.event_id
+                            )
+                        )
             else:
                 new_market = MinerCacheObject.init_from_market(market)
+                new_market.event.retries, new_market.event.next_try = _calculate_next_try(new_market)
                 await self.cache.add(cid, self._generate_prediction, new_market)
 
         return synapse
