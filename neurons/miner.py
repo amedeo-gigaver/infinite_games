@@ -130,7 +130,7 @@ class Miner(BaseMinerNeuron):
                         cached_market.set_for_rerun()
 
                         # After this re-run, set the next.
-                        cached_market.event.retries, cached_market.event.next_try = _calculate_next_try(cached_market)
+                        cached_market.event.retries, cached_market.event.next_try = await _calculate_next_try(cached_market)
 
                         await self.cache.add(cid, self._generate_prediction, cached_market)
                     else:
@@ -144,7 +144,7 @@ class Miner(BaseMinerNeuron):
                         )
             else:
                 new_market = MinerCacheObject.init_from_market(market)
-                new_market.event.retries, new_market.event.next_try = _calculate_next_try(new_market)
+                new_market.event.retries, new_market.event.next_try = await _calculate_next_try(new_market)
                 await self.cache.add(cid, self._generate_prediction, new_market)
 
         return synapse
