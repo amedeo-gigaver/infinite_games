@@ -1,13 +1,15 @@
 
 # Miner
 
-As a miner you should implement your prediction strategy in the `forward` function of `neurons/miner.py`. You will be receiving data in the form defined in the `infinite_games/protocol.py` and will only need to complete the `probability` entry. 
+You will be receiving data in the form defined in `infinite_games/events/base.py` and will only need to complete the `probability` entry. 
 
-A key point for the first iteration of the subnet is that you will be receiving data from validators every minute. **You do not have to respond every time**. You only have to send at least one response before the cutoff date of the event. This is particularly important if you use a base model like GPT4 for your mining strategy.
+The current scoring mechanism is described [here](https://hackmd.io/@nielsma/S1sB8xO_C). The time-series component is not applied to Azuro events since in their case the interval between event generation and event resolution is usually shorter than a few hours.
+
+A key point for the first iteration of the subnet is that you will be receiving requests from validators every minute. **You do not have to recalculate your prediction every time**. Our baseline miners are implementing a caching system that allows for a recalculation schedule. This is particularly important if you use a base model like GPT4 that might be expensive.
 
 ## Baseline Miner
 
-We are currently providing two base mining models that we will be upgrading in the following weeks.
+We are constantly working on improving the baseline miners, especially with regards to new categories of synthetic events being added to the subnet.
 
 1. Baseline Miner 1
 
@@ -54,7 +56,7 @@ steps:
 
 ```llm_prediction = (await self.llm.get_prediction(market, 3))```
 
-You can set up your own configurations.
+You can also set up your own configurations.
 
 
 ## Sample data for generated events from ACLED

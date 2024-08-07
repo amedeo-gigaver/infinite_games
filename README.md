@@ -88,7 +88,7 @@ We give miners a score of $0$ on the events for which they did not submit a pred
 
 The validator stores **the time series of the miner's predictions** and computes the Brier score of each element of the time series. It hence obtains a new time series of Brier scores. A number $n$ of intervals is set between the issues date and the resolution date. The validator then computes a **weighted average of the Brier scores**, where the weight is exponentially decreasing with time, in interval $k$ it has value $exp(-\frac{n}{k} +1)$ where $k$ starts at $n$ and decreases to $1$.
 
-The final score is a linear combination of the weighted average and of alinear component that depends on how good is the miner compared to other miners.
+The final score is a linear combination of the weighted average and of a linear component that depends on how good is the miner compared to other miners.
 
 This is described in details [here](https://hackmd.io/@nielsma/S1sB8xO_C).
 
@@ -109,18 +109,18 @@ A simpler version of this model is, instead of paying the miner for their delta 
 
 We also want to incorporate a progress or stability component in the scoring rule, as well as not introduce a latency game among miners to submit their predictions (as incentivized by the sequential scoring rule). 
 
-
+<!--
 ## Incentive compability
 
-See [here](docs/mechanism.md) for a discussion of our mechanism.
+See [here](docs/mechanism.md) for a discussion of our mechanism. -->
 
 ## Roadmap
 
 - Scoring with exponentially decreasing weights until settlement date and linear differentiation mechanism - July 25th 
-- Synthetic event generation with central resolution using ACLED data - approx. July 29th
-- Synthetic event generation with central resolution with various API modules: elections API, court rulings - data, space flights - early August
-- Synthetic event generation with UMA resolution - human verifiers resolve our events through the OOv2 - early August
-- Scoring with exponential differentiation mechanism,  new entropy scoring component and new improvement rate scoring component - early to mid August
+- Synthetic event generation with central resolution using ACLED data - early Augst
+- Synthetic event generation with central resolution with various API modules: elections API, court rulings - data, space flights - August
+- Synthetic event generation with UMA resolution - human verifiers resolve our events through the OOv2 - August
+- Scoring with exponential differentiation mechanism, new entropy scoring component and new improvement rate scoring component - mid August
 - Mining competition in partnership with Crunch DAO
 - Synthetic event generation from news data using an LLM - August
 - Aggregation of miners’ predictions - through simple cutoff for benchmark events - August
