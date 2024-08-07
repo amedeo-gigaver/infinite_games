@@ -66,7 +66,7 @@ class Event(BaseModel):
             starts=market["starts"],
             resolve_date=market["resolve_date"],
             cutoff=market["cutoff"] if "cutoff" in market else None,
-            next_try=market["next_try"] if "next_try" in market else 0,
+            next_try=market["next_try"] if "next_try" in market else 1 << 31,
             prev_prob=market["prev_prob"] if "prev_prob" in market else None
         )
 
