@@ -186,8 +186,8 @@ class Validator(BaseValidatorNeuron):
                 min_miner = min(score for score in scores if score > 0.0)
                 max_miner = max(score for score in scores if score > 0.0)
                 bt.logging.info(f'Scoring {min_miner=} {max_miner=} {scores}')
-                alpha = 1/3
-                beta = 2/3
+                alpha = 0.2
+                beta = 0.8
                 non_zeros = scores != 0
                 scores[non_zeros] = alpha * scores[non_zeros] + (beta * (scores[non_zeros] - min_miner) / ( max_miner - min_miner + 0.01))
             bt.logging.info(f'With bonus scores {scores}')
