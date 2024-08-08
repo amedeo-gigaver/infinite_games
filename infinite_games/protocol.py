@@ -38,5 +38,6 @@ class EventPredictionSynapse(bt.Synapse):
                 'probability': None,
                 "description": event.description,
                 "starts": int(event.starts.timestamp()) if event.starts else None,
-                "resolve_date": int(event.resolve_date.timestamp()) if event.resolve_date else None
+                "resolve_date": int(event.resolve_date.timestamp()) if event.resolve_date else None,
+                "end_date": int(event.metadata['end_date']) if event.metadata.get('end_date') else None,
             }

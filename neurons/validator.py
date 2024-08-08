@@ -20,6 +20,8 @@ from datetime import datetime, timedelta, timezone
 import logging
 import math
 import os
+
+from infinite_games.events.acled import AcledProviderIntegration
 os.environ['USE_TORCH'] = '1'
 import time
 import traceback
@@ -122,6 +124,7 @@ class Validator(BaseValidatorNeuron):
             scores = []
             for uid in miner_uids:
                 prediction_intervals = predictions.get(uid.item())
+                # bt.logging.info(prediction_intervals)
                 if pe.market_type == 'azuro':
                     if not prediction_intervals:
                         scores.append(0)
@@ -146,6 +149,7 @@ class Validator(BaseValidatorNeuron):
                     weights_sum = 0
 
                     for interval_start_minutes in range(start_interval_start_minutes, effective_finish_start_minutes, CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES):
+                        
                         interval_data = prediction_intervals.get(interval_start_minutes, {
                             'total_score': None
                         })
@@ -185,7 +189,7 @@ class Validator(BaseValidatorNeuron):
                 alpha = 1/3
                 beta = 2/3
                 non_zeros = scores != 0
-                scores[non_zeros] = alpha * scores[non_zeros] + (beta * (scores[non_zeros] - min_miner) / (max_miner - min_miner))
+                scores[non_zeros] = alpha * scores[non_zeros] + (beta * (scores[non_zeros] - min_miner) / ( max_miner - min_miner + 0.01))
             bt.logging.info(f'With bonus scores {scores}')
             self.update_scores(scores, miner_uids)
             return True
@@ -287,7 +291,8 @@ bt.debug(True)
 if __name__ == "__main__":
     with Validator(integrations=[
             AzuroProviderIntegration(max_pending_events=6),
-            PolymarketProviderIntegration()
+            PolymarketProviderIntegration(),
+            AcledProviderIntegration()
         ]) as validator:
         while True:
             validator.print_info()

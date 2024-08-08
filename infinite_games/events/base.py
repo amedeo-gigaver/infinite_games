@@ -145,7 +145,8 @@ class EventAggregator:
             await asyncio.sleep(self.COLLECTOR_WATCH_EVENTS_DELAY)
 
     async def check_event(self, event_data: ProviderEvent):
-        # self.log(f'Update Event {event_data.event_id}')
+        self.log(f'Update Event {event_data}')
+
         if event_data.status in [EventStatus.PENDING, EventStatus.SETTLED]:
             integration = self.integrations.get(event_data.market_type)
             if not integration:
@@ -209,16 +210,18 @@ class EventAggregator:
             self.log(f'Update events: {len(self.registered_events.items())}')
             # self.log(f'Watching: {len(self.registered_events.items())} events')
             # self.log_upcoming(50)
-            try:
-                events_chunks = split_chunks(list(self.registered_events.items()), self.MAX_PROVIDER_CONCURRENT_TASKS)
-                async for events in events_chunks:
-                    await asyncio.gather(*[self.check_event(event_data) for _, event_data in events])
-                    await asyncio.sleep(self.WATCH_EVENTS_DELAY)
-                    self.log(f'Updating events..')
-            except Exception as e:
-                self.error("Failed to get event")
-                self.error(e)
-                print(traceback.format_exc())
+            if len(self.registered_events.items()) != 0:
+
+                try:
+                    events_chunks = split_chunks(list(self.registered_events.items()), self.MAX_PROVIDER_CONCURRENT_TASKS)
+                    async for events in events_chunks:
+                        await asyncio.gather(*[self.check_event(event_data) for _, event_data in events])
+                        await asyncio.sleep(self.WATCH_EVENTS_DELAY)
+                        self.log(f'Updating events..')
+                except Exception as e:
+                    self.error("Failed to get event")
+                    self.error(e)
+                    print(traceback.format_exc())
 
             self.log(f'Watching: {len(self.registered_events.items())} events')
             self.log_upcoming(200)
@@ -292,8 +295,6 @@ class EventAggregator:
         integration = self.integrations.get(pe.market_type)
         if not integration:
             bt.logging.error(f'No integration found for event {pe.market_type} - {pe.event_id}')
-            return
-        if integration.max_pending_events and len(self.get_provider_pending_events(integration)) >= integration.max_pending_events:
             return
         return integration
     
@@ -371,10 +372,17 @@ class EventAggregator:
     def miner_predict(self, pe: ProviderEvent, uid: int, answer: float, interval_start_minutes: int, blocktime: int) -> Submission:
         submission: Submission = pe.miner_predictions.get(uid)
 
-        if pe.market_type == 'polymarket':  
+        if pe.market_type == 'azuro':
+            if not (uid in pe.miner_predictions):
+                pe.miner_predictions[uid] = {}
+            pe.miner_predictions[uid][0] = {
+                'total_score': answer,
+                'count': 1
+            }
+        else:
             # aggregate all previous intervals if not yet
             # self._resolve_previous_intervals(pe, uid, interval_start_minutes)
-
+            bt.logging.info(f"{uid=} identifying interval for {interval_start_minutes=} {pe}")
             if not (uid in pe.miner_predictions):
                 pe.miner_predictions[uid] = {}
             if not (interval_start_minutes in pe.miner_predictions[uid]):
@@ -383,15 +391,10 @@ class EventAggregator:
                     'total_score': None,
                     'count': 0
                 }
+            bt.logging.info(f"{uid=} Calculating new average for {interval_start_minutes=}")
             old_average = pe.miner_predictions[uid][interval_start_minutes]['total_score']
             old_count = pe.miner_predictions[uid][interval_start_minutes]['count']
             pe.miner_predictions[uid][interval_start_minutes]['total_score'] = ((old_average or 0) * old_count + answer) / (old_count + 1)
             pe.miner_predictions[uid][interval_start_minutes]['count'] = old_count + 1
-        else:
-            if not (uid in pe.miner_predictions):
-                pe.miner_predictions[uid] = {}
-            pe.miner_predictions[uid][0] = {
-                'total_score': answer,
-                'count': 1
-            }
+
         return submission

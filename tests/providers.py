@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 
 import backoff
+from infinite_games.events.acled import AcledProviderIntegration
 from infinite_games.events.azuro import AzuroProviderIntegration
 from infinite_games.events.base import EventStatus, ProviderEvent, ProviderIntegration
 from infinite_games.events.polymarket import PolymarketProviderIntegration
@@ -73,3 +74,54 @@ class MockPolymarketProviderIntegration(PolymarketProviderIntegration):
     # @backoff.on_exception(backoff.expo, Exception, max_time=300)
     async def sync_events(self, start_from: int = None):
         return None
+
+
+class MockAcledProviderIntegration(AcledProviderIntegration):
+    async def _request(self, url, max_retries=3, expo_backoff=2):
+        if url == self.base_url + '/api/events':
+            return {
+                "count": 18,
+                "items": [
+                    {
+                        "event_id": "7b787c68-d6df-4138-a10b-0de76eeec5c3",
+                        "cutoff": 1722459000,
+                        "title": "Will the amount of peaceful protests in Bulgaria be above 0 for the duration 2024-08-01 to 2024-08-01?",
+                        "description": "This event resolves to `YES` if there are at least 1 peaceful protests, for the country of Bulgaria between the following dates, from 2024-08-01  00:00:00 to 2024-08-01  23:59:59 in Europe/Sofia timezone. A peaceful protest is when demonstrators gather for a protest and do not engage in violence or other forms of rioting activity, such as property destruction, and are not met with any sort of force or intervention.",
+                        "start_date": 1722459600,
+                        "end_date": 1722545999,
+                        "answer": None
+                    },
+                    {
+                        "event_id": "dbcba93a-fe3b-4092-b918-8231b23f2faa",
+                        "cutoff": 1722462600,
+                        "title": "Will the amount of peaceful protests in Belgium be above 0 for the duration 2024-08-01 to 2024-08-01?",
+                        "description": "This event resolves to `YES` if there are at least 1 peaceful protests, for the country of Belgium between the following dates, from 2024-08-01  00:00:00 to 2024-08-01  23:59:59 in Europe/Brussels timezone. A peaceful protest is when demonstrators gather for a protest and do not engage in violence or other forms of rioting activity, such as property destruction, and are not met with any sort of force or intervention.",
+                        "start_date": 1722463200,
+                        "end_date": 1722549599,
+                        "answer": None
+                    }
+                
+                ]
+            }
+        elif url == self.base_url + '/api/events/7b787c68-d6df-4138-a10b-0de76eeec5c3':
+            return {
+                "event_id": "7b787c68-d6df-4138-a10b-0de76eeec5c3",
+                "cutoff": 1722459000,
+                "title": "Will the amount of peaceful protests in Bulgaria be above 0 for the duration 2024-08-01 to 2024-08-01?",
+                "description": "This event resolves to `YES` if there are at least 1 peaceful protests, for the country of Bulgaria between the following dates, from 2024-08-01  00:00:00 to 2024-08-01  23:59:59 in Europe/Sofia timezone. A peaceful protest is when demonstrators gather for a protest and do not engage in violence or other forms of rioting activity, such as property destruction, and are not met with any sort of force or intervention.",
+                "start_date": 1722459600,
+                "end_date": 1722545999,
+                "answer": None
+            }
+        elif url == self.base_url + '/api/events/dbcba93a-fe3b-4092-b918-8231b23f2faa':
+            return {
+                "event_id": "dbcba93a-fe3b-4092-b918-8231b23f2faa",
+                "cutoff": 1722462600,
+                "title": "Will the amount of peaceful protests in Belgium be above 0 for the duration 2024-08-01 to 2024-08-01?",
+                "description": "This event resolves to `YES` if there are at least 1 peaceful protests, for the country of Belgium between the following dates, from 2024-08-01  00:00:00 to 2024-08-01  23:59:59 in Europe/Brussels timezone. A peaceful protest is when demonstrators gather for a protest and do not engage in violence or other forms of rioting activity, such as property destruction, and are not met with any sort of force or intervention.",
+                "start_date": 1722463200,
+                "end_date": 1722549599,
+                "answer": None
+            }
+        else:
+            raise ValueError(f'Not mocked or not expected url! {url}')
