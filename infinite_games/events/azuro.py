@@ -258,7 +258,7 @@ class AzuroProviderIntegration(ProviderIntegration):
                     "status": "Created",
                     "hasActiveConditions": True,
                     "sport_": {
-                        "name_in": ["Football", "Tennis", "Basketball"]
+                        "name_not_in": ["Dota 2", "CS:GO", "League of Legends", "Counter-Strike 2"]
                     },
                     "startsAt_gt": start_from
                 },
