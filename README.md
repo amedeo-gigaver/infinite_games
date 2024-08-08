@@ -130,7 +130,7 @@ See [here](docs/mechanism.md) for a discussion of our mechanism. -->
 Other items on our roadmap involve:
 - commit-reveal on the miners' predictions
 - make the prediction framework more LLM specific and create mechanisms that explicitely generate data for the fine-tuning of prediction focused LLMs
-- consider other prediction markets such as Metacalculus and Manifold (mostly as benchmark events)
+- consider other prediction markets such as Metaculus and Manifold (mostly as benchmark events)
 - using Reuters or WSJ headlines for event generation
 
 <!-- We first aim at adjusting the scoring rule by updating to a variation of the *model 2* described above. We will likely implement several other updates in order to make the mechanism more robust. One of them could be a commit-reveal step for the predictions submitted by miners. Some updates may be due to experimental data.
