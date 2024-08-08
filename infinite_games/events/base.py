@@ -296,8 +296,6 @@ class EventAggregator:
         if not integration:
             bt.logging.error(f'No integration found for event {pe.market_type} - {pe.event_id}')
             return
-        if integration.max_pending_events and len(self.get_provider_pending_events(integration)) >= integration.max_pending_events:
-            return
         return integration
     
     def remove_event(self, pe: ProviderEvent) -> bool:
