@@ -43,9 +43,9 @@ class AcledProviderIntegration(ProviderIntegration):
         return event.get('answer')
 
     def construct_provider_event(self, event_id, event):
-        end_date = event.get('end_date')
+        end_date_ts = event.get('end_date')
         start_date = event.get('start_date')
-        end_date = datetime.fromtimestamp(end_date, tz=timezone.utc)
+        # end_date = datetime.fromtimestamp(end_date_ts, tz=timezone.utc)
         start_date = datetime.fromtimestamp(start_date, tz=timezone.utc)
         cutoff = event.get('cutoff')
         cutoff = datetime.fromtimestamp(cutoff, tz=timezone.utc)
@@ -63,6 +63,7 @@ class AcledProviderIntegration(ProviderIntegration):
             {},
             {
                 'cutoff': event.get('cutoff'),
+                'end_date': end_date_ts
             }
         )
 
