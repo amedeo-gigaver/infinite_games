@@ -291,7 +291,7 @@ bt.debug(True)
 
 if __name__ == "__main__":
     async def main():
-        async with Validator(integrations=[
+        with Validator(integrations=[
                 AzuroProviderIntegration(max_pending_events=6),
                 PolymarketProviderIntegration(),
                 AcledProviderIntegration()
