@@ -235,7 +235,7 @@ class Validator(BaseValidatorNeuron):
         interval_start_minutes = minutes_since_epoch - (minutes_since_epoch % (CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES))
 
         for (uid, resp) in zip(miner_uids, responses):
-            miner_submitted = set()
+            any_miner_processed = False
             # print(uid, resp)
             for (event_id, event_data) in resp.events.items():
                 market_event_id = event_data.get('event_id')
@@ -257,8 +257,7 @@ class Validator(BaseValidatorNeuron):
                     continue
                 if integration.available_for_submission(provider_event):
                     bt.logging.info(f'Submission {uid=} for {interval_start_minutes} {event_id}')
-                    miners_activity.add(uid)
-                    miner_submitted.add(event_id)
+                    any_miner_processed = True
                     self.event_provider.miner_predict(provider_event, uid.item(), score, interval_start_minutes, self.block)
                 else:
                     # bt.logging.warning(f'Submission received, but this event is not open for submissions miner {uid=} {event_id=} {score=}')
@@ -268,7 +267,7 @@ class Validator(BaseValidatorNeuron):
 
             # bt.logging.info(f'uid: {uid.item()} got prediction for events: {len(miner_submitted)}')
 
-        if miners_activity:
+        if any_miner_processed:
             bt.logging.info("Processed miner responses.")
         else:
             bt.logging.info('No miner submissions received')
@@ -290,15 +289,12 @@ bt.debug(True)
 # bt.trace(True)
 
 if __name__ == "__main__":
-    async def main():
-        with Validator(integrations=[
-                AzuroProviderIntegration(max_pending_events=6),
-                PolymarketProviderIntegration(),
-                AcledProviderIntegration()
-            ]) as validator:
-            while True:
-                validator.print_info()
-                bt.logging.info("Validator running...", time.time())
-                await asyncio.sleep(1)
-
-    asyncio.run(main())
+    with Validator(integrations=[
+            AzuroProviderIntegration(max_pending_events=6),
+            PolymarketProviderIntegration(),
+            AcledProviderIntegration()
+        ]) as validator:
+        while True:
+            validator.print_info()
+            bt.logging.info("Validator running...", time.time())
+            time.sleep(20)

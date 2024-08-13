@@ -371,7 +371,7 @@ class EventAggregator:
 
     def miner_predict(self, pe: ProviderEvent, uid: int, answer: float, interval_start_minutes: int, blocktime: int) -> Submission:
         submission: Submission = pe.miner_predictions.get(uid)
-
+        bt.logging.info(f'{uid=} retrieved submission: {submission is not None}')
         if pe.market_type == 'azuro':
             if not (uid in pe.miner_predictions):
                 pe.miner_predictions[uid] = {}
