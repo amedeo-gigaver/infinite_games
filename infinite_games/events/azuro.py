@@ -197,10 +197,19 @@ class AzuroProviderIntegration(ProviderIntegration):
 
     # @backoff.on_exception(backoff.expo, Exception, max_time=300)
     async def sync_events(self, start_from: int = None) -> AsyncIterator[ProviderEvent]:
+        MAX_DAILY_EVENTS = 20
         if not start_from:
-            start_from = int((datetime.now() + timedelta(minutes=30)).timestamp())
+            DAILY_EVENT_START_HOURS_UTC = 8
+            now = datetime.now(tz=timezone.utc)
+            # if we started this day already register events for tomorrow
+            if now.hour > DAILY_EVENT_START_HOURS_UTC:
+                now = now + timedelta(days=1)
+                now = now.replace(hour=DAILY_EVENT_START_HOURS_UTC, minute=0, second=0, microsecond=0)
+            self.log(f'Syncing events from {now}')
+            start_from = int(now.timestamp())
+        else:
 
-        self.log(f"Syncing events {start_from=} ")
+            self.log(f"Syncing events {start_from=} ")
         query = gql(
             """
             query Games($where: Game_filter!, $start: Int!, $per_page: Int!) {
@@ -234,7 +243,7 @@ class AzuroProviderIntegration(ProviderIntegration):
                         name
                     }
                     conditions {
-                        conditionId                   
+                        conditionId               
                         isExpressForbidden
                         status
                         outcomes {
@@ -262,7 +271,7 @@ class AzuroProviderIntegration(ProviderIntegration):
                     },
                     "startsAt_gt": start_from
                 },
-                "start": 0, "per_page": 10
+                "start": 0, "per_page": MAX_DAILY_EVENTS
             },
         )
         # self.log(f'Fetched games: {len(result["games"])}')

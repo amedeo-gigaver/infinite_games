@@ -65,7 +65,7 @@ class TestTemplateValidatorNeuronTestCase:
     # def test_validator_clean_run(self, mock_network, caplog):
     #     wallet, subtensor = mock_network
     #     v = Validator(integrations=[
-    #         AzuroProviderIntegration(max_pending_events=6),
+    #         AzuroProviderIntegration(),
     #         PolymarketProviderIntegration()
     #     ])
 

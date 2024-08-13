@@ -149,7 +149,7 @@ class Validator(BaseValidatorNeuron):
                     weights_sum = 0
 
                     for interval_start_minutes in range(start_interval_start_minutes, effective_finish_start_minutes, CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES):
-                        
+
                         interval_data = prediction_intervals.get(interval_start_minutes, {
                             'total_score': None
                         })
@@ -186,10 +186,10 @@ class Validator(BaseValidatorNeuron):
                 min_miner = min(score for score in scores if score > 0.0)
                 max_miner = max(score for score in scores if score > 0.0)
                 bt.logging.info(f'Scoring {min_miner=} {max_miner=} {scores}')
-                alpha = 0.2
-                beta = 0.8
+                alpha = 1000
+                beta = 1
                 non_zeros = scores != 0
-                scores[non_zeros] = alpha * scores[non_zeros] + (beta * (scores[non_zeros] - min_miner) / ( max_miner - min_miner + 0.01))
+                scores[non_zeros] = alpha * scores[non_zeros] + (beta * torch.exp(10*scores[non_zeros]))
             bt.logging.info(f'With bonus scores {scores}')
             self.update_scores(scores, miner_uids)
             return True
@@ -290,7 +290,7 @@ bt.debug(True)
 
 if __name__ == "__main__":
     with Validator(integrations=[
-            AzuroProviderIntegration(max_pending_events=6),
+            AzuroProviderIntegration(),
             PolymarketProviderIntegration(),
             AcledProviderIntegration()
         ]) as validator:
