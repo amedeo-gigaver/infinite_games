@@ -288,13 +288,17 @@ class Validator(BaseValidatorNeuron):
 # The main function parses the configuration and runs the validator.
 bt.debug(True)
 # bt.trace(True)
+
 if __name__ == "__main__":
-    with Validator(integrations=[
-            AzuroProviderIntegration(max_pending_events=6),
-            PolymarketProviderIntegration(),
-            AcledProviderIntegration()
-        ]) as validator:
-        while True:
-            validator.print_info()
-            bt.logging.info("Validator running...", time.time())
-            time.sleep(20)
+    async def main():
+        async with Validator(integrations=[
+                AzuroProviderIntegration(max_pending_events=6),
+                PolymarketProviderIntegration(),
+                AcledProviderIntegration()
+            ]) as validator:
+            while True:
+                validator.print_info()
+                bt.logging.info("Validator running...", time.time())
+                await asyncio.sleep(1)
+
+    asyncio.run(main())
