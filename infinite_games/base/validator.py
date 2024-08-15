@@ -490,7 +490,7 @@ class BaseValidatorNeuron(BaseNeuron):
         if miner_data:
 
             for miner_id, event_id, market_type, interval_minutes, avg_prediction in miner_data:
-                bt.logging.debug(f'{measurement},market_type={market_type},source={miner_id},vali={self.wallet.hotkey.ss58_address},event_id={event_id},interval_minutes={interval_minutes} metric={avg_prediction}')
+                # bt.logging.debug(f'{measurement},market_type={market_type},source={miner_id},vali={self.wallet.hotkey.ss58_address},event_id={event_id},interval_minutes={interval_minutes} metric={avg_prediction}')
                 miner_logs += f'{measurement},source={miner_id},vali={self.wallet.hotkey.ss58_address},event_id={event_id},interval_minutes={interval_minutes} metric={avg_prediction}\n'
 
         body = f'''
