@@ -234,14 +234,13 @@ class Validator(BaseValidatorNeuron):
                 # bt.logging.info('All effective scores zero for this event!')
                 pass
             else:
-                min_miner = min(score for score in scores if score > 0.0)
-                max_miner = max(score for score in scores if score > 0.0)
-                bt.logging.info(f'Scoring {min_miner=} {max_miner=} {scores}')
-                alpha = 0.2
-                beta = 0.8
+                alpha = 0
+                beta = 1
                 non_zeros = scores != 0
-                scores[non_zeros] = alpha * scores[non_zeros] + (beta * (scores[non_zeros] - min_miner) / ( max_miner - min_miner + 0.01))
-            bt.logging.info(f'With bonus scores {scores}')
+                scores[non_zeros] = alpha * scores[non_zeros] + (beta * torch.exp(20*scores[non_zeros]))
+            bt.logging.info(f'With exp scores {scores}')
+            scores = torch.nn.functional.normalize(scores, p=1, dim=0)
+            bt.logging.info(f'Normalized {scores}')
             self.update_scores(scores, miner_uids)
             self.send_event_scores(zip(miner_uids, itertools.repeat(pe.market_type), itertools.repeat(pe.event_id), brier_scores, scores))
             return True
