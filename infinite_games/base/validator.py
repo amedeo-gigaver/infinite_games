@@ -511,7 +511,7 @@ class BaseValidatorNeuron(BaseNeuron):
             bt.logging.error(f'*** Error sending logs! {response.content.decode("utf8")}')
         else:
             if miner_data:
-                bt.logging.debug(f'*** Grafana {len(miner_data)} logs sent for interval {miner_data[0][3]}')
+                bt.logging.debug(f'*** Grafana {len(miner_data)} logs uid={miner_data[0][0]} sent for interval {miner_data[0][3]}')
             else:
                 bt.logging.debug(f'*** Empty grafana logs for intervals!')
 
