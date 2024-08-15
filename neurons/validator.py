@@ -17,6 +17,7 @@
 
 import asyncio
 from datetime import datetime, timedelta, timezone
+import itertools
 import logging
 import math
 import os
@@ -56,6 +57,7 @@ class Validator(BaseValidatorNeuron):
         self.blocktime = 0
         self.event_provider = None
         self.SEND_LOGS_INTERVAL = 60 * 60
+        self.SEND_MINER_LOGS_INTERVAL = 60 * 60 * 4
         self.integrations = integrations
 
     async def initialize_provider(self):
@@ -75,6 +77,7 @@ class Validator(BaseValidatorNeuron):
             bt.logging.info(f'GRAFANA_API_KEY: {os.environ.get("GRAFANA_API_KEY", "None")}')
             if self.wallet.hotkey.ss58_address == os.environ.get('TARGET_MONITOR_HOTKEY'):
                 self.loop.create_task(self.send_stats())
+                self.loop.create_task(self.track_interval_stats())
             bt.logging.debug("Provider initialized..")
 
     async def send_stats(self):
@@ -85,6 +88,53 @@ class Validator(BaseValidatorNeuron):
             bt.logging.debug(f"Sending daily average total: {self.average_scores}")
             self.send_average_scores(miner_scores=list(zip(all_uids, self.average_scores.tolist(), self.scores.tolist())))
             await asyncio.sleep(self.SEND_LOGS_INTERVAL)
+
+    async def send_interval_stats(self):
+        now = datetime.now(timezone.utc)
+        minutes_since_epoch = int((now - CLUSTER_EPOCH_2024).total_seconds()) // 60
+        # previous interval from current one filled already, sending it.
+        interval_prev_start_minutes = minutes_since_epoch - (minutes_since_epoch % (CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES)) - CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES
+        all_uids = [uid for uid in range(self.metagraph.n.item())]
+        bt.logging.debug(f"Sending interval data: {interval_prev_start_minutes}")
+        for uid in all_uids:
+            metrics = []
+            for event in self.event_provider.get_events_for_submission():
+                predictions = event.miner_predictions
+                prediction_intervals = predictions.get(uid)
+                # bt.logging.info(prediction_intervals)
+                if event.market_type == 'azuro':
+                    if not prediction_intervals:
+                        ans = -1
+                    else:
+                        ans = prediction_intervals[0]['total_score']
+                        if ans is None:
+                            ans = -1
+                        else:
+                            ans = max(0, min(1, ans))  # Clamp the answer
+                else:
+
+                    # self.event_provider._resolve_previous_intervals(pe, uid.item(), None)
+                    if not prediction_intervals:
+                        ans = -1
+                    else:
+
+                        interval_data = prediction_intervals.get(interval_prev_start_minutes, {
+                            'total_score': None
+                        })
+                        ans: float = interval_data['total_score']
+                        if ans is None:
+                            ans = -1
+                metrics.append([uid, event.event_id, event.market_type, interval_prev_start_minutes, ans ])
+            self.send_interval_data(miner_data=metrics)
+            await asyncio.sleep(2)
+
+    async def track_interval_stats(self):
+        bt.logging.info('Scheduling sending interval stats.')
+
+        while True:
+            await self.send_interval_stats()
+            bt.logging.info(f'Waiting for next {self.SEND_MINER_LOGS_INTERVAL} seconds to schedule interval logs..')
+            await asyncio.sleep(self.SEND_MINER_LOGS_INTERVAL)
 
     def on_event_update(self, pe: ProviderEvent):
         """Hook called whenever we have settling events. Event removed when we return True"""
@@ -178,6 +228,7 @@ class Validator(BaseValidatorNeuron):
                     penalty_brier_score = max(final_avg_brier - 0.75 , 0)
 
                     scores.append(penalty_brier_score)
+            brier_scores = torch.FloatTensor(scores)
             scores = torch.FloatTensor(scores)
             if all(score.item() <= 0.0 for score in scores):
                 # bt.logging.info('All effective scores zero for this event!')
@@ -192,6 +243,7 @@ class Validator(BaseValidatorNeuron):
                 scores[non_zeros] = alpha * scores[non_zeros] + (beta * (scores[non_zeros] - min_miner) / ( max_miner - min_miner + 0.01))
             bt.logging.info(f'With bonus scores {scores}')
             self.update_scores(scores, miner_uids)
+            self.send_event_scores(zip(miner_uids, itertools.repeat(pe.market_type), itertools.repeat(pe.event_id), brier_scores, scores))
             return True
         elif pe.status == EventStatus.DISCARDED:
             bt.logging.info(f'Canceled event: {pe} removing from registry!')

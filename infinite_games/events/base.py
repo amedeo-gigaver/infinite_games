@@ -311,7 +311,7 @@ class EventAggregator:
         with open(self.state_path, 'wb') as f:
             pickle.dump(self.registered_events, f)
 
-    def get_events_for_submission(self) -> AsyncIterator[ProviderEvent]:
+    def get_events_for_submission(self) -> List[ProviderEvent]:
         """Get events that are available for submission"""
         events = []
         for _, pe in self.registered_events.items():
