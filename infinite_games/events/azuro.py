@@ -197,14 +197,18 @@ class AzuroProviderIntegration(ProviderIntegration):
 
     # @backoff.on_exception(backoff.expo, Exception, max_time=300)
     async def sync_events(self, start_from: int = None) -> AsyncIterator[ProviderEvent]:
+        """For azuro we fetch first n events for tomorrow (starting at 8 UTC) only between 8 and 13 UTC"""
         MAX_DAILY_EVENTS = 20
+        now = datetime.now(tz=timezone.utc)
+
+        if not (now.hour > 7 and now.hour < 14):
+            self.log(f'Skip sync h:{now.hour}')
+            return
         if not start_from:
             DAILY_EVENT_START_HOURS_UTC = 8
-            now = datetime.now(tz=timezone.utc)
             # if we started this day already register events for tomorrow
-            if now.hour > DAILY_EVENT_START_HOURS_UTC:
-                now = now + timedelta(days=1)
-                now = now.replace(hour=DAILY_EVENT_START_HOURS_UTC, minute=0, second=0, microsecond=0)
+            now = now + timedelta(days=1)
+            now = now.replace(hour=DAILY_EVENT_START_HOURS_UTC, minute=0, second=0, microsecond=0)
             self.log(f'Syncing events from {now}')
             start_from = int(now.timestamp())
         else:
@@ -243,7 +247,7 @@ class AzuroProviderIntegration(ProviderIntegration):
                         name
                     }
                     conditions {
-                        conditionId               
+                        conditionId
                         isExpressForbidden
                         status
                         outcomes {
@@ -267,7 +271,7 @@ class AzuroProviderIntegration(ProviderIntegration):
                     "status": "Created",
                     "hasActiveConditions": True,
                     "sport_": {
-                        "name_not_in": ["Dota 2", "CS:GO", "League of Legends", "Counter-Strike 2"]
+                        "name_in": ["Football", "Tennis", "Basketball"]
                     },
                     "startsAt_gt": start_from
                 },
