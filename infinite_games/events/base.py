@@ -311,7 +311,7 @@ class EventAggregator:
         with open(self.state_path, 'wb') as f:
             pickle.dump(self.registered_events, f)
 
-    def get_events_for_submission(self) -> AsyncIterator[ProviderEvent]:
+    def get_events_for_submission(self) -> List[ProviderEvent]:
         """Get events that are available for submission"""
         events = []
         for _, pe in self.registered_events.items():
@@ -371,7 +371,7 @@ class EventAggregator:
 
     def miner_predict(self, pe: ProviderEvent, uid: int, answer: float, interval_start_minutes: int, blocktime: int) -> Submission:
         submission: Submission = pe.miner_predictions.get(uid)
-
+        bt.logging.info(f'{uid=} retrieved submission: {submission is not None}')
         if pe.market_type == 'azuro':
             if not (uid in pe.miner_predictions):
                 pe.miner_predictions[uid] = {}

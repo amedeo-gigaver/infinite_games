@@ -451,6 +451,69 @@ class BaseValidatorNeuron(BaseNeuron):
         else:
             bt.logging.debug('*** Grafana logs sent')
 
+    @backoff.on_exception(backoff.expo, Exception, max_tries=6)
+    def send_event_scores(self, miner_scores=None):
+        if not self.GRAFANA_API_KEY:
+            return
+        miner_logs = ''
+        measurement = os.environ.get('EVENT_MEASUREMENT_NAME', 'miners_event_scores')
+        if miner_scores:
+
+            for miner_id, market_type, event_id, brier_score, effective_score in miner_scores:
+                # bt.logging.debug(f'Miner {miner_id} {score} {old_weight} -> {total_weight}')
+                miner_logs += f'{measurement},source={miner_id},vali={self.wallet.hotkey.ss58_address},market_type={market_type},event_id={event_id} score={brier_score},effective_score={effective_score}\n'
+
+        body = f'''
+        {miner_logs}
+        '''
+
+        response = requests.post(
+            'https://influx-prod-24-prod-eu-west-2.grafana.net/api/v1/push/influx/write',
+            headers={
+                'Content-Type': 'text/plain',
+            },
+            data=str(body),
+            auth=(self.USER_ID, self.GRAFANA_API_KEY)
+        )
+        status_code = response.status_code
+        if status_code != 204:
+            bt.logging.error(f'*** Error sending logs! {response.content.decode("utf8")}')
+        else:
+            bt.logging.debug('*** Grafana logs sent')
+
+    @backoff.on_exception(backoff.expo, Exception, max_tries=6)
+    def send_interval_data(self, miner_data):
+        if not self.GRAFANA_API_KEY:
+            return
+        miner_logs = ''
+        measurement = os.environ.get('EVENT_DATA_MEASUREMENT_NAME', 'miners_event_data')
+        if miner_data:
+
+            for miner_id, event_id, market_type, interval_minutes, avg_prediction in miner_data:
+                # bt.logging.debug(f'{measurement},market_type={market_type},source={miner_id},vali={self.wallet.hotkey.ss58_address},event_id={event_id},interval_minutes={interval_minutes} metric={avg_prediction}')
+                miner_logs += f'{measurement},source={miner_id},vali={self.wallet.hotkey.ss58_address},event_id={event_id},interval_minutes={interval_minutes} metric={avg_prediction}\n'
+
+        body = f'''
+        {miner_logs}
+        '''
+
+        response = requests.post(
+            'https://influx-prod-24-prod-eu-west-2.grafana.net/api/v1/push/influx/write',
+            headers={
+                'Content-Type': 'text/plain',
+            },
+            data=str(body),
+            auth=(self.USER_ID, self.GRAFANA_API_KEY)
+        )
+
+        status_code = response.status_code
+        if status_code != 204:
+            bt.logging.error(f'*** Error sending logs! {response.content.decode("utf8")}')
+        else:
+            if miner_data:
+                bt.logging.debug(f'*** Grafana {len(miner_data)} logs uid={miner_data[0][0]} sent for interval {miner_data[0][3]}')
+            else:
+                bt.logging.debug(f'*** Empty grafana logs for intervals!')
 
     def save_state(self):
         """Saves the state of the validator to a file."""
