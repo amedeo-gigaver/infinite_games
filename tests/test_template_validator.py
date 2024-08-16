@@ -137,7 +137,7 @@ class TestTemplateValidatorNeuronTestCase:
     ):
         wallet, subtensor = mock_network
         v = Validator(integrations=[
-            MockAzuroProviderIntegration(max_pending_events=6), 
+            MockAzuroProviderIntegration(max_pending_events=6),
             MockPolymarketProviderIntegration()
         ])
 
@@ -194,8 +194,8 @@ class TestTemplateValidatorNeuronTestCase:
         assert v.scores[2] == 0.0
         # 0.7, 0.9
         # uid 3 and 4 calculated based on respective brier score -> moving average
-        assert (round(v.scores[3].item(), 4), round(v.scores[4].item(), 4)) == (0.0438, 0.7562)
-        assert (round(v.average_scores[3].item(), 3), round(v.average_scores[4].item(), 3)) == (0.055, 0.945)
+        assert (round(v.scores[3].item(), 4), round(v.scores[4].item(), 4)) == (0.0221, 0.7779)
+        assert (round(v.average_scores[3].item(), 3), round(v.average_scores[4].item(), 3)) == (0.028, 0.972)
 
     async def test_validator_settled_event_scores_polymarket_short(self, mock_network, caplog, monkeypatch, disable_event_updates):
         wallet, subtensor = mock_network
@@ -252,9 +252,9 @@ class TestTemplateValidatorNeuronTestCase:
         assert v.scores[2] == 0.0
         # 0.7, 0.9
         # uid 3 and 4 calculated based on respective brier score -> moving average
-        assert (round(v.scores[3].item(), 4), round(v.scores[4].item(), 4)) == (0.1344, 0.6656)
+        assert (round(v.scores[3].item(), 4), round(v.scores[4].item(), 4)) == (0.0954, 0.7046)
 
-        assert (round(v.average_scores[3].item(), 3), round(v.average_scores[4].item(), 3)) == (0.168, 0.832)
+        assert (round(v.average_scores[3].item(), 3), round(v.average_scores[4].item(), 3)) == (0.119, 0.881)
 
     async def test_validator_settled_event_scores_polymarket_longer_settle_date(self, mock_network, caplog, monkeypatch, disable_event_updates):
         wallet, subtensor = mock_network
@@ -424,6 +424,6 @@ class TestTemplateValidatorNeuronTestCase:
         assert v.scores[2] == 0.0
         # 0.7, 0.9
         # uid 3 and 4 calculated based on respective brier score -> moving average
-        assert (round(v.scores[3].item(), 4), round(v.scores[4].item(), 4)) == (0.1344, 0.6656)
+        assert (round(v.scores[3].item(), 4), round(v.scores[4].item(), 4)) == (0.0954, 0.7046)
 
-        assert (round(v.average_scores[3].item(), 3), round(v.average_scores[4].item(), 3))  == (0.168, 0.832)
+        assert (round(v.average_scores[3].item(), 3), round(v.average_scores[4].item(), 3))  == (0.119, 0.881)

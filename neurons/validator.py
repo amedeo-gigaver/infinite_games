@@ -237,7 +237,7 @@ class Validator(BaseValidatorNeuron):
                 alpha = 0
                 beta = 1
                 non_zeros = scores != 0
-                scores[non_zeros] = alpha * scores[non_zeros] + (beta * torch.exp(20*scores[non_zeros]))
+                scores[non_zeros] = alpha * scores[non_zeros] + (beta * torch.exp(25*scores[non_zeros]))
             bt.logging.info(f'With exp scores {scores}')
             scores = torch.nn.functional.normalize(scores, p=1, dim=0)
             bt.logging.info(f'Normalized {scores}')
