@@ -172,6 +172,7 @@ class Validator(BaseValidatorNeuron):
             first_n_intervals = 1
             bt.logging.info(f'{integration.__class__.__name__} {first_n_intervals=} intervals: {pe.registered_date=} {effective_finish_start_minutes=} {pe.resolve_date=} {cutoff=}  total={total_intervals}')
             scores = []
+            non_penalty_brier = []
             for uid in miner_uids:
                 prediction_intervals = predictions.get(uid.item())
                 # bt.logging.info(prediction_intervals)
@@ -186,6 +187,7 @@ class Validator(BaseValidatorNeuron):
                         continue
                     ans = max(0, min(1, ans))  # Clamp the answer
                     brier_score = 1 - ((ans - correct_ans)**2)
+                    non_penalty_brier.append(brier_score)
                     scores.append(max(brier_score - 0.75, 0))
                     bt.logging.info(f'settled answer for {uid=} for {pe.event_id=} {ans=} {brier_score=}')
                 else:
@@ -225,10 +227,11 @@ class Validator(BaseValidatorNeuron):
                     final_avg_brier = sum(mk) / weights_sum
                     bt.logging.info(f'final avg brier answer for {uid=} {final_avg_brier=}')
                     # 1/2 does not bring any value, add penalty for that
+                    non_penalty_brier.append(final_avg_brier)
                     penalty_brier_score = max(final_avg_brier - 0.75 , 0)
 
                     scores.append(penalty_brier_score)
-            brier_scores = torch.FloatTensor(scores)
+            brier_scores = torch.FloatTensor(non_penalty_brier)
             scores = torch.FloatTensor(scores)
             if all(score.item() <= 0.0 for score in scores):
                 # bt.logging.info('All effective scores zero for this event!')
