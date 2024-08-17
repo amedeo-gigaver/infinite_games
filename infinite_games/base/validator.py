@@ -460,8 +460,9 @@ class BaseValidatorNeuron(BaseNeuron):
         if miner_scores:
 
             for miner_id, market_type, event_id, brier_score, effective_score in miner_scores:
-                # bt.logging.debug(f'Miner {miner_id} {score} {old_weight} -> {total_weight}')
-                miner_logs += f'{measurement},source={miner_id},vali={self.wallet.hotkey.ss58_address},market_type={market_type},event_id={event_id} score={brier_score},effective_score={effective_score}\n'
+                # bt.logging.debug(f'Miner {miner_id} {brier_score}')
+                miner_logs += f'{measurement},source={miner_id},vali={self.wallet.hotkey.ss58_address} score={brier_score}\n'
+                miner_logs += f'{measurement}_event,source={miner_id},vali={self.wallet.hotkey.ss58_address},market_type={market_type},event_id={event_id} score={brier_score}\n'
 
         body = f'''
         {miner_logs}
@@ -490,8 +491,8 @@ class BaseValidatorNeuron(BaseNeuron):
         if miner_data:
 
             for miner_id, event_id, market_type, interval_minutes, avg_prediction in miner_data:
-                # bt.logging.debug(f'{measurement},market_type={market_type},source={miner_id},vali={self.wallet.hotkey.ss58_address},event_id={event_id},interval_minutes={interval_minutes} metric={avg_prediction}')
-                miner_logs += f'{measurement},source={miner_id},vali={self.wallet.hotkey.ss58_address},event_id={event_id},interval_minutes={interval_minutes} metric={avg_prediction}\n'
+                # bt.logging.debug(f'{measurement},market_type={market_type},source={miner_id},vali={self.wallet.hotkey.ss58_address},event_id={event_id} metric={avg_prediction}')
+                miner_logs += f'{measurement},source={miner_id},vali={self.wallet.hotkey.ss58_address},event_id={event_id} metric={avg_prediction}\n'
 
         body = f'''
         {miner_logs}
