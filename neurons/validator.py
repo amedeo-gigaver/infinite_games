@@ -77,7 +77,7 @@ class Validator(BaseValidatorNeuron):
             bt.logging.info(f'GRAFANA_API_KEY: {os.environ.get("GRAFANA_API_KEY", "None")}')
             if self.wallet.hotkey.ss58_address == os.environ.get('TARGET_MONITOR_HOTKEY'):
                 self.loop.create_task(self.send_stats())
-                self.loop.create_task(self.track_interval_stats())
+                # self.loop.create_task(self.track_interval_stats())
             bt.logging.debug("Provider initialized..")
 
     async def send_stats(self):
