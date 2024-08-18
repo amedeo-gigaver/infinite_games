@@ -369,8 +369,8 @@ class EventAggregator:
                 interval_data['total_score'] = self._interval_aggregate_function(interval_data['entries'] or [])
         return True
 
-    def miner_predict(self, pe: ProviderEvent, uid: int, answer: float, interval_start_minutes: int, blocktime: int) -> Submission:
-        bt.logging.info(f'{uid=} retrieving submission..')
+    async def miner_predict(self, pe: ProviderEvent, uid: int, answer: float, interval_start_minutes: int, blocktime: int) -> Submission:
+        # bt.logging.info(f'{uid=} retrieving submission..')
         submission: Submission = pe.miner_predictions.get(uid)
         if pe.market_type == 'azuro':
             if not (uid in pe.miner_predictions):
@@ -382,7 +382,7 @@ class EventAggregator:
         else:
             # aggregate all previous intervals if not yet
             # self._resolve_previous_intervals(pe, uid, interval_start_minutes)
-            bt.logging.info(f"{uid=} identifying interval for {interval_start_minutes=} {pe}")
+            # bt.logging.info(f"{uid=} identifying interval for {interval_start_minutes=} {pe}")
             if not (uid in pe.miner_predictions):
                 pe.miner_predictions[uid] = {}
             if not (interval_start_minutes in pe.miner_predictions[uid]):
@@ -391,7 +391,7 @@ class EventAggregator:
                     'total_score': None,
                     'count': 0
                 }
-            bt.logging.info(f"{uid=} Calculating new average for {interval_start_minutes=}")
+            # bt.logging.info(f"{uid=} Calculating new average for {interval_start_minutes=}")
             old_average = pe.miner_predictions[uid][interval_start_minutes]['total_score']
             old_count = pe.miner_predictions[uid][interval_start_minutes]['count']
             pe.miner_predictions[uid][interval_start_minutes]['total_score'] = ((old_average or 0) * old_count + answer) / (old_count + 1)

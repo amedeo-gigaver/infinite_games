@@ -312,7 +312,7 @@ class Validator(BaseValidatorNeuron):
                 if integration.available_for_submission(provider_event):
                     bt.logging.info(f'Submission {uid=} for {interval_start_minutes} {event_id}')
                     any_miner_processed = True
-                    self.event_provider.miner_predict(provider_event, uid.item(), score, interval_start_minutes, self.block)
+                    await self.event_provider.miner_predict(provider_event, uid.item(), score, interval_start_minutes, self.block)
                 else:
                     # bt.logging.warning(f'Submission received, but this event is not open for submissions miner {uid=} {event_id=} {score=}')
                     continue
@@ -349,6 +349,6 @@ if __name__ == "__main__":
             AcledProviderIntegration()
         ]) as validator:
         while True:
-            validator.print_info()
-            bt.logging.info("Validator running...", time.time())
-            time.sleep(20)
+            if validator.block % 10 == 0:
+                validator.print_info()
+                bt.logging.info("Validator running...", time.time())
