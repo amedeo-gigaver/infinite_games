@@ -282,14 +282,25 @@ class BaseValidatorNeuron(BaseNeuron):
         bt.logging.trace("processed_weight_uids", processed_weight_uids)
 
         # Set the weights on chain via our subtensor connection.
-        self.subtensor.set_weights(
-            wallet=self.wallet,
-            netuid=self.config.netuid,
-            uids=processed_weight_uids,
-            weights=processed_weights,
-            wait_for_finalization=False,
-            version_key=self.spec_version,
-        )
+        set_weight = False
+        # Sync the metagraph.
+        i = 1
+        while (not set_weight) and i < 5:
+            try:
+                self.subtensor.set_weights(
+                    wallet=self.wallet,
+                    netuid=self.config.netuid,
+                    uids=processed_weight_uids,
+                    weights=processed_weights,
+                    wait_for_finalization=False,
+                    version_key=self.spec_version,
+                )
+                set_weight = True
+            except Exception:
+                bt.logging.error("Try to re-set weight")
+                i += 1
+                bt.logging.error(traceback.format_exc())
+                time.sleep(4)
 
         bt.logging.info(f"Set weights: {processed_weights}")
 
