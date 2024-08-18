@@ -260,6 +260,7 @@ class Validator(BaseValidatorNeuron):
         """
         await self.initialize_provider()
         self.reset_daily_average_scores()
+        self.print_info()
         block_start = self.block
         miner_uids = infinite_games.utils.uids.get_all_uids(self)
         # Create synapse object to send to the miner.
@@ -343,14 +344,10 @@ bt.debug(True)
 # bt.trace(True)
 
 if __name__ == "__main__":
-    with Validator(integrations=[
+    v = Validator(integrations=[
             AzuroProviderIntegration(),
             PolymarketProviderIntegration(),
             AcledProviderIntegration()
-        ]) as validator:
-        last_block = validator.block
-        while True:
-            if validator.block % 10 == 0 and last_block != validator.block:
-                last_block = validator.block
-                validator.print_info()
-                bt.logging.info("Validator running...", time.time())
+        ])
+    v.run_in_background_thread()
+    v.thread.join()
