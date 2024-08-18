@@ -350,4 +350,5 @@ if __name__ == "__main__":
             AcledProviderIntegration()
         ])
     v.run_in_background_thread()
+    time.sleep(2)
     v.thread.join()
