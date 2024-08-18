@@ -348,7 +348,9 @@ if __name__ == "__main__":
             PolymarketProviderIntegration(),
             AcledProviderIntegration()
         ]) as validator:
+        last_block = validator.block
         while True:
-            if validator.block % 10 == 0:
+            if validator.block % 10 == 0 and last_block != validator.block:
+                last_block = validator.block
                 validator.print_info()
                 bt.logging.info("Validator running...", time.time())
