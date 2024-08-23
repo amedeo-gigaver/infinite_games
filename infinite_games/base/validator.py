@@ -473,7 +473,7 @@ class BaseValidatorNeuron(BaseNeuron):
             for miner_id, market_type, event_id, brier_score, effective_score in miner_scores:
                 # bt.logging.debug(f'Miner {miner_id} {brier_score}')
                 miner_logs += f'{measurement},source={miner_id},vali={self.wallet.hotkey.ss58_address} score={brier_score},effective_score={effective_score}\n'
-                miner_logs += f'{measurement}_event,source={miner_id},vali={self.wallet.hotkey.ss58_address},market_type={market_type},event_id={event_id} score={brier_score}\n'
+                miner_logs += f'{measurement}_event,source={miner_id},vali={self.wallet.hotkey.ss58_address},market_type={market_type},event_id={event_id} score={brier_score},effective_score={effective_score}\n'
 
         body = f'''
         {miner_logs}
