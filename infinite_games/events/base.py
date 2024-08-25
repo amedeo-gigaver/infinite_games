@@ -1,5 +1,6 @@
 
 import asyncio
+import os
 import pickle
 import traceback
 import bittensor as bt
@@ -341,14 +342,17 @@ class EventAggregator:
                 try:
                     self.registered_events = pickle.load(f)
                 except EOFError as eof:
-                    self.error('**** Could not load events! Your events file might be corrupted {eof}')
-                    raise eof
+                    self.error(eof)
+                    self.error('**** Could not load events! Your events file is corrupted, deleting it')
+                    os.remove(self.state_path)
+                    self.registered_events = {}
             bt.logging.debug(f'****** Loaded state from disk - events: {len(self.registered_events.keys())} ******')
         except FileNotFoundError:
             bt.logging.debug("No file found, initialize empty state")
             self.registered_events = {}
         except pickle.UnpicklingError:
             bt.logging.error("Invalid events state, initialize empty state!")
+            self.registered_events = {}
 
     async def get_miner_prediction(self, uid: int, event_id: str) -> Optional[Submission]:
         submission = self.registered_events.get(self.event_key(event_id), {}).get(uid)
