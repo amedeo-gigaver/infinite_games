@@ -1,13 +1,15 @@
 
 import asyncio
+from collections import defaultdict
 import os
 import pickle
+import sqlite3
 import traceback
 import bittensor as bt
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 import json
-from typing import Any, AsyncIterator, Callable, Dict, List, Optional, Type
+from typing import Any, AsyncIterator, Callable, Dict, Iterator, List, Optional, Type
 
 from infinite_games.utils.misc import split_chunks
 
@@ -90,7 +92,7 @@ class ProviderIntegration:
 
 class EventAggregator:
 
-    def __init__(self, state_path: str):
+    def __init__(self, state_path: str, db_path: str = 'database.db'):
 
         self.registered_events: Dict[str, ProviderEvent] = {
 
@@ -102,12 +104,14 @@ class EventAggregator:
         self.WATCH_EVENTS_DELAY = 5
         self.COLLECTOR_WATCH_EVENTS_DELAY = 30
         self.MAX_PROVIDER_CONCURRENT_TASKS = 3
+        self.db_path = db_path
+        self.create_tables()
         # loop = asyncio.get_event_loop()
         # loop.create_task(self._watch_events())
 
     @classmethod
-    async def create(cls, state_path: str, integrations: List[Type[ProviderIntegration]]):
-        self = cls(state_path)
+    async def create(cls, state_path: str, integrations: List[Type[ProviderIntegration]], db_path='database.db'):
+        self = cls(state_path, db_path=db_path)
         self.integrations = {
             integration.provider_name(): await integration._ainit() for integration in integrations
         }
@@ -115,7 +119,7 @@ class EventAggregator:
         return self
 
     def get_registered_event(self, provider_name: str, event_id: str):
-        return self.registered_events.get(self.event_key(provider_name, event_id))
+        return self.get_event(f'{provider_name}-{event_id}')
 
     def get_provider_pending_events(self, integration: ProviderIntegration) -> List[ProviderEvent]:
         pe_events = []
@@ -127,7 +131,7 @@ class EventAggregator:
     async def _sync_provider(self, integration: ProviderIntegration):
         async for event in integration.sync_events():
 
-            self.register_event(event)
+            self.register_or_update_event(event)
 
     async def collect_events(self):
         if not self.integrations:
@@ -158,7 +162,8 @@ class EventAggregator:
                 updated_event_data: ProviderEvent = await integration.get_single_event(event_data.event_id)
                 if updated_event_data:
                     # self.log(f'Event updated {updated_event_data.event_id}')
-                    self.update_event(updated_event_data)
+                    self.register_or_update_event(updated_event_data)
+                    # self.update_event(updated_event_data)
                 else:
                     self.warning(f'Could not update event {event_data}')
 
@@ -232,65 +237,68 @@ class EventAggregator:
     def event_key(self, provider_name, event_id):
         return f'{provider_name}-{event_id}'
 
-    def register_event(self, pe: ProviderEvent):
+    def register_or_update_event(self, pe: ProviderEvent):
         """Adds or updates event. Returns true - if this event not in the list yet"""
         key = self.event_key(pe.market_type, event_id=pe.event_id)
-        if self.registered_events.get(key):
+        integration = self.integrations.get(pe.market_type)
+        if not integration:
+            bt.logging.error(f'No integration found for event {pe.market_type} - {pe.event_id}')
+            return
+        exists = self.save_event(pe)
+        if exists:
+            bt.logging.info(f'UPDATING EVENT!!!')
             # Naive event update
-            self.update_event(pe)
+            if self.event_update_hook_fn and callable(self.event_update_hook_fn):
+                try:
+                    event: ProviderEvent = self.get_event(key)
+                    if self.event_update_hook_fn(event) is True:
+                        # TODO MARK EVENT?
+                        pass
+                except Exception as e:
+                    bt.logging.error(f'Failed to call update hook for event {key}')
+                    bt.logging.error(e)
+                    bt.logging.error(traceback.format_exc())
+                    print(traceback.format_exc())
         else:
-            integration = self.integrations.get(pe.market_type)
-            if not integration:
-                bt.logging.error(f'No integration found for event {pe.market_type} - {pe.event_id}')
-                return
-            if integration.max_pending_events and len(self.get_provider_pending_events(integration)) >= integration.max_pending_events:
-                return
             self.log(f'New event:  {key} {pe.description} - {pe.status} ')
-            self.registered_events[key] = pe
 
-        return True
-
-    def update_event(self, pe: ProviderEvent):
-        """Updates event"""
-        key = self.event_key(provider_name=pe.market_type, event_id=pe.event_id)
-        if not self.registered_events.get(self.event_key(provider_name=pe.market_type, event_id=pe.event_id)):
-            bt.logging.error(f'No event found in registry {pe.market_type} {pe.event_id}!')
-            return False
-        # self.log(f'Updating event: {description}, {start_time} status: {event_status}', )
-        self.registered_events[key] = ProviderEvent(
-            pe.event_id,
-            self.registered_events[key].registered_date or pe.registered_date,
-            pe.market_type,
-            pe.description,
-            pe.starts,
-            pe.resolve_date,
-            pe.answer,
-            pe.local_updated_at,
-            pe.status,
-            self.registered_events[key].miner_predictions,
-            # {
-            #     0: Submission(datetime.now().timestamp(), 1)
-            # },
-            pe.metadata,
-        )
-        if self.event_update_hook_fn and callable(self.event_update_hook_fn):
-            try:
-                if self.event_update_hook_fn(self.registered_events.get(key)) is True:
-                    del self.registered_events[key]
-            except Exception as e:
-                bt.logging.error(f'Failed to call update hook for event {key}')
-                bt.logging.error(e)
-                bt.logging.error(traceback.format_exc())
-                print(traceback.format_exc())
-
-        return True
+        return exists
 
     def on_event_updated_hook(self, event_update_hook_fn: Callable[[ProviderEvent], None]):
         """Depending on provider, hook that will be called when we have updates for registered events"""
         self.event_update_hook_fn = event_update_hook_fn
 
     def get_event(self, event_id):
-        return self.registered_events.get(self.get_event_key(event_id))
+        """Get single event"""
+
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        result = None
+        try:
+            c = cursor.execute(
+                """
+                select unique_event_id, event_id, market_type, registered_date, description,starts, resolve_date, outcome,local_updated_at,status, metadata, exported
+                from events
+                where unique_event_id = ?
+                """,
+                (event_id,)
+            )
+            result: List[sqlite3.Row] = c.fetchall()
+        except Exception as e:
+            bt.logging.error(e)
+            bt.logging.error(traceback.format_exc())
+        conn.close()
+        if result:
+            data = dict(result[0])
+            pe: ProviderEvent = self.row_to_pe(data)
+            integration = self.integrations.get(pe.market_type)
+            if not integration:
+                bt.logging.warning(f'No integration found for event {pe}')
+                return None
+            return pe
+        else:
+            return None
 
     def get_integration(self, pe: ProviderEvent) -> ProviderIntegration:
         integration = self.integrations.get(pe.market_type)
@@ -315,7 +323,7 @@ class EventAggregator:
     def get_events_for_submission(self) -> List[ProviderEvent]:
         """Get events that are available for submission"""
         events = []
-        for _, pe in self.registered_events.items():
+        for pe in self.get_events():
             integration = self.integrations.get(pe.market_type)
             if not integration:
                 bt.logging.warning(f'No integration found for event {pe}')
@@ -324,10 +332,45 @@ class EventAggregator:
                 events.append(pe)
         return events
 
-    def get_events(self) -> AsyncIterator[ProviderEvent]:
+    def row_to_pe(self, row) -> ProviderEvent:
+        return ProviderEvent(
+            row.get('event_id'),
+            datetime.fromisoformat(row.get('registered_date')),
+            row.get('market_type'),
+            row.get('description'),
+            datetime.fromisoformat(row.get('starts')) if row.get('starts') else None,
+            datetime.fromisoformat(row.get('resolve_date')) if row.get('resolve_date') else None,
+            float(row.get('outcome')) if row.get('outcome') else None,
+            datetime.fromisoformat(row.get('local_updated_at')) if row.get('local_updated_at') else None,
+            int(row.get('status')),
+            {},
+            json.loads(row.get('metadata', '{}')),
+        )
+
+    def get_events(self, pending=True) -> Iterator[ProviderEvent]:
         """Get all events"""
         events = []
-        for _, pe in self.registered_events.items():
+
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        try:
+            c = cursor.execute(
+                """
+                select unique_event_id, event_id, market_type, registered_date, description,starts, resolve_date, outcome,local_updated_at,status, metadata, exported
+                from events
+                where status = ?
+                """,
+                (str(EventStatus.PENDING))
+            )
+            result: List[sqlite3.Row] = c.fetchall()
+        except Exception as e:
+            bt.logging.error(e)
+            bt.logging.error(traceback.format_exc())
+        conn.close()
+        for row in result:
+            data = dict(row)
+            pe: ProviderEvent = self.row_to_pe(data)
             integration = self.integrations.get(pe.market_type)
             if not integration:
                 bt.logging.warning(f'No integration found for event {pe}')
@@ -373,32 +416,137 @@ class EventAggregator:
                 interval_data['total_score'] = self._interval_aggregate_function(interval_data['entries'] or [])
         return True
 
+    def create_tables(self):
+        conn = sqlite3.connect(self.db_path)
+        c = conn.cursor()
+
+        # create table if it doesn't exist
+        c.execute(
+            """
+            CREATE TABLE IF NOT EXISTS predictions (
+                unique_event_id TEXT,
+                minerHotkey TEXT,
+                minerUid TEXT,
+                predictedOutcome TEXT,
+                canOverwrite BOOLEAN,
+                outcome TEXT,
+                interval_start_minutes INTEGER,
+                interval_agg_prediction REAL,
+                interval_count INTEGER,
+                submitted DATETIME,
+                blocktime INTEGER,
+                exported INTEGER DEFAULT 0,
+                PRIMARY KEY (unique_event_id, interval_start_minutes, minerUid)
+            );
+            """
+        )
+
+        c.execute(
+            """
+            CREATE TABLE IF NOT EXISTS events (
+                unique_event_id PRIMARY KEY,
+                event_id TEXT,
+                market_type TEXT,
+                registered_date DATETIME,
+                description TEXT,
+                starts DATETIME,
+                resolve_date DATETIME,
+                outcome TEXT,
+                local_updated_at DATETIME,
+                status TEXT,
+                metadata TEXT,
+                exported INTEGER DEFAULT 0
+            );
+
+        """
+        )
+
+        conn.commit()
+        conn.close()
+
+    def save_event(self, pe: ProviderEvent) -> bool:
+        """Returns true if new event"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        result = []
+        try:
+            c = cursor.execute(
+                """
+                INSERT into events ( unique_event_id, event_id, market_type, registered_date, description,starts, resolve_date, outcome,local_updated_at,status, metadata)
+                Values (?, ?, ?, ?, ?, ?, ?, ?, ?, ? , ?)
+                ON CONFLICT(unique_event_id)
+                DO UPDATE set outcome = ?, status = ?, local_updated_at = ?
+                RETURNING unique_event_id, registered_date, local_updated_at
+                """,
+                (self.event_key(pe.market_type, event_id=pe.event_id), pe.event_id,  pe.market_type, pe.registered_date,  pe.description, pe.starts, pe.resolve_date , pe.answer,datetime.now(tz=timezone.utc), pe.status, json.dumps(pe.metadata),
+                 pe.answer, pe.status, pe.local_updated_at),
+            )
+            result = c.fetchall()
+        except Exception as e:
+            bt.logging.error(e)
+            bt.logging.error(traceback.format_exc())
+
+        conn.execute("COMMIT")
+        conn.close()
+        if result[0]:
+            return result[0][1] == result[0][2]
+        return False
+
+    def update_cluster_prediction(self, pe: ProviderEvent, uid: int, blocktime: int, interval_start_minutes: int, new_prediction):
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+
+        try:
+            c = cursor.execute(
+                """
+                INSERT into predictions ( unique_event_id, minerHotkey, minerUid, predictedOutcome,interval_start_minutes,interval_agg_prediction,interval_count,submitted,blocktime)
+                Values (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(unique_event_id,  interval_start_minutes, minerUid)
+                DO UPDATE set interval_agg_prediction = (interval_agg_prediction * interval_count + ?) / (interval_count + 1), interval_count = interval_count + 1""",
+                (self.event_key(pe.market_type, event_id=pe.event_id), None, uid, None, interval_start_minutes, new_prediction , 1,datetime.now(tz=timezone.utc), blocktime, new_prediction),
+            )
+        except Exception as e:
+            bt.logging.info(e)
+            bt.logging.info(traceback.format_exc())
+
+        conn.execute("COMMIT")
+        conn.close()
+
+    def get_event_predictions(self, pe: ProviderEvent):
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        result = []
+        try:
+            c = cursor.execute(
+                """
+                select unique_event_id, minerHotkey, minerUid, predictedOutcome,interval_start_minutes,interval_agg_prediction,interval_count,submitted,blocktime
+                from predictions
+                where unique_event_id = ?
+                """,
+                (self.event_key(pe.market_type, event_id=pe.event_id),)
+            )
+            result: List[sqlite3.Row] = c.fetchall()
+        except Exception as e:
+            bt.logging.error(e)
+            bt.logging.error(traceback.format_exc())
+        conn.close()
+        output = defaultdict(dict)
+        for row in result:
+            interval_prediction = dict(row)
+            if int(interval_prediction['interval_start_minutes']) not in output[int(interval_prediction['minerUid'])]:
+                output[int(interval_prediction['minerUid'])][int(interval_prediction['interval_start_minutes'])] = interval_prediction
+        return output
+
     async def miner_predict(self, pe: ProviderEvent, uid: int, answer: float, interval_start_minutes: int, blocktime: int) -> Submission:
         # bt.logging.info(f'{uid=} retrieving submission..')
         submission: Submission = pe.miner_predictions.get(uid)
         if pe.market_type == 'azuro':
-            if not (uid in pe.miner_predictions):
-                pe.miner_predictions[uid] = {}
-            pe.miner_predictions[uid][0] = {
-                'total_score': answer,
-                'count': 1
-            }
+            self.update_cluster_prediction(pe, uid, blocktime, 0, answer)
         else:
             # aggregate all previous intervals if not yet
             # self._resolve_previous_intervals(pe, uid, interval_start_minutes)
             # bt.logging.info(f"{uid=} identifying interval for {interval_start_minutes=} {pe}")
-            if not (uid in pe.miner_predictions):
-                pe.miner_predictions[uid] = {}
-            if not (interval_start_minutes in pe.miner_predictions[uid]):
-                pe.miner_predictions[uid][interval_start_minutes] = {
-                    # 'entries': [],
-                    'total_score': None,
-                    'count': 0
-                }
-            # bt.logging.info(f"{uid=} Calculating new average for {interval_start_minutes=}")
-            old_average = pe.miner_predictions[uid][interval_start_minutes]['total_score']
-            old_count = pe.miner_predictions[uid][interval_start_minutes]['count']
-            pe.miner_predictions[uid][interval_start_minutes]['total_score'] = ((old_average or 0) * old_count + answer) / (old_count + 1)
-            pe.miner_predictions[uid][interval_start_minutes]['count'] = old_count + 1
+            self.update_cluster_prediction(pe, uid, blocktime, interval_start_minutes, answer)
 
         return submission

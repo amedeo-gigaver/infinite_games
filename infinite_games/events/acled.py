@@ -30,7 +30,7 @@ class AcledProviderIntegration(ProviderIntegration):
 
     def available_for_submission(self, pe: ProviderEvent):
         max_date_for_submission = self.latest_submit_date(pe)
-        # self.log(f'Can submit? {pe} resolve date: {pe.resolve_date} , condition: {datetime.now().date()} < {one_day_before_resolve.date()} {datetime.now().date() < one_day_before_resolve.date()}')
+        # self.log(f'Can submit? {pe} {max_date_for_submission=} , condition: {datetime.now(timezone.utc) < max_date_for_submission and pe.status != EventStatus.SETTLED} {datetime.now(timezone.utc)} {pe.status}')
         return datetime.now(timezone.utc) < max_date_for_submission and pe.status != EventStatus.SETTLED
 
     def convert_status(self, event):
