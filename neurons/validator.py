@@ -86,6 +86,18 @@ class Validator(BaseValidatorNeuron):
             self.send_average_scores(miner_scores=list(zip(all_uids, self.average_scores.tolist(), self.scores.tolist())))
             await asyncio.sleep(self.SEND_LOGS_INTERVAL)
 
+    def compute_log_score(ans: float , event: int) -> float:
+        if event==1:
+                if ans == 0:
+                    return -0.5
+                else:
+                    return max(1 + math.log2(ans), - 0.5)
+        else:
+                if ans ==1:
+                    return -0.5
+                else:
+                    return max(1 + math.log2(1-ans), -0.5)
+                
     def on_event_update(self, pe: ProviderEvent):
         """Hook called whenever we have settling events. Event removed when we return True"""
         if pe.status == EventStatus.SETTLED:
@@ -135,8 +147,8 @@ class Validator(BaseValidatorNeuron):
                         scores.append(0)
                         continue
                     ans = max(0, min(1, ans))  # Clamp the answer
-                    brier_score = 1 - ((ans - correct_ans)**2)
-                    scores.append(max(brier_score - 0.75, 0))
+                    log_score = compute_log_score(ans, correct_ans)
+                    scores.append(log_score)
                     bt.logging.info(f'settled answer for {uid=} for {pe.event_id=} {ans=} {brier_score=}')
                 else:
 
@@ -168,16 +180,15 @@ class Validator(BaseValidatorNeuron):
                             continue
                         ans = max(0, min(1, ans))  # Clamp the answer
                         # bt.logging.debug(f'Submission of {uid=} {ans=}')
-                        brier_score = 1 - ((ans - correct_ans)**2)
-                        mk.append(wk * brier_score)
+                        log_score = compute_log_score(ans, correct_ans)
+                        mk.append(wk * log_score)
 
                         bt.logging.info(f'answer for {uid=} {interval_start_minutes=} {interval_start_date=} {ans=} total={total_intervals} curr={current_interval_no} {wk=} {brier_score=}')
                     final_avg_brier = sum(mk) / weights_sum
                     bt.logging.info(f'final avg brier answer for {uid=} {final_avg_brier=}')
                     # 1/2 does not bring any value, add penalty for that
-                    penalty_brier_score = max(final_avg_brier - 0.75 , 0)
 
-                    scores.append(penalty_brier_score)
+                    scores.append(final_avg_brier)
             scores = torch.FloatTensor(scores)
             if all(score.item() <= 0.0 for score in scores):
                 # bt.logging.info('All effective scores zero for this event!')

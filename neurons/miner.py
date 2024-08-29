@@ -47,7 +47,10 @@ async def _calculate_next_try(market: MinerCacheObject) -> (int, int):
         (int, int): The number of retries left, the timestamp of next probability calculation
 
     """
-    return market.event.retries - 1, market.event.cutoff
+
+    
+
+    return market.event.retries - 1, market.event.cutoff 
 
 
 class Miner(BaseMinerNeuron):
