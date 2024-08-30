@@ -18,9 +18,12 @@
 import asyncio
 from datetime import datetime, timedelta, timezone
 import itertools
+import json
 import logging
 import math
 import os
+import sqlite3
+from typing import List
 
 from infinite_games.events.acled import AcledProviderIntegration
 os.environ['USE_TORCH'] = '1'
@@ -69,6 +72,7 @@ class Validator(BaseValidatorNeuron):
                 db_path=self.db_path
             )
             self.event_provider.load_state()
+            self.event_provider.migrate_pickle_to_sql()
             self.event_provider.on_event_updated_hook(self.on_event_update)
             if os.getenv('VALIDATOR_WATCH_EVENTS_DISABLED', "0") == "0":
                 # watch for existing registered events

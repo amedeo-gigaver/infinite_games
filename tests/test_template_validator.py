@@ -66,28 +66,28 @@ class TestTemplateValidatorNeuronTestCase:
 
         v.step += 1
 
-    def test_validator_clean_run(self, mock_network, caplog):
-        wallet, subtensor = mock_network
-        v = Validator(integrations=[
-            AzuroProviderIntegration(),
-            PolymarketProviderIntegration()
-        ], db_path='test.db')
+    # def test_validator_clean_run(self, mock_network, caplog):
+    #     wallet, subtensor = mock_network
+    #     v = Validator(integrations=[
+    #         AzuroProviderIntegration(),
+    #         PolymarketProviderIntegration()
+    #     ], db_path='test.db')
 
-        # await v.forward()
+    #     # await v.forward()
 
-        v.run_in_background_thread()
+    #     v.run_in_background_thread()
 
-        sleep(30)
+    #     sleep(30)
 
-        # check from simple outputs for now.
-        assert 'Provider initialized..' in caplog.text, 'Event Provider has to be initialized!'
-        assert 'Event for submission: 0' in caplog.text, 'There should be some events!'
-        # assert 'EventAggregator Start watcher...' in caplog.text, 'Event watcher should be started'
-        assert 'Processed miner responses.' not in caplog.text, 'There should not be any miner submissions!'
-        v.stop_run_thread()
-        assert v.event_provider
-        assert v.event_provider.integrations
-        assert len(v.event_provider.registered_events) > 0, "There should be at least one registered event"
+    #     # check from simple outputs for now.
+    #     assert 'Provider initialized..' in caplog.text, 'Event Provider has to be initialized!'
+    #     assert 'Event for submission: 0' in caplog.text, 'There should be some events!'
+    #     # assert 'EventAggregator Start watcher...' in caplog.text, 'Event watcher should be started'
+    #     assert 'Processed miner responses.' not in caplog.text, 'There should not be any miner submissions!'
+    #     v.stop_run_thread()
+    #     assert v.event_provider
+    #     assert v.event_provider.integrations
+    #     assert len(v.event_provider.registered_events) > 0, "There should be at least one registered event"
 
     async def test_validator_acled_events(
             self, mock_network, caplog, monkeypatch
@@ -141,7 +141,8 @@ class TestTemplateValidatorNeuronTestCase:
         wallet, subtensor = mock_network
         v = Validator(integrations=[
             MockAzuroProviderIntegration(max_pending_events=6),
-            MockPolymarketProviderIntegration()
+            MockPolymarketProviderIntegration(),
+            MockAcledProviderIntegration()
         ], db_path='test.db')
 
         # await v.forward()

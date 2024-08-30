@@ -295,7 +295,7 @@ class EventAggregator:
             pe: ProviderEvent = self.row_to_pe(data)
             integration = self.integrations.get(pe.market_type)
             if not integration:
-                bt.logging.warning(f'No integration found for event {pe}')
+                bt.logging.warning(f'No integration found for event in database {pe}')
                 return None
             return pe
         else:
@@ -381,7 +381,7 @@ class EventAggregator:
         return events
 
     def load_state(self):
-        self.log('** Loading events from disk **')
+        self.log(f'** Loading events from disk  {self.state_path} **')
         try:
             with open(self.state_path, 'rb') as f:
                 try:
@@ -467,6 +467,48 @@ class EventAggregator:
         conn.commit()
         conn.close()
 
+    def migrate_pickle_to_sql(self):
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        events = self.get_events()
+        if events and len(events) > 0:
+            bt.logging.info('Already migrated, found events in database.')
+        else:
+            bt.logging.info('Migrating pickle to database...')
+        try:
+
+            for pe in list(self.registered_events.values()):
+                bt.logging.info(f'Saving {pe} event and submissions.')
+                c = cursor.execute(
+                    """
+                    INSERT into events ( unique_event_id, event_id, market_type, registered_date, description,starts, resolve_date, outcome,local_updated_at,status, metadata)
+                    Values (?, ?, ?, ?, ?, ?, ?, ?, ?, ? , ?)
+                    ON CONFLICT(unique_event_id)
+                    DO NOTHING
+                    """,
+                    (f'{pe.market_type}-{pe.event_id}', pe.event_id,  pe.market_type, pe.registered_date,  pe.description, pe.starts, pe.resolve_date , pe.answer,datetime.now(tz=timezone.utc), pe.status, json.dumps(pe.metadata)),
+                )
+                for uid, intervals_dict in pe.miner_predictions.items():
+                    for interval_start_minutes, data in intervals_dict.items():
+                        agg_prediction = data.get('total_score', 0)
+                        total_count = data.get('count', 0)
+                        cursor.execute(
+                            """
+                            INSERT into predictions ( unique_event_id, minerHotkey, minerUid, predictedOutcome,interval_start_minutes,interval_agg_prediction,interval_count,submitted,blocktime)
+                            Values (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            ON CONFLICT(unique_event_id,  interval_start_minutes, minerUid)
+                            DO Nothing""",
+                            (f'{pe.market_type}-{pe.event_id}', None, uid, None, interval_start_minutes, agg_prediction , total_count,datetime.now(tz=timezone.utc), 0),
+                        )
+            if self.registered_events:
+                conn.execute("COMMIT")
+        except Exception as e:
+            bt.logging.error('Error migrating data! Ples')
+            bt.logging.error(traceback.format_exc())
+            exit()
+        conn.close()
+        bt.logging.info('Data migrated successfully!')
+
     def save_event(self, pe: ProviderEvent, processed=False) -> bool:
         """Returns true if new event"""
         conn = sqlite3.connect(self.db_path)
@@ -475,7 +517,7 @@ class EventAggregator:
         tries = 4
         tried = 0
         while tried < tries:
-
+            # bt.logging.info(f'Now time: {datetime.now(tz=timezone.utc)}, {pe} ')
             try:
                 c = cursor.execute(
                     """
@@ -486,15 +528,16 @@ class EventAggregator:
                     RETURNING unique_event_id, registered_date, local_updated_at
                     """,
                     (self.event_key(pe.market_type, event_id=pe.event_id), pe.event_id,  pe.market_type, pe.registered_date,  pe.description, pe.starts, pe.resolve_date , pe.answer,datetime.now(tz=timezone.utc), pe.status, json.dumps(pe.metadata),
-                    pe.answer, pe.status, pe.local_updated_at, processed),
+                    pe.answer, pe.status, datetime.now(tz=timezone.utc), processed),
                 )
                 result = c.fetchall()
+                # bt.logging.debug(result)
                 conn.execute("COMMIT")
                 break
             except Exception as e:
                 if 'locked' in str(e):
                     bt.logging.warning(
-                        f"Database locked, retry, try {tried + 1})"
+                        f"Database locked, retry {tried + 1}.."
                     )
                     time.sleep(1 + (2 * tried))
 
@@ -531,7 +574,7 @@ class EventAggregator:
             except sqlite3.OperationalError as e:
                 if 'locked' in str(e):
                     bt.logging.warning(
-                        f"Database locked, retry, try {tried + 1})"
+                        f"Database locked, retry {tried + 1}.."
                     )
                     time.sleep(1 + (2 * tried))
                     # tried += 1
