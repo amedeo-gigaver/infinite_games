@@ -4,6 +4,7 @@ from collections import defaultdict
 import os
 import pickle
 import sqlite3
+import time
 import traceback
 import bittensor as bt
 from dataclasses import dataclass
@@ -244,14 +245,14 @@ class EventAggregator:
         if not integration:
             bt.logging.error(f'No integration found for event {pe.market_type} - {pe.event_id}')
             return
-        exists = self.save_event(pe)
-        if exists:
-            bt.logging.info(f'UPDATING EVENT!!!')
+        is_new = self.save_event(pe)
+        if not is_new:
             # Naive event update
             if self.event_update_hook_fn and callable(self.event_update_hook_fn):
                 try:
                     event: ProviderEvent = self.get_event(key)
                     if self.event_update_hook_fn(event) is True:
+                        self.save_event(pe, True)
                         # TODO MARK EVENT?
                         pass
                 except Exception as e:
@@ -262,7 +263,7 @@ class EventAggregator:
         else:
             self.log(f'New event:  {key} {pe.description} - {pe.status} ')
 
-        return exists
+        return is_new
 
     def on_event_updated_hook(self, event_update_hook_fn: Callable[[ProviderEvent], None]):
         """Depending on provider, hook that will be called when we have updates for registered events"""
@@ -350,7 +351,7 @@ class EventAggregator:
     def get_events(self, pending=True) -> Iterator[ProviderEvent]:
         """Get all events"""
         events = []
-
+        result = []
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
@@ -359,7 +360,7 @@ class EventAggregator:
                 """
                 select unique_event_id, event_id, market_type, registered_date, description,starts, resolve_date, outcome,local_updated_at,status, metadata, exported
                 from events
-                where status = ?
+                where status = ? and processed = false
                 """,
                 (str(EventStatus.PENDING))
             )
@@ -367,7 +368,8 @@ class EventAggregator:
         except Exception as e:
             bt.logging.error(e)
             bt.logging.error(traceback.format_exc())
-        conn.close()
+        finally:
+            conn.close()
         for row in result:
             data = dict(row)
             pe: ProviderEvent = self.row_to_pe(data)
@@ -455,6 +457,7 @@ class EventAggregator:
                 local_updated_at DATETIME,
                 status TEXT,
                 metadata TEXT,
+                processed BOOLEAN DEFAULT false,
                 exported INTEGER DEFAULT 0
             );
 
@@ -464,52 +467,85 @@ class EventAggregator:
         conn.commit()
         conn.close()
 
-    def save_event(self, pe: ProviderEvent) -> bool:
+    def save_event(self, pe: ProviderEvent, processed=False) -> bool:
         """Returns true if new event"""
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         result = []
-        try:
-            c = cursor.execute(
-                """
-                INSERT into events ( unique_event_id, event_id, market_type, registered_date, description,starts, resolve_date, outcome,local_updated_at,status, metadata)
-                Values (?, ?, ?, ?, ?, ?, ?, ?, ?, ? , ?)
-                ON CONFLICT(unique_event_id)
-                DO UPDATE set outcome = ?, status = ?, local_updated_at = ?
-                RETURNING unique_event_id, registered_date, local_updated_at
-                """,
-                (self.event_key(pe.market_type, event_id=pe.event_id), pe.event_id,  pe.market_type, pe.registered_date,  pe.description, pe.starts, pe.resolve_date , pe.answer,datetime.now(tz=timezone.utc), pe.status, json.dumps(pe.metadata),
-                 pe.answer, pe.status, pe.local_updated_at),
-            )
-            result = c.fetchall()
-        except Exception as e:
-            bt.logging.error(e)
-            bt.logging.error(traceback.format_exc())
+        tries = 4
+        tried = 0
+        while tried < tries:
 
-        conn.execute("COMMIT")
+            try:
+                c = cursor.execute(
+                    """
+                    INSERT into events ( unique_event_id, event_id, market_type, registered_date, description,starts, resolve_date, outcome,local_updated_at,status, metadata)
+                    Values (?, ?, ?, ?, ?, ?, ?, ?, ?, ? , ?)
+                    ON CONFLICT(unique_event_id)
+                    DO UPDATE set outcome = ?, status = ?, local_updated_at = ?, processed = ?
+                    RETURNING unique_event_id, registered_date, local_updated_at
+                    """,
+                    (self.event_key(pe.market_type, event_id=pe.event_id), pe.event_id,  pe.market_type, pe.registered_date,  pe.description, pe.starts, pe.resolve_date , pe.answer,datetime.now(tz=timezone.utc), pe.status, json.dumps(pe.metadata),
+                    pe.answer, pe.status, pe.local_updated_at, processed),
+                )
+                result = c.fetchall()
+                conn.execute("COMMIT")
+                break
+            except Exception as e:
+                if 'locked' in str(e):
+                    bt.logging.warning(
+                        f"Database locked, retry, try {tried + 1})"
+                    )
+                    time.sleep(1 + (2 * tried))
+
+                else:
+                    bt.logging.error(e)
+                    bt.logging.error(traceback.format_exc())
+                    break
+            tried += 1
+
         conn.close()
-        if result[0]:
+        if result and result[0]:
+            # bt.logging.debug(result)
             return result[0][1] == result[0][2]
         return False
 
     def update_cluster_prediction(self, pe: ProviderEvent, uid: int, blocktime: int, interval_start_minutes: int, new_prediction):
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
+        tries = 4
+        tried = 0
+        while tried < tries:
 
-        try:
-            c = cursor.execute(
-                """
-                INSERT into predictions ( unique_event_id, minerHotkey, minerUid, predictedOutcome,interval_start_minutes,interval_agg_prediction,interval_count,submitted,blocktime)
-                Values (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ON CONFLICT(unique_event_id,  interval_start_minutes, minerUid)
-                DO UPDATE set interval_agg_prediction = (interval_agg_prediction * interval_count + ?) / (interval_count + 1), interval_count = interval_count + 1""",
-                (self.event_key(pe.market_type, event_id=pe.event_id), None, uid, None, interval_start_minutes, new_prediction , 1,datetime.now(tz=timezone.utc), blocktime, new_prediction),
-            )
-        except Exception as e:
-            bt.logging.info(e)
-            bt.logging.info(traceback.format_exc())
-
-        conn.execute("COMMIT")
+            try:
+                cursor.execute(
+                    """
+                    INSERT into predictions ( unique_event_id, minerHotkey, minerUid, predictedOutcome,interval_start_minutes,interval_agg_prediction,interval_count,submitted,blocktime)
+                    Values (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ON CONFLICT(unique_event_id,  interval_start_minutes, minerUid)
+                    DO UPDATE set interval_agg_prediction = (interval_agg_prediction * interval_count + ?) / (interval_count + 1), interval_count = interval_count + 1""",
+                    (self.event_key(pe.market_type, event_id=pe.event_id), None, uid, None, interval_start_minutes, new_prediction , 1,datetime.now(tz=timezone.utc), blocktime, new_prediction),
+                )
+                conn.execute("COMMIT")
+                break
+            except sqlite3.OperationalError as e:
+                if 'locked' in str(e):
+                    bt.logging.warning(
+                        f"Database locked, retry, try {tried + 1})"
+                    )
+                    time.sleep(1 + (2 * tried))
+                    # tried += 1
+                else:
+                    bt.logging.error(traceback.format_exc())
+                    bt.logging.error(
+                        f"Error setting miner predictions {uid=} {pe} {e} "
+                    )
+                    break
+            except Exception as e:
+                bt.logging.info(e)
+                bt.logging.info(traceback.format_exc())
+                break
+            tried += 1
         conn.close()
 
     def get_event_predictions(self, pe: ProviderEvent):

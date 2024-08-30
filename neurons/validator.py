@@ -48,7 +48,7 @@ class Validator(BaseValidatorNeuron):
     This class provides reasonable default behavior for a validator such as keeping a moving average of the scores of the miners and using them to set weights at the end of each epoch. Additionally, the scores are reset for new hotkeys at the end of each epoch.
     """
 
-    def __init__(self, integrations, db_path='database.db', config=None):
+    def __init__(self, integrations, db_path='validator.db', config=None):
         super(Validator, self).__init__(config=config)
 
         bt.logging.info("load_state()")
