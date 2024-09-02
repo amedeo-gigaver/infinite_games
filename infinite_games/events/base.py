@@ -189,7 +189,7 @@ class EventAggregator:
         bt.logging.debug(f'{self.__class__.__name__} {msg}')
 
     def get_upcoming_events(self, n):
-        events = self.get_events()
+        events = self.get_events(statuses=[EventStatus.PENDING, EventStatus.SETTLED], processed=False)
         if events:
             events.sort(key=lambda e: e.resolve_date or e.starts)
             return events[0: n]
@@ -214,8 +214,8 @@ class EventAggregator:
         """In base implementation we try to update/check each registered event via get_single_event"""
         self.log("Start watcher...")
         while True:
-            # self.collect_events()
-            pending_events = self.get_events()
+            # settled events has to be processed/scored, thus watch them too to force process
+            pending_events = self.get_events(statuses=[EventStatus.PENDING, EventStatus.SETTLED], processed=False)
             self.log(f'Update events: {len(pending_events)}')
             # self.log(f'Watching: {len(self.registered_events.items())} events')
             # self.log_upcoming(50)
@@ -327,7 +327,7 @@ class EventAggregator:
     def get_events_for_submission(self) -> List[ProviderEvent]:
         """Get events that are available for submission"""
         events = []
-        for pe in self.get_events():
+        for pe in self.get_events(statuses=[EventStatus.PENDING], processed=False):
             integration = self.integrations.get(pe.market_type)
             if not integration:
                 bt.logging.warning(f'No integration found for event {pe}')
@@ -351,22 +351,33 @@ class EventAggregator:
             {**json.loads(row.get('metadata', '{}')), **{'processed': row.get('processed')}},
         )
 
-    def get_events(self, pending=True) -> Iterator[ProviderEvent]:
+    def get_events(self, statuses: List[int], processed=None) -> Iterator[ProviderEvent]:
         """Get all events"""
+        if not statuses:
+            statuses = (EventStatus.PENDING, EventStatus.SETTLED, EventStatus.DISCARDED)
         events = []
         result = []
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         try:
-            c = cursor.execute(
-                """
-                select unique_event_id, event_id, market_type, registered_date, description,starts, resolve_date, outcome,local_updated_at,status, metadata, exported
-                from events
-                where status = ? and processed = false
-                """,
-                (str(EventStatus.PENDING))
-            )
+            if processed is None:
+                c = cursor.execute(
+                    """
+                    select unique_event_id, event_id, market_type, registered_date, description, starts, resolve_date, outcome,local_updated_at,status, metadata, exported
+                    from events
+                    where status in {}
+                    """.format(statuses)
+                )
+            else:
+                c = cursor.execute(
+                    """
+                    select unique_event_id, event_id, market_type, registered_date, description, starts, resolve_date, outcome,local_updated_at,status, metadata, exported
+                    from events
+                    where status in {} and processed = ?
+                    """.format(statuses),
+                    (processed,)
+                )
             result: List[sqlite3.Row] = c.fetchall()
         except Exception as e:
             bt.logging.error(e)
