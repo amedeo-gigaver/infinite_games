@@ -354,9 +354,10 @@ class EventAggregator:
     def get_events(self, statuses: List[int]=None, processed=None) -> Iterator[ProviderEvent]:
         """Get all events"""
         if not statuses:
-            statuses = (EventStatus.PENDING, EventStatus.SETTLED, EventStatus.DISCARDED)
+            statuses = (str(EventStatus.PENDING), str(EventStatus.SETTLED), str(EventStatus.DISCARDED))
         else:
-            statuses = tuple(statuses)
+            statuses = [str(status) for status in statuses]
+        # bt.logging.debug(f'STATUS: {statuses}')
         events = []
         result = []
         conn = sqlite3.connect(self.db_path)
@@ -368,16 +369,16 @@ class EventAggregator:
                     """
                     select unique_event_id, event_id, market_type, registered_date, description, starts, resolve_date, outcome,local_updated_at,status, metadata, exported
                     from events
-                    where status in {}
-                    """.format(statuses)
+                    where status in ({})
+                    """.format(','.join(statuses))
                 )
             else:
                 c = cursor.execute(
                     """
                     select unique_event_id, event_id, market_type, registered_date, description, starts, resolve_date, outcome,local_updated_at,status, metadata, exported
                     from events
-                    where status in {} and processed = ?
-                    """.format(statuses),
+                    where status in ({}) and processed = ?
+                    """.format(','.join(statuses)),
                     (processed,)
                 )
             result: List[sqlite3.Row] = c.fetchall()

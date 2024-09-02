@@ -229,6 +229,7 @@ class TestTemplateValidatorNeuronTestCase:
                 }
             )
             assert v.event_provider.register_or_update_event(test_event) is True
+            v.event_provider.get_events(statuses=[EventStatus.PENDING, EventStatus.SETTLED], processed=False)
             # assert v.event_provider.registered_events.get(f'{test_event.market_type}-{test_event.event_id}')
             # assert len(v.event_provider.registered_events) == 1
             assert v.event_provider.integrations
