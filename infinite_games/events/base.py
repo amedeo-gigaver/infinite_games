@@ -188,8 +188,8 @@ class EventAggregator:
         bt.logging.debug(f'{self.__class__.__name__} {msg}')
 
     def get_upcoming_events(self, n):
-        if self.registered_events:
-            events = list(self.registered_events.values())
+        events = self.get_events()
+        if events:
             events.sort(key=lambda e: e.resolve_date or e.starts)
             return events[0: n]
 
@@ -214,15 +214,16 @@ class EventAggregator:
         self.log("Start watcher...")
         while True:
             # self.collect_events()
-            self.log(f'Update events: {len(self.registered_events.items())}')
+            pending_events = self.get_events()
+            self.log(f'Update events: {len(pending_events)}')
             # self.log(f'Watching: {len(self.registered_events.items())} events')
             # self.log_upcoming(50)
-            if len(self.registered_events.items()) != 0:
+            if len(pending_events) != 0:
 
                 try:
-                    events_chunks = split_chunks(list(self.registered_events.items()), self.MAX_PROVIDER_CONCURRENT_TASKS)
+                    events_chunks = split_chunks(list(pending_events), self.MAX_PROVIDER_CONCURRENT_TASKS)
                     async for events in events_chunks:
-                        await asyncio.gather(*[self.check_event(event_data) for _, event_data in events])
+                        await asyncio.gather(*[self.check_event(event_data) for event_data in events])
                         await asyncio.sleep(self.WATCH_EVENTS_DELAY)
                         self.log(f'Updating events..')
                 except Exception as e:
@@ -230,9 +231,9 @@ class EventAggregator:
                     self.error(e)
                     print(traceback.format_exc())
 
-            self.log(f'Watching: {len(self.registered_events.items())} events')
+            self.log(f'Watching: {len(pending_events)} events')
             self.log_upcoming(200)
-            self.log_submission_status(200)
+            # self.log_submission_status(200)
             await asyncio.sleep(2)
 
     def event_key(self, provider_name, event_id):
@@ -251,10 +252,11 @@ class EventAggregator:
             if self.event_update_hook_fn and callable(self.event_update_hook_fn):
                 try:
                     event: ProviderEvent = self.get_event(key)
-                    if self.event_update_hook_fn(event) is True:
+                    if event.metadata.get('processed', False) is False and self.event_update_hook_fn(event) is True:
                         self.save_event(pe, True)
-                        # TODO MARK EVENT?
                         pass
+                    else:
+                        bt.logging.warning(f'Tried to process already processed {event} event!')
                 except Exception as e:
                     bt.logging.error(f'Failed to call update hook for event {key}')
                     bt.logging.error(e)
@@ -345,7 +347,7 @@ class EventAggregator:
             datetime.fromisoformat(row.get('local_updated_at')) if row.get('local_updated_at') else None,
             int(row.get('status')),
             {},
-            json.loads(row.get('metadata', '{}')),
+            {**json.loads(row.get('metadata', '{}')), **{'processed': row.get('processed')}},
         )
 
     def get_events(self, pending=True) -> Iterator[ProviderEvent]:
@@ -527,7 +529,7 @@ class EventAggregator:
                     DO UPDATE set outcome = ?, status = ?, local_updated_at = ?, processed = ?
                     RETURNING unique_event_id, registered_date, local_updated_at
                     """,
-                    (self.event_key(pe.market_type, event_id=pe.event_id), pe.event_id,  pe.market_type, pe.registered_date,  pe.description, pe.starts, pe.resolve_date , pe.answer,datetime.now(tz=timezone.utc), pe.status, json.dumps(pe.metadata),
+                    (self.event_key(pe.market_type, event_id=pe.event_id), pe.event_id,  pe.market_type, pe.registered_date,  pe.description, pe.starts, pe.resolve_date , pe.answer,pe.registered_date, pe.status, json.dumps(pe.metadata),
                     pe.answer, pe.status, datetime.now(tz=timezone.utc), processed),
                 )
                 result = c.fetchall()
