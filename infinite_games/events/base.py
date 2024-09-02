@@ -351,7 +351,7 @@ class EventAggregator:
             {**json.loads(row.get('metadata', '{}')), **{'processed': row.get('processed')}},
         )
 
-    def get_events(self, statuses: List[int], processed=None) -> Iterator[ProviderEvent]:
+    def get_events(self, statuses: List[int]=None, processed=None) -> Iterator[ProviderEvent]:
         """Get all events"""
         if not statuses:
             statuses = (EventStatus.PENDING, EventStatus.SETTLED, EventStatus.DISCARDED)
