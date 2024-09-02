@@ -282,7 +282,7 @@ class EventAggregator:
         try:
             c = cursor.execute(
                 """
-                select unique_event_id, event_id, market_type, registered_date, description,starts, resolve_date, outcome,local_updated_at,status, metadata, exported
+                select unique_event_id, event_id, market_type, registered_date, description,starts, resolve_date, outcome,local_updated_at,status, metadata, processed, exported
                 from events
                 where unique_event_id = ?
                 """,
