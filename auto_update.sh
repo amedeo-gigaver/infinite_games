@@ -1,5 +1,9 @@
-#!/bin/bash
+#### add cron to clean log ###### 0 0 */2 * * rm -f /root/.pm2/logs/validator-error.log /root/.pm2/logs/validator-out.log
+#### add to cron auto update #### */10 * * * * /root/infinite_games/checker.sh validator >> /root/infinite_games/checker.log 2>&1
 
+
+#!/bin/bash
+cd /root/infinite_games || exit 1
 PM2_PROCESS_NAME=$1
 VENV_DIR="venv"
 HEALTH_CHECK_URL="https://hc-ping.com/ca08ce8d-e25f-47f2-9852-b5a99b6dffad"
