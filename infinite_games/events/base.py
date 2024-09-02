@@ -355,6 +355,8 @@ class EventAggregator:
         """Get all events"""
         if not statuses:
             statuses = (EventStatus.PENDING, EventStatus.SETTLED, EventStatus.DISCARDED)
+        else:
+            statuses = tuple(statuses)
         events = []
         result = []
         conn = sqlite3.connect(self.db_path)
