@@ -475,6 +475,9 @@ class EventAggregator:
         events = self.get_events()
         if events and len(events) > 0:
             bt.logging.info('Already migrated, found events in database.')
+            cursor.close()
+            conn.close()
+            return
         else:
             bt.logging.info('Migrating pickle to database...')
         try:
