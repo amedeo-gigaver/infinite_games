@@ -256,7 +256,7 @@ class EventAggregator:
                     if event.metadata.get('processed', False) is False and self.event_update_hook_fn(event) is True:
                         self.save_event(pe, True)
                         pass
-                    else:
+                    elif event.metadata.get('processed', False) is True:
                         bt.logging.warning(f'Tried to process already processed {event} event!')
                 except Exception as e:
                     bt.logging.error(f'Failed to call update hook for event {key}')
