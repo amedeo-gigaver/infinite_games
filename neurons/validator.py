@@ -20,6 +20,7 @@ from datetime import datetime, timedelta, timezone
 import itertools
 import math
 import os
+import sqlite3
 import sys
 
 from infinite_games.events.acled import AcledProviderIntegration
@@ -350,6 +351,7 @@ if __name__ == "__main__":
     version = sys.version
     version_info = sys.version_info
     bt.logging.debug(f'Python version {version} {version_info}')
+    bt.logging.debug(f'SQLite version  {sqlite3.sqlite_version}')
     v = Validator(integrations=[
             AzuroProviderIntegration(),
             PolymarketProviderIntegration(),
