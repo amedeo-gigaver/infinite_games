@@ -73,14 +73,6 @@ pip install -r requirements.txt
 
 The venv should be active whenever the neurons are run.
 
-(Optional) Add our Grafana key to your environment before you run the validator code. This will help us make the subnet better. Please reach out to us on Discord or Telegram to get the key.
-
-In the `infinite_games` directory, run the following command:
-
-```bash
-export GRAFANA_KEY=<our_grafana_key> 
-```
-
 
 ## 2. Create Wallets
 
