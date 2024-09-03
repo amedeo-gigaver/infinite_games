@@ -155,7 +155,6 @@ class EventAggregator:
         self.log(f'Update Event {event_data} {event_data.status} {processed_already=} ')
 
         if event_data.status in [EventStatus.PENDING, EventStatus.SETTLED]:
-            self.log(f'{event_data} status check pass')
             integration = self.integrations.get(event_data.market_type)
             if not integration:
                 bt.logging.error(f'No integration found for event {event_data.market_type} - {event_data.event_id}')
@@ -163,7 +162,6 @@ class EventAggregator:
 
             try:
                 updated_event_data: ProviderEvent = await integration.get_single_event(event_data.event_id)
-                self.log(f'{event_data} updated: {updated_event_data} {updated_event_data.status} status check pass')
                 if updated_event_data:
                     # self.log(f'Event updated {updated_event_data.event_id}')
                     self.register_or_update_event(updated_event_data)
@@ -250,17 +248,11 @@ class EventAggregator:
             bt.logging.error(f'No integration found for event {pe.market_type} - {pe.event_id}')
             return
         is_new = self.save_event(pe)
-        self.log(f'{pe} {is_new=}')
         if not is_new:
             # Naive event update
-            processed = pe.metadata.get('processed', False)
-            self.log(f'{pe} entered not new {processed=}')
             if self.event_update_hook_fn and callable(self.event_update_hook_fn):
                 try:
-                    self.log(f'{pe}  entered get event')
                     event: ProviderEvent = self.get_event(key)
-                    processed = event.metadata.get('processed', False)
-                    self.log(f'{event}  entered get event {processed=}')
                     if event.metadata.get('processed', False) is False and self.event_update_hook_fn(event) is True:
                         self.save_event(pe, True)
                         pass
@@ -356,7 +348,7 @@ class EventAggregator:
             datetime.fromisoformat(row.get('local_updated_at')) if row.get('local_updated_at') else None,
             int(row.get('status')),
             {},
-            {**json.loads(row.get('metadata', '{}')), **{'processed': row.get('processed')}},
+            {**json.loads(row.get('metadata', '{}')), **{'processed': row.get('processed') == 1}},
         )
 
     def get_events(self, statuses: List[int]=None, processed=None) -> Iterator[ProviderEvent]:
