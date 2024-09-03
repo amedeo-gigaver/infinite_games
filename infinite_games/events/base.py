@@ -253,9 +253,14 @@ class EventAggregator:
         self.log(f'{pe} {is_new=}')
         if not is_new:
             # Naive event update
+            processed = pe.metadata.get('processed', False)
+            self.log(f'{pe} entered not new {processed=}')
             if self.event_update_hook_fn and callable(self.event_update_hook_fn):
                 try:
+                    self.log(f'{pe}  entered get event')
                     event: ProviderEvent = self.get_event(key)
+                    processed = event.metadata.get('processed', False)
+                    self.log(f'{event}  entered get event {processed=}')
                     if event.metadata.get('processed', False) is False and self.event_update_hook_fn(event) is True:
                         self.save_event(pe, True)
                         pass
