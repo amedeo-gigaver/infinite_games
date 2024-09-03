@@ -4,6 +4,7 @@ from collections import defaultdict
 import os
 import pickle
 import sqlite3
+import sys
 import time
 import traceback
 import bittensor as bt
@@ -253,6 +254,9 @@ class EventAggregator:
             if self.event_update_hook_fn and callable(self.event_update_hook_fn):
                 try:
                     event: ProviderEvent = self.get_event(key)
+                    if not event:
+                        bt.logging.error(f'Could not get updated event from database {pe}')
+                        return
                     if event.metadata.get('processed', False) is False and self.event_update_hook_fn(event) is True:
                         self.save_event(pe, True)
                         pass
@@ -563,6 +567,10 @@ class EventAggregator:
 
                 else:
                     bt.logging.error(e)
+                    bt.logging.error(
+                        (self.event_key(pe.market_type, event_id=pe.event_id), pe.event_id,  pe.market_type, pe.registered_date,  pe.description, pe.starts, pe.resolve_date , pe.answer,pe.registered_date, pe.status, json.dumps(pe.metadata),
+                         pe.answer, pe.status, datetime.now(tz=timezone.utc), processed)
+                    )
                     bt.logging.error(traceback.format_exc())
                     break
             tried += 1

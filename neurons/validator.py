@@ -18,17 +18,13 @@
 import asyncio
 from datetime import datetime, timedelta, timezone
 import itertools
-import json
-import logging
 import math
 import os
-import sqlite3
-from typing import List
+import sys
 
 from infinite_games.events.acled import AcledProviderIntegration
 os.environ['USE_TORCH'] = '1'
 import time
-import traceback
 
 from infinite_games.utils.query import query_miners
 import bittensor as bt
@@ -349,7 +345,11 @@ class Validator(BaseValidatorNeuron):
 bt.debug(True)
 # bt.trace(True)
 
+
 if __name__ == "__main__":
+    version = sys.version
+    version_info = sys.version_info
+    bt.logging.debug(f'Python version {version} {version_info}')
     v = Validator(integrations=[
             AzuroProviderIntegration(),
             PolymarketProviderIntegration(),
