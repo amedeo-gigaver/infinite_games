@@ -18,9 +18,12 @@
 import asyncio
 from datetime import datetime, timedelta, timezone
 import itertools
+import json
 import logging
 import math
 import os
+import sqlite3
+from typing import List
 
 from infinite_games.events.acled import AcledProviderIntegration
 os.environ['USE_TORCH'] = '1'
@@ -48,7 +51,7 @@ class Validator(BaseValidatorNeuron):
     This class provides reasonable default behavior for a validator such as keeping a moving average of the scores of the miners and using them to set weights at the end of each epoch. Additionally, the scores are reset for new hotkeys at the end of each epoch.
     """
 
-    def __init__(self, integrations, config=None):
+    def __init__(self, integrations, db_path='validator.db', config=None):
         super(Validator, self).__init__(config=config)
 
         bt.logging.info("load_state()")
@@ -59,14 +62,17 @@ class Validator(BaseValidatorNeuron):
         self.SEND_LOGS_INTERVAL = 60 * 60
         self.SEND_MINER_LOGS_INTERVAL = 60 * 60 * 4
         self.integrations = integrations
+        self.db_path = db_path
 
     async def initialize_provider(self):
         if not self.event_provider:
             self.event_provider: EventAggregator = await EventAggregator.create(
                 state_path=self.config.neuron.full_path + '/events-v2.pickle',
-                integrations=self.integrations
+                integrations=self.integrations,
+                db_path=self.db_path
             )
             self.event_provider.load_state()
+            self.event_provider.migrate_pickle_to_sql()
             self.event_provider.on_event_updated_hook(self.on_event_update)
             if os.getenv('VALIDATOR_WATCH_EVENTS_DISABLED', "0") == "0":
                 # watch for existing registered events
@@ -145,8 +151,8 @@ class Validator(BaseValidatorNeuron):
             if correct_ans is None:
                 bt.logging.info(f"Unknown answer for event, discarding : {pe}")
                 return True
-
-            predictions = pe.miner_predictions
+            predictions = self.event_provider.get_event_predictions(pe)
+            # predictions = pe.miner_predictions
             if not predictions:
                 bt.logging.warning(f"No predictions for {pe} skipping..")
                 return True
@@ -181,7 +187,7 @@ class Validator(BaseValidatorNeuron):
                         scores.append(0)
                         continue
 
-                    ans = prediction_intervals[0]['total_score']
+                    ans = prediction_intervals[0]['interval_agg_prediction']
                     if ans is None:
                         scores.append(0)
                         continue
@@ -203,9 +209,9 @@ class Validator(BaseValidatorNeuron):
                     for interval_start_minutes in range(start_interval_start_minutes, effective_finish_start_minutes, CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES):
 
                         interval_data = prediction_intervals.get(interval_start_minutes, {
-                            'total_score': None
+                            'interval_agg_prediction': None
                         })
-                        ans: float = interval_data['total_score']
+                        ans: float = interval_data['interval_agg_prediction']
                         current_interval_no = (interval_start_minutes - start_interval_start_minutes) // CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES
                         interval_start_date = CLUSTER_EPOCH_2024 + timedelta(minutes=interval_start_minutes)
                         if current_interval_no + 1 <= first_n_intervals:
@@ -289,8 +295,8 @@ class Validator(BaseValidatorNeuron):
         minutes_since_epoch = int((now - CLUSTER_EPOCH_2024).total_seconds()) // 60
         interval_start_minutes = minutes_since_epoch - (minutes_since_epoch % (CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES))
 
+        any_miner_processed = False
         for (uid, resp) in zip(miner_uids, responses):
-            any_miner_processed = False
             # print(uid, resp)
             for (event_id, event_data) in resp.events.items():
                 market_event_id = event_data.get('event_id')

@@ -176,15 +176,16 @@ class AzuroProviderIntegration(ProviderIntegration):
         # if event_id == '0x7f3f3f19c4e4015fd9db2f22e653c766154091ef_100100000000000015927405030000000000000357953524_142':
         #     effective_status = EventStatus.SETTLED
         #     answer = 1
+        now = datetime.now(timezone.utc)
         pe = ProviderEvent(
             event_id,
-            datetime.now(timezone.utc),
+            now,
             self.provider_name(),
             game.get('title') + ' ,' + OUTCOMES[outcome['outcomeId']].get('_comment'),
             start_date,
             None,
             answer,
-            datetime.now(timezone.utc),
+            now,
             effective_status,
             None,
             {

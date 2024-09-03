@@ -17,7 +17,11 @@
 # DEALINGS IN THE SOFTWARE.
 
 import asyncio
+
+
 from datetime import datetime, timedelta, timezone
+
+import json
 import sys
 from time import sleep
 from freezegun import freeze_time
@@ -67,13 +71,13 @@ class TestTemplateValidatorNeuronTestCase:
     #     v = Validator(integrations=[
     #         AzuroProviderIntegration(),
     #         PolymarketProviderIntegration()
-    #     ])
+    #     ], db_path='test.db')
 
     #     # await v.forward()
 
     #     v.run_in_background_thread()
 
-    #     sleep(12)
+    #     sleep(30)
 
     #     # check from simple outputs for now.
     #     assert 'Provider initialized..' in caplog.text, 'Event Provider has to be initialized!'
@@ -92,7 +96,7 @@ class TestTemplateValidatorNeuronTestCase:
         acled_provider = MockAcledProviderIntegration()
         v = Validator(integrations=[
             acled_provider
-        ])
+        ], db_path='test.db')
 
         # await v.forward()
         print('First run')
@@ -117,14 +121,13 @@ class TestTemplateValidatorNeuronTestCase:
 
         # based on providers.py hardcode values
         settle_date = initial_date + timedelta(days=7)
-        v.event_provider.registered_events['acled-7b787c68-d6df-4138-a10b-0de76eeec5c3']
         with freeze_time(settle_date):
 
             test_event = await acled_provider.get_single_event('dbcba93a-fe3b-4092-b918-8231b23f2faa')
 
             test_event.status = EventStatus.SETTLED
             test_event.answer = 1
-            v.event_provider.update_event(test_event)
+            v.event_provider.register_or_update_event(test_event)
 
             self.next_run(v)
 
@@ -138,8 +141,9 @@ class TestTemplateValidatorNeuronTestCase:
         wallet, subtensor = mock_network
         v = Validator(integrations=[
             MockAzuroProviderIntegration(max_pending_events=6),
-            MockPolymarketProviderIntegration()
-        ])
+            MockPolymarketProviderIntegration(),
+            MockAcledProviderIntegration()
+        ], db_path='test.db')
 
         # await v.forward()
         print('First run')
@@ -161,9 +165,9 @@ class TestTemplateValidatorNeuronTestCase:
                     # 'league': 'league'
                 }
             )
-            assert v.event_provider.register_event(test_event) is True
-            assert v.event_provider.registered_events.get(f'{test_event.market_type}-{test_event.event_id}')
-            assert len(v.event_provider.registered_events) == 1
+            assert v.event_provider.register_or_update_event(test_event) is True
+            # assert v.event_provider.registered_events.get(f'{test_event.market_type}-{test_event.event_id}')
+            # assert len(v.event_provider.registered_events) == 1
             assert v.event_provider.integrations
             mock_response = fake_synapse_response(v.event_provider.get_events_for_submission())
             mock_response[3].events[f'{test_event.market_type}-{test_event.event_id}']['probability'] = 0.7
@@ -190,7 +194,7 @@ class TestTemplateValidatorNeuronTestCase:
 
         test_event.status = EventStatus.SETTLED
         test_event.answer = 1
-        v.event_provider.update_event(test_event)
+        v.event_provider.register_or_update_event(test_event)
         assert v.scores[2] == 0.0
         # 0.7, 0.9
         # uid 3 and 4 calculated based on respective brier score -> moving average
@@ -202,7 +206,7 @@ class TestTemplateValidatorNeuronTestCase:
         v = Validator(integrations=[
             MockAzuroProviderIntegration(max_pending_events=6), 
             MockPolymarketProviderIntegration()
-        ])
+        ], db_path='test.db')
 
         # await v.forward()
         print('First run')
@@ -224,9 +228,10 @@ class TestTemplateValidatorNeuronTestCase:
                     # 'league': 'league'
                 }
             )
-            assert v.event_provider.register_event(test_event) is True
-            assert v.event_provider.registered_events.get(f'{test_event.market_type}-{test_event.event_id}')
-            assert len(v.event_provider.registered_events) == 1
+            assert v.event_provider.register_or_update_event(test_event) is True
+            v.event_provider.get_events(statuses=[EventStatus.PENDING, EventStatus.SETTLED], processed=False)
+            # assert v.event_provider.registered_events.get(f'{test_event.market_type}-{test_event.event_id}')
+            # assert len(v.event_provider.registered_events) == 1
             assert v.event_provider.integrations
             mock_response = fake_synapse_response(v.event_provider.get_events_for_submission())
             mock_response[3].events[f'{test_event.market_type}-{test_event.event_id}']['probability'] = 0.7
@@ -248,7 +253,7 @@ class TestTemplateValidatorNeuronTestCase:
 
         test_event.status = EventStatus.SETTLED
         test_event.answer = 1
-        v.event_provider.update_event(test_event)
+        v.event_provider.register_or_update_event(test_event)
         assert v.scores[2] == 0.0
         # 0.7, 0.9
         # uid 3 and 4 calculated based on respective brier score -> moving average
@@ -261,7 +266,7 @@ class TestTemplateValidatorNeuronTestCase:
         v = Validator(integrations=[
             MockAzuroProviderIntegration(max_pending_events=6),
             MockPolymarketProviderIntegration()
-        ])
+        ], db_path='test.db')
 
         # await v.forward()
         print('First run')
@@ -283,9 +288,9 @@ class TestTemplateValidatorNeuronTestCase:
                     # 'league': 'league'
                 }
             )
-            assert v.event_provider.register_event(test_event) is True
-            assert v.event_provider.registered_events.get(f'{test_event.market_type}-{test_event.event_id}')
-            assert len(v.event_provider.registered_events) == 1
+            assert v.event_provider.register_or_update_event(test_event) is True
+            # assert v.event_provider.registered_events.get(f'{test_event.market_type}-{test_event.event_id}')
+            # assert len(v.event_provider.registered_events) == 1
             assert v.event_provider.integrations
             mock_response = fake_synapse_response(v.event_provider.get_events_for_submission())
             mock_response[3].events[f'{test_event.market_type}-{test_event.event_id}']['probability'] = 0.7
@@ -307,7 +312,7 @@ class TestTemplateValidatorNeuronTestCase:
 
         test_event.status = EventStatus.SETTLED
         test_event.answer = 1
-        v.event_provider.update_event(test_event)
+        v.event_provider.register_or_update_event(test_event)
         assert v.scores[2] == 0.0
         # 0.7, 0.9
         # uid 3 and 4 calculated based on respective brier score -> moving average
@@ -318,9 +323,9 @@ class TestTemplateValidatorNeuronTestCase:
     async def test_validator_settled_event_scores_polymarket_earlier_settle_date(self, mock_network, caplog, monkeypatch, disable_event_updates):
         wallet, subtensor = mock_network
         v = Validator(integrations=[
-            MockAzuroProviderIntegration(max_pending_events=6), 
+            MockAzuroProviderIntegration(max_pending_events=6),
             MockPolymarketProviderIntegration()
-        ])
+        ], db_path='test.db')
 
         # await v.forward()
         print('First run')
@@ -342,9 +347,9 @@ class TestTemplateValidatorNeuronTestCase:
                     # 'league': 'league'
                 }
             )
-            assert v.event_provider.register_event(test_event) is True
-            assert v.event_provider.registered_events.get(f'{test_event.market_type}-{test_event.event_id}')
-            assert len(v.event_provider.registered_events) == 1
+            assert v.event_provider.register_or_update_event(test_event) is True
+            # assert v.event_provider.registered_events.get(f'{test_event.market_type}-{test_event.event_id}')
+            # assert len(v.event_provider.registered_events) == 1
             assert v.event_provider.integrations
             mock_response = fake_synapse_response(v.event_provider.get_events_for_submission())
             mock_response[3].events[f'{test_event.market_type}-{test_event.event_id}']['probability'] = 0.7
@@ -370,7 +375,7 @@ class TestTemplateValidatorNeuronTestCase:
 
             test_event.status = EventStatus.SETTLED
             test_event.answer = 1
-            v.event_provider.update_event(test_event)
+            v.event_provider.register_or_update_event(test_event)
         assert v.scores[2] == 0.0
         # 0.7, 0.9
         # uid 3 and 4 calculated based on respective brier score -> moving average
@@ -385,7 +390,7 @@ class TestTemplateValidatorNeuronTestCase:
         v = Validator(integrations=[
             MockAzuroProviderIntegration(max_pending_events=6),
             MockPolymarketProviderIntegration()
-        ])
+        ], db_path='test.db')
 
         # await v.forward()
         print('First run')
@@ -407,9 +412,9 @@ class TestTemplateValidatorNeuronTestCase:
                     # 'league': 'league'
                 }
             )
-            assert v.event_provider.register_event(test_event) is True
-            assert v.event_provider.registered_events.get(f'{test_event.market_type}-{test_event.event_id}')
-            assert len(v.event_provider.registered_events) == 1
+            assert v.event_provider.register_or_update_event(test_event) is True
+            # assert v.event_provider.registered_events.get(f'{test_event.market_type}-{test_event.event_id}')
+            # assert len(v.event_provider.registered_events) == 1
             assert v.event_provider.integrations
             mock_response = fake_synapse_response(v.event_provider.get_events_for_submission())
             mock_response[3].events[f'{test_event.market_type}-{test_event.event_id}']['probability'] = 0.7
@@ -420,7 +425,7 @@ class TestTemplateValidatorNeuronTestCase:
 
         test_event.status = EventStatus.SETTLED
         test_event.answer = 1
-        v.event_provider.update_event(test_event)
+        v.event_provider.register_or_update_event(test_event)
         assert v.scores[2] == 0.0
         # 0.7, 0.9
         # uid 3 and 4 calculated based on respective brier score -> moving average
