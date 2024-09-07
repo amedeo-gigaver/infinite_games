@@ -61,10 +61,10 @@ You can also set up your own configurations.
 
 ## Sample data for generated events from ACLED
 
-We join [here](docs/protest-data-3days.json) and [here](docs/Protests-events-7-days.json) two dataset of events that stretches over 6 months (from January 2024 to June 2024) which represents the type of events that will be sent to miners from [ACLED](https://acleddata.com/) data.
+We join [here](docs/ACLED-data/protest-data-3days.json) and [here](docs/ACLED-data/Protests-events-7-days.json) two dataset of events that stretches over 6 months (from January 2024 to June 2024) which represents the type of events that will be sent to miners from [ACLED](https://acleddata.com/) data.
 
 This first set of events will have the following structure:
-"will the amount of protests in [country] during [3 days window or 1 week window] be above [30 day moving average] ?"
+"Will the amount of protests in [country] during [3 days window or 1 week window] be above [30 day moving average] ?"
 
 **Key details**:
 - the countries will initially be EU countries (with non degenerate protest rates) and the US. This is the exact list: ['Germany', 'United Kingdom', 'France', 'Italy', 'Spain', 'Poland', 'Romania', 'Netherlands', 'Belgium', 'Ireland', 'Sweden', 'Czech Republic', 'Greece', 'Portugal', 'Hungary', 'Austria', 'Serbia', 'Bulgaria', 'Denmark', 'United States']
