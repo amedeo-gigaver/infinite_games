@@ -4,12 +4,11 @@ A repricing event is defined as a *significant* change in the odds of a predicti
 
 We will start with a list of whitelisted markets for which those events will be created with a $\Delta$ equal to 24 hours.
 
-Below is an example of the format of such an event.
-
-   "event_id": "261a0940-2061-43f9-bd72-ea1a66d0b856",
-      "cutoff": 1725544500,
-      "title": "Will there be a repricing in `Trump wins the presidential election of 2024` on 2024-09-07  7:59:59?",
-      "description": "This event resolves to `YES` if there is a repricing from 0.531 by 2024-09-07  17:59:59 UTC in the following Polymarket event https://polymarket.com/event/presidential-election-winner-2024/will-donald-trump-win-the-2024-us-presidential-election?tid=1725635465823. Repricing is considered every price outside the (inclusive) range [0.521, 0.541]. The event will be resolved by using the average price over the hour before the deadline, using the following polymarket query  https://clob.polymarket.com/prices-history?market=21742633143463906290569050155826241533067272736897614950488156847949938836455&startTs=1725717600&endTs=1725721199&fidelity=1",
-      "start_date": 1725717600,
-      "end_date": 1725721199,
-      "answer": null
+Below is an example event format:
+- event_id: 261a0940-2061-43f9-bd72-ea1a66d0b856
+- cutoff: 1725544500
+- title: Will there be a repricing in `Trump wins the presidential election of 2024` on 2024-09-07  7:59:59?
+- description: This event resolves to `YES` if there is a repricing from 0.531 by 2024-09-07  17:59:59 UTC in the following Polymarket event https://polymarket.com/event/presidential-election-winner-2024/will-donald-trump-win-the-2024-us-presidential-election?tid=1725635465823. Repricing is considered every price outside the (inclusive) range [0.521, 0.541]. The event will be resolved by using the average price over the hour before the deadline, using the following polymarket query  https://clob.polymarket.com/prices-history?market=21742633143463906290569050155826241533067272736897614950488156847949938836455&startTs=1725717600&endTs=1725721199&fidelity=1
+- start_date: 1725717600
+- end_date: 1725721199
+- answer: null
