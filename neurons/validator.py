@@ -58,6 +58,7 @@ class Validator(BaseValidatorNeuron):
         self.event_provider = None
         self.SEND_LOGS_INTERVAL = 60 * 60
         self.SEND_MINER_LOGS_INTERVAL = 60 * 60 * 4
+        self.is_test = self.subtensor.network == 'test'
         self.integrations = integrations
         self.db_path = db_path
 
@@ -142,7 +143,9 @@ class Validator(BaseValidatorNeuron):
     def on_event_update(self, pe: ProviderEvent):
         """Hook called whenever we have settling events. Event removed when we return True"""
         if pe.status == EventStatus.SETTLED:
-            bt.logging.info(f'Settled event: {pe} {pe.description[:100]} answer: {pe.answer}')
+            market_type = pe.metadata.get('market_type', pe.market_type)
+            event_text = f'{market_type} {pe.event_id}'
+            bt.logging.info(f'Settled event: {event_text} {pe.description[:100]} answer: {pe.answer}')
             miner_uids = infinite_games.utils.uids.get_all_uids(self)
             correct_ans = pe.answer
             if correct_ans is None:
