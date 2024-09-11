@@ -355,6 +355,7 @@ if __name__ == "__main__":
     version_info = sys.version_info
     bt.logging.debug(f'Python version {version} {version_info}')
     bt.logging.debug(f'SQLite version  {sqlite3.sqlite_version}')
+    bt.logging.debug(f'Bittensor version  {bt._version__version___split}')
     major, minor, patch = sqlite3.sqlite_version.split('.')
     if int(major) < 3 or int(minor) < 35:
         bt.logging.error(f'**** Please install SQLite version 3.35 or higher, current: {sqlite3.sqlite_version}')
