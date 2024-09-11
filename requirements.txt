@@ -1,4 +1,4 @@
-bittensor==7.4.0
+bittensor==7.0.2
 torch==2.3.0
 pandas==2.2.2
 loguru==0.7.2
