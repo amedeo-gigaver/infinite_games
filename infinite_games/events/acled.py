@@ -49,7 +49,6 @@ class AcledProviderIntegration(ProviderIntegration):
     def construct_provider_event(self, event_id, event):
         end_date_ts = event.get('end_date')
         start_date = event.get('start_date')
-        self.log(f'Sync event {event.get("market_type")} {event.get("title")}')
         # end_date = datetime.fromtimestamp(end_date_ts, tz=timezone.utc)
         start_date = datetime.fromtimestamp(start_date, tz=timezone.utc)
         cutoff = event.get('cutoff')
