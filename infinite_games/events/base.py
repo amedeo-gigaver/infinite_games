@@ -13,6 +13,8 @@ from datetime import datetime, timedelta, timezone
 import json
 from typing import Any, AsyncIterator, Callable, Dict, Iterator, List, Optional, Type
 
+import requests
+
 from infinite_games.utils.misc import split_chunks
 
 
@@ -316,7 +318,7 @@ class EventAggregator:
             bt.logging.error(f'No integration found for event {pe.market_type} - {pe.event_id}')
             return
         return integration
-    
+
     def remove_event(self, pe: ProviderEvent) -> bool:
         """Removed event"""
         key = self.event_key(provider_name=pe.market_type, event_id=pe.event_id)

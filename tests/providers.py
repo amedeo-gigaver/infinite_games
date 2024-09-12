@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 
 import backoff
-from infinite_games.events.acled import AcledProviderIntegration
+from infinite_games.events.ig import AcledProviderIntegration
 from infinite_games.events.azuro import AzuroProviderIntegration
 from infinite_games.events.base import EventStatus, ProviderEvent, ProviderIntegration
 from infinite_games.events.polymarket import PolymarketProviderIntegration

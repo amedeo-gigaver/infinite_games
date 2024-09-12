@@ -22,8 +22,11 @@ import math
 import os
 import sqlite3
 import sys
+from typing import List
 
-from infinite_games.events.acled import AcledProviderIntegration
+import requests
+
+from infinite_games.events.ig import AcledProviderIntegration
 os.environ['USE_TORCH'] = '1'
 import time
 
@@ -61,6 +64,7 @@ class Validator(BaseValidatorNeuron):
         self.is_test = self.subtensor.network == 'test'
         self.integrations = integrations
         self.db_path = db_path
+        self.last_log_block = 0
 
     async def initialize_provider(self):
         if not self.event_provider:
@@ -259,6 +263,56 @@ class Validator(BaseValidatorNeuron):
 
         return False
 
+    def export_submissions(self):
+        """Export all new submissions"""
+        result = []
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        try:
+            c = cursor.execute(
+                """
+                select unique_event_id, minerHotkey, minerUid, predictedOutcome,interval_start_minutes,interval_agg_prediction,interval_count,submitted,blocktime
+                from predictions
+                where exported = false
+                """,
+            )
+
+            result = c.fetchmany(10000)
+            v_uid = self.metagraph.hotkeys.index(self.wallet.hotkey.ss58_address)
+
+            while result:
+                requests.post(
+                    "infinitegames.win/api/events/export",
+                    json=[{
+                        "validator_hotkey": self.wallet.hotkey.ss58_address,
+                        "validator_uid": v_uid,
+                        "unique_event_id": submission[0],
+                        "event_id": submission[0].split('-')[0],
+                        "miner_hotkey": submission[1],
+                        "miner_uid": submission[2],
+                        "aggregated_prediction": submission[5],
+                        "interval_timestamp": (CLUSTER_EPOCH_2024 + timedelta(minutes=c[4])).timestamp(),
+                        "interval_submissions_count": submission[6],
+                        "blocktime": submission[8]
+                    } for submission in result]
+                )
+                result = c.fetchmany(10000)
+                time.sleep(2)
+
+        except Exception as e:
+            bt.logging.error(e)
+            bt.logging.error(traceback.format_exc())
+        finally:
+            conn.close()
+        for row in result:
+            data = dict(row)
+            pe: ProviderEvent = self.row_to_pe(data)
+            integration = self.integrations.get(pe.market_type)
+            if not integration:
+                bt.logging.warning(f'No integration found for event {pe}')
+                continue
+        return events
+
     async def forward(self):
         """
         The forward function is called by the validator every time step.
@@ -268,6 +322,9 @@ class Validator(BaseValidatorNeuron):
         self.reset_daily_average_scores()
         self.print_info()
         block_start = self.block
+
+        if self.last_log_block - block_start > 20:
+            self.export_submissions()
         miner_uids = infinite_games.utils.uids.get_all_uids(self)
         # Create synapse object to send to the miner.
         synapse = infinite_games.protocol.EventPredictionSynapse()
@@ -354,12 +411,16 @@ if __name__ == "__main__":
     version = sys.version
     version_info = sys.version_info
     bt.logging.debug(f'Python version {version} {version_info}')
+    bt.logging.debug(f'Bittensor version  {bt.__version__}')
     bt.logging.debug(f'SQLite version  {sqlite3.sqlite_version}')
     bt.logging.debug(f'Bittensor version  {bt.__version__}')
     major, minor, patch = sqlite3.sqlite_version.split('.')
     if int(major) < 3 or int(minor) < 35:
         bt.logging.error(f'**** Please install SQLite version 3.35 or higher, current: {sqlite3.sqlite_version}')
         exit(1)
+    # if bt.__version__ != "7.0.2":
+    #     bt.logging.error(f'**** Please install bittensor==7.0.2 version , current: {bt.__version__}')
+    #     exit(1)
 
     v = Validator(integrations=[
             AzuroProviderIntegration(),
