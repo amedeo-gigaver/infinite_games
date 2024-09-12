@@ -72,6 +72,7 @@ MODEL_TOKEN_LIMITS = {
     "gpt-3.5-turbo-16k": 16000,
     "gpt-3.5-turbo": 8000,
     "gpt-4-1106-preview": 128000,
+    "gpt-4o-mini-2024-07-18": 128000,
     "gemini-pro": 30720,
     "togethercomputer/llama-2-7b-chat": 4096,
     "togethercomputer/llama-2-13b-chat": 4096,

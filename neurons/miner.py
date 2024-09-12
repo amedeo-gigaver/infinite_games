@@ -76,13 +76,9 @@ class Miner(BaseMinerNeuron):
 
     async def _generate_prediction(self, market: MinerCacheObject) -> None:
         try:
-            # LLM
-            llm_prediction = (await self.llm.get_prediction(market)) if self.llm else None
-            if llm_prediction is not None:
-                market.event.probability = llm_prediction
-
+            llm_prediction = None
             # Polymarket
-            elif market.event.market_type == MarketType.POLYMARKET and self.polymarket is not None:
+            if market.event.market_type == MarketType.POLYMARKET and self.polymarket is not None:
                 x = await self.polymarket.get_event_by_id(market.event.event_id)
                 market.event.probability = x["tokens"][0]["price"]
 
@@ -92,7 +88,12 @@ class Miner(BaseMinerNeuron):
                 market.event.probability = 1.0 / float(x["outcome"]["currentOdds"])
 
             else:
-                market.event.probability = 0.5
+                # LLM
+                llm_prediction = (await self.llm.get_prediction(market)) if self.llm else None
+                if llm_prediction is not None:
+                    market.event.probability = llm_prediction
+                else:
+                    market.event.probability = 0
 
             bt.logging.info(
                 "({}) Calculate {} prob to {} event {}, retries left: {}".format(

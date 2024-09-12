@@ -2,6 +2,10 @@
 import asyncio
 import logging
 import re
+import json
+
+from urllib.parse import urlparse, quote
+from selectolax.parser import HTMLParser
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 
@@ -26,6 +30,49 @@ logger = logging.getLogger(__name__)
 if NEWSCASTCHER_KEY:
     newscatcherapi = NewsCatcherApiClient(x_api_key=NEWSCASTCHER_KEY)
 WIKIPEDIA_API_ENDPOINT = "https://en.wikipedia.org/w/api.php"
+
+
+def get_base64_str(source_url):
+    try:
+        url = urlparse(source_url)
+        path = url.path.split("/")
+        if (
+            url.hostname == "news.google.com"
+            and len(path) > 1
+            and path[-2] in ["articles", "read"]
+        ):
+            base64_str = path[-1]
+            return {"status": True, "base64_str": base64_str}
+        else:
+            return {"status": False, "message": "Invalid Google News URL format."}
+    except Exception as e:
+        return {"status": False, "message": f"Error in get_base64_str: {str(e)}"}
+
+
+def decode_url(signature, timestamp, base64_str):
+    try:
+        url = "https://news.google.com/_/DotsSplashUi/data/batchexecute"
+
+        payload = [
+            "Fbv4je",
+            f'["garturlreq",[["X","X",["X","X"],null,null,1,1,"US:en",null,1,null,null,null,null,null,0,1],"X","X",1,[1,1,1],1,1,null,0,0,null,0],"{base64_str}",{timestamp},"{signature}"]',
+        ]
+        headers = {
+            "content-type": "application/x-www-form-urlencoded;charset=UTF-8",
+            "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+        }
+        response = requests.post(
+            url, headers=headers, data=f"f.req={quote(json.dumps([[payload]]))}"
+        )
+        response.raise_for_status()
+
+        parsed_data = json.loads(response.text.split("\n\n")[1])[:-2]
+        decoded_url = json.loads(parsed_data[0][2])[1]
+
+        return {"status": True, "decoded_url": decoded_url}
+    except Exception as e:
+        logger.error(f"GNews url decode failed, {e}")
+        return {"status": False, "decoded_url": ''}
 
 
 class NewscatcherArticle:
@@ -418,8 +465,31 @@ def retrieve_gnews_articles_fulldata(
             if article["url"] in unique_urls:  # duplicated article
                 continue
             else:  # new article, add to the set of unique urls
+                # Decode the url
+                base64_decode = get_base64_str(article["url"])
+                if not base64_decode["status"]:
+                    continue
+
+                _res = requests.get(f"https://news.google.com/rss/articles/{base64_decode['base64_str']}")
+                _res.raise_for_status()
+
+                parser = HTMLParser(_res.text)
+                obj = parser.css_first("c-wiz > div[jscontroller]")
+                if obj is None:
+                    continue
+
+                final = decode_url(
+                    obj.attributes.get("data-n-a-sg"),
+                    obj.attributes.get("data-n-a-ts"),
+                    base64_decode["base64_str"]
+                )
+                if not final["status"]:
+                    continue
+
+                final_url = final['decoded_url']
                 unique_urls.add(article["url"])
-            full_article = google_news.get_full_article(article["url"])
+
+            full_article = google_news.get_full_article(final_url)
             logger.info(f"Retrieved full article text for {article['url']}")
             if (
                 full_article is not None

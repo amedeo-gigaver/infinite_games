@@ -33,7 +33,7 @@ def infer_model_source(model_name):
     Args:
     - model_name (str): The name of the model.
     """
-    if "ft:gpt" in model_name:  # fine-tuned GPT-3 or 4
+    if "gpt-" in model_name:  # fine-tuned GPT-3 or 4
         return OAI_SOURCE
     if model_name not in list(MODEL_NAME_TO_SOURCE.keys()):
         raise ValueError(f"Invalid model name: {model_name}")

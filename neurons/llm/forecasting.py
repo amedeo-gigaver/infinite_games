@@ -1,6 +1,4 @@
-import asyncio
 from datetime import datetime
-import re
 
 from . import ranking, summarize, ensemble
 from .config.keys import OPENAI_KEY, GOOGLE_AI_KEY
@@ -28,7 +26,7 @@ def _get_retrieval_config(model_setup: dict):
         "RANKING_MODEL_NAME": model_setup["RANKING_MODEL_NAME"],
         "RANKING_TEMPERATURE": 0.0,
         "RANKING_PROMPT_TEMPLATE": PROMPT_DICT["ranking"]["0"],
-        "RANKING_RELEVANCE_THRESHOLD": 4,
+        "RANKING_RELEVANCE_THRESHOLD": 3,
         "RANKING_COSINE_SIMILARITY_THRESHOLD": 0.5,
         "SORT_BY": "date",
         "RANKING_METHOD": "llm-rating",
@@ -115,7 +113,7 @@ class Forecaster:
         resolution_criteria = ''
 
         start_time = int(datetime.utcnow().timestamp())
-        start_date = datetime.fromtimestamp(start_time).strftime('%Y-%m-%d')
+        start_date = datetime.fromtimestamp(start_time - 48*60*60).strftime('%Y-%m-%d')
         end_time = (datetime.fromtimestamp(market.event.starts or market.event.resolve_date))
         end_date = end_time.strftime('%Y-%m-%d')
         retrieval_dates = [start_date, end_date]

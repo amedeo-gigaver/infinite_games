@@ -403,7 +403,9 @@ async def retrieve_summarize_and_rank_articles(
         num_articles=config["NUM_ARTICLES_PER_QUERY"],
         length_threshold=200,
     )
+
     articles = information_retrieval.deduplicate_articles(articles)
+
     articles_unfiltered = articles.copy()
     # Step 2.5 (optional): filter articles via quick embedding model
     if config.get("PRE_FILTER_WITH_EMBEDDING") and len(articles) >= 25:
