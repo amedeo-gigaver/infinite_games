@@ -105,7 +105,7 @@ class MockAcledProviderIntegration(AcledProviderIntegration):
                     {
                         "event_id": "dbcba93a-fe3b-4092-b918-8231b23f2faa",
                         "cutoff": 1722462600,
-                        "market_type": "polymarket_pricing",
+                        "market_type": "polymarket_prices",
                         "title": "Will the price be 1.5 tomorrow",
                         "description": "Will the price be 1.5 tomorrow",
                         "start_date": 1722463200,
