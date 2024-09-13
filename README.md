@@ -117,15 +117,16 @@ See [here](docs/mechanism.md) for a discussion of our mechanism. -->
 ## Roadmap
 
 - Scoring with exponentially decreasing weights until settlement date and linear differentiation mechanism - July 25th 
-- Synthetic event generation with central resolution using ACLED data - early Augst
-- Synthetic event generation with central resolution with various API modules: elections API, court rulings - data, space flights - August
-- Synthetic event generation with UMA resolution - human verifiers resolve our events through the OOv2 - August
-- Scoring with exponential differentiation mechanism, new entropy scoring component and new improvement rate scoring component - mid August
+- Synthetic event generation with central resolution using ACLED data - early August
+- Scoring with exponential differentiation mechanism, new entropy scoring component and new improvement rate scoring component - August/September
+- Comprehensive and granular analytics - September
+- Synthetic event generation from news data using an LLM - September
+- Synthetic event generation with central resolution with various API modules: elections API, court rulings - data, space flights 
 - Mining competition in partnership with Crunch DAO
-- Synthetic event generation from news data using an LLM - August
-- Aggregation of miners’ predictions - through simple cutoff for benchmark events - August
-- Synthetic event generation with trustless resolution using UMA - we use the UMA Data Asserter framework for our event resolutions that then go through a challenge period - late August, September
-- More advanced aggregation mechanism based on sequential scoring - September
+- Synthetic event generation with UMA resolution - human verifiers resolve our events through the OOv2 
+- Aggregation of miners’ predictions - through simple cutoff for benchmark events 
+- Synthetic event generation with trustless resolution using UMA - we use the UMA Data Asserter framework for our event resolutions that then go through a challenge period
+- More advanced aggregation mechanism based on sequential scoring 
 
 Other items on our roadmap involve:
 - commit-reveal on the miners' predictions

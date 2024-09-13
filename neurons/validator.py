@@ -191,7 +191,7 @@ class Validator(BaseValidatorNeuron):
                     ans = max(0, min(1, ans))  # Clamp the answer
                     brier_score = 1 - ((ans - correct_ans)**2)
                     non_penalty_brier.append(brier_score)
-                    scores.append(max(brier_score - 0.75, 0))
+                    scores.append(max(brier_score - 0.75, 0)) 
                     bt.logging.info(f'settled answer for {uid=} for {pe.event_id=} {ans=} {brier_score=}')
                 else:
 
