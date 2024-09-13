@@ -26,6 +26,7 @@ class MarketType(enum.Enum):
     POLYMARKET = 1
     AZURO = 2
     ACLED = 3
+    POLYMARKET_PRICES = 4
 
 
 class Event(BaseModel):
@@ -49,6 +50,8 @@ class Event(BaseModel):
                 elif values.data['market_type'] == MarketType.AZURO:
                     return values.data["starts"] - 600  # 10 minutes
                 elif values.data['market_type'] == MarketType.ACLED:
+                    return values.data["starts"] - 600  # 10 minutes
+                elif values.data['market_type'] == MarketType.POLYMARKET_PRICES:
                     return values.data["starts"] - 600  # 10 minutes
 
                 return None
