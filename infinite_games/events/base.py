@@ -153,7 +153,9 @@ class EventAggregator:
 
     async def check_event(self, event_data: ProviderEvent):
         processed_already = event_data.metadata.get('processed', False)
-        self.log(f'Update Event {event_data} {event_data.status} {processed_already=} ')
+        market_type = event_data.metadata.get('market_type', event_data.market_type)
+        event_text = f'{market_type} {event_data.event_id}'
+        self.log(f'Update Event {event_text} {event_data.status} {processed_already=} ')
 
         if event_data.status in [EventStatus.PENDING, EventStatus.SETTLED]:
             integration = self.integrations.get(event_data.market_type)

@@ -1,4 +1,5 @@
 
+import sys
 from typing import AsyncIterator, Optional
 import aiohttp
 import asyncio
@@ -12,10 +13,13 @@ from infinite_games.events.base import (
 class AcledProviderIntegration(ProviderIntegration):
     def __init__(self, max_pending_events=None) -> None:
         super().__init__(max_pending_events=max_pending_events)
-        self.base_url = 'https://ifgames.win'
         self.session = aiohttp.ClientSession()
         self.lock = asyncio.Lock()
         self.loop = asyncio.get_event_loop()
+        self.is_test = 'subtensor.networktest' in (''.join(sys.argv))
+        self.base_url = 'https://test.ifgames.win' if self.is_test else 'https://ifgames.win'
+        if self.is_test:
+            self.log(f'Using provider in test mode with base url: {self.base_url}')
 
     async def _ainit(self) -> 'AcledProviderIntegration':
         return self
@@ -49,7 +53,7 @@ class AcledProviderIntegration(ProviderIntegration):
         start_date = datetime.fromtimestamp(start_date, tz=timezone.utc)
         cutoff = event.get('cutoff')
         cutoff = datetime.fromtimestamp(cutoff, tz=timezone.utc)
-        
+
         return ProviderEvent(
             event_id,
             datetime.now(timezone.utc),
@@ -62,6 +66,7 @@ class AcledProviderIntegration(ProviderIntegration):
             self.convert_status(event),
             {},
             {
+                'market_type': event.get('market_type'),
                 'cutoff': event.get('cutoff'),
                 'end_date': end_date_ts
             }
@@ -136,7 +141,7 @@ class AcledProviderIntegration(ProviderIntegration):
 
     async def sync_events(self, start_from: int = None) -> AsyncIterator[ProviderEvent]:
         self.log(f"syncing events {start_from=} ")
-        resp = await self._request(self.base_url + '/api/events')
+        resp = await self._request(self.base_url + '/api/v1/events')
 
         if resp:
             for event in resp["items"]:

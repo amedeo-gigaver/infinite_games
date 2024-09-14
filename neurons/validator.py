@@ -58,6 +58,7 @@ class Validator(BaseValidatorNeuron):
         self.event_provider = None
         self.SEND_LOGS_INTERVAL = 60 * 60
         self.SEND_MINER_LOGS_INTERVAL = 60 * 60 * 4
+        self.is_test = self.subtensor.network == 'test'
         self.integrations = integrations
         self.db_path = db_path
 
@@ -142,7 +143,9 @@ class Validator(BaseValidatorNeuron):
     def on_event_update(self, pe: ProviderEvent):
         """Hook called whenever we have settling events. Event removed when we return True"""
         if pe.status == EventStatus.SETTLED:
-            bt.logging.info(f'Settled event: {pe} {pe.description[:100]} answer: {pe.answer}')
+            market_type = pe.metadata.get('market_type', pe.market_type)
+            event_text = f'{market_type} {pe.event_id}'
+            bt.logging.info(f'Settled event: {event_text} {pe.description[:100]} answer: {pe.answer}')
             miner_uids = infinite_games.utils.uids.get_all_uids(self)
             correct_ans = pe.answer
             if correct_ans is None:
@@ -352,6 +355,7 @@ if __name__ == "__main__":
     version_info = sys.version_info
     bt.logging.debug(f'Python version {version} {version_info}')
     bt.logging.debug(f'SQLite version  {sqlite3.sqlite_version}')
+    bt.logging.debug(f'Bittensor version  {bt.__version__}')
     major, minor, patch = sqlite3.sqlite_version.split('.')
     if int(major) < 3 or int(minor) < 35:
         bt.logging.error(f'**** Please install SQLite version 3.35 or higher, current: {sqlite3.sqlite_version}')
