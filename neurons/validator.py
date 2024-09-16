@@ -68,6 +68,10 @@ class Validator(BaseValidatorNeuron):
         self.integrations = integrations
         self.db_path = db_path
         self.last_log_block = 0
+        self.is_test = 'subtensor.networktest' in (''.join(sys.argv))
+        self.base_api_url = 'https://stage.ifgames.win' if self.is_test else 'https://ifgames.win'
+        if self.is_test:
+            self.log(f'Using provider in test mode with base url: {self.base_api_url}')
 
     async def initialize_provider(self):
         if not self.event_provider:
@@ -271,29 +275,6 @@ class Validator(BaseValidatorNeuron):
         """Export all events data"""
         try:
             v_uid = self.metagraph.hotkeys.index(self.wallet.get_hotkey().ss58_address)
-            # from pprint import pprint
-            # print({
-            #     "results": [{
-            #         "event_id": p_event.event_id,
-            #         "provider_type": p_event.market_type,
-            #         "title": p_event.description[:100], "description": p_event.description,
-            #         "category": "event",
-            #         "start_date": p_event.starts.isoformat() if p_event.starts else None,
-            #         "end_date": p_event.resolve_date.isoformat() if p_event.resolve_date else None,
-            #         "resolve_date": p_event.resolve_date.isoformat() if p_event.resolve_date else None,
-            #         "settle_date": datetime.now(tz=timezone.utc).isoformat(),
-            #         "prediction": 0,
-            #         "answer": p_event.answer,
-            #         "miner_hotkey": self.metagraph.hotkeys[miner_uid],
-            #         "miner_uid": miner_uid.item(),
-            #         "miner_score": float(score),
-            #         "miner_effective_score": effective_score,
-            #         "validator_hotkey": self.wallet.get_hotkey().ss58_address,
-            #         "validator_uid": v_uid,
-            #         "metadata": p_event.metadata,
-            #     } for miner_uid, score, effective_score in miner_score_data]
-            # })
-            now = datetime.now(tz=timezone.utc)
             body = {
                 "results": [{
                     "event_id": p_event.event_id,
@@ -318,7 +299,7 @@ class Validator(BaseValidatorNeuron):
             hk = self.wallet.get_hotkey()
             signed = base64.b64encode(hk.sign(json.dumps(body))).decode('utf-8')
             res = requests.post(
-                'http://37.27.29.145:8000/api/v1/validators/results',
+                f'{self.base_api_url}/api/v1/validators/results',
                 headers={
                     'Authorization': f'Bearer {signed}',
                     'Validator': self.wallet.get_hotkey().ss58_address,

@@ -17,9 +17,7 @@ class AcledProviderIntegration(ProviderIntegration):
         self.lock = asyncio.Lock()
         self.loop = asyncio.get_event_loop()
         self.is_test = 'subtensor.networktest' in (''.join(sys.argv))
-        self.base_url = 'https://test.ifgames.win' if self.is_test else 'https://ifgames.win'
-        if self.is_test:
-            self.log(f'Using provider in test mode with base url: {self.base_url}')
+        self.base_url = 'https://stage.ifgames.win' if self.is_test else 'https://ifgames.win'
 
     async def _ainit(self) -> 'AcledProviderIntegration':
         return self
