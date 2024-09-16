@@ -16,17 +16,20 @@
 # DEALINGS IN THE SOFTWARE.
 
 import asyncio
+import base64
 from datetime import datetime, timedelta, timezone
 import itertools
+import json
 import math
 import os
 import sqlite3
 import sys
+import traceback
 from typing import List
 
 import requests
 
-from infinite_games.events.ig import AcledProviderIntegration
+from infinite_games.events.acled import AcledProviderIntegration
 os.environ['USE_TORCH'] = '1'
 import time
 
@@ -255,7 +258,8 @@ class Validator(BaseValidatorNeuron):
             scores = torch.nn.functional.normalize(scores, p=1, dim=0)
             bt.logging.info(f'Normalized {scores}')
             self.update_scores(scores, miner_uids)
-            self.send_event_scores(zip(miner_uids, itertools.repeat(pe.market_type), itertools.repeat(pe.event_id), brier_scores, scores))
+            self.export_scores(p_event=pe, miner_score_data=zip(miner_uids, brier_scores, scores))
+            self.send_event_scores(zip(miner_uids, brier_scores, scores))
             return True
         elif pe.status == EventStatus.DISCARDED:
             bt.logging.info(f'Canceled event: {pe} removing from registry!')
@@ -263,55 +267,72 @@ class Validator(BaseValidatorNeuron):
 
         return False
 
-    def export_submissions(self):
-        """Export all new submissions"""
-        result = []
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
+    def export_scores(self, p_event: ProviderEvent, miner_score_data):
+        """Export all events data"""
         try:
-            c = cursor.execute(
-                """
-                select unique_event_id, minerHotkey, minerUid, predictedOutcome,interval_start_minutes,interval_agg_prediction,interval_count,submitted,blocktime
-                from predictions
-                where exported = false
-                """,
+            v_uid = self.metagraph.hotkeys.index(self.wallet.get_hotkey().ss58_address)
+            # from pprint import pprint
+            # print({
+            #     "results": [{
+            #         "event_id": p_event.event_id,
+            #         "provider_type": p_event.market_type,
+            #         "title": p_event.description[:100], "description": p_event.description,
+            #         "category": "event",
+            #         "start_date": p_event.starts.isoformat() if p_event.starts else None,
+            #         "end_date": p_event.resolve_date.isoformat() if p_event.resolve_date else None,
+            #         "resolve_date": p_event.resolve_date.isoformat() if p_event.resolve_date else None,
+            #         "settle_date": datetime.now(tz=timezone.utc).isoformat(),
+            #         "prediction": 0,
+            #         "answer": p_event.answer,
+            #         "miner_hotkey": self.metagraph.hotkeys[miner_uid],
+            #         "miner_uid": miner_uid.item(),
+            #         "miner_score": float(score),
+            #         "miner_effective_score": effective_score,
+            #         "validator_hotkey": self.wallet.get_hotkey().ss58_address,
+            #         "validator_uid": v_uid,
+            #         "metadata": p_event.metadata,
+            #     } for miner_uid, score, effective_score in miner_score_data]
+            # })
+            now = datetime.now(tz=timezone.utc)
+            body = {
+                "results": [{
+                    "event_id": p_event.event_id,
+                    "provider_type": p_event.market_type,
+                    "title": p_event.description[:10], "description": p_event.description,
+                    "category": "event",
+                    "start_date": p_event.starts.isoformat() if p_event.starts else None,
+                    "end_date": p_event.resolve_date.isoformat() if p_event.resolve_date else None,
+                    "resolve_date": p_event.resolve_date.isoformat() if p_event.resolve_date else None,
+                    "settle_date": datetime.now(tz=timezone.utc).isoformat(),
+                    "prediction": 0.0,
+                    "answer": float(p_event.answer),
+                    "miner_hotkey": self.metagraph.hotkeys[miner_uid],
+                    "miner_uid": int(miner_uid.item()),
+                    "miner_score": float(score),
+                    "miner_effective_score": float(effective_score),
+                    "validator_hotkey": self.wallet.get_hotkey().ss58_address,
+                    "validator_uid": int(v_uid),
+                    "metadata": p_event.metadata,
+                } for miner_uid, score, effective_score in miner_score_data]
+            }
+            hk = self.wallet.get_hotkey()
+            signed = base64.b64encode(hk.sign(json.dumps(body))).decode('utf-8')
+            res = requests.post(
+                'http://37.27.29.145:8000/api/v1/validators/results',
+                headers={
+                    'Authorization': f'Bearer {signed}',
+                    'Validator': self.wallet.get_hotkey().ss58_address,
+                },
+                json=body
             )
-
-            result = c.fetchmany(10000)
-            v_uid = self.metagraph.hotkeys.index(self.wallet.hotkey.ss58_address)
-
-            while result:
-                requests.post(
-                    "infinitegames.win/api/events/export",
-                    json=[{
-                        "validator_hotkey": self.wallet.hotkey.ss58_address,
-                        "validator_uid": v_uid,
-                        "unique_event_id": submission[0],
-                        "event_id": submission[0].split('-')[0],
-                        "miner_hotkey": submission[1],
-                        "miner_uid": submission[2],
-                        "aggregated_prediction": submission[5],
-                        "interval_timestamp": (CLUSTER_EPOCH_2024 + timedelta(minutes=c[4])).timestamp(),
-                        "interval_submissions_count": submission[6],
-                        "blocktime": submission[8]
-                    } for submission in result]
-                )
-                result = c.fetchmany(10000)
-                time.sleep(2)
-
+            if not res.status_code == 200:
+                bt.logging.warning(f'Error processing scores for event {p_event}: {res.content}')
+            else:
+                bt.logging.info(f'Scores processed {res.status_code} {res.content}')
+            time.sleep(1)
         except Exception as e:
             bt.logging.error(e)
             bt.logging.error(traceback.format_exc())
-        finally:
-            conn.close()
-        for row in result:
-            data = dict(row)
-            pe: ProviderEvent = self.row_to_pe(data)
-            integration = self.integrations.get(pe.market_type)
-            if not integration:
-                bt.logging.warning(f'No integration found for event {pe}')
-                continue
-        return events
 
     async def forward(self):
         """
