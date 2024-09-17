@@ -16,12 +16,18 @@
 # DEALINGS IN THE SOFTWARE.
 
 import asyncio
+import base64
 from datetime import datetime, timedelta, timezone
 import itertools
+import json
 import math
 import os
 import sqlite3
 import sys
+import traceback
+from typing import List
+
+import requests
 
 from infinite_games.events.acled import AcledProviderIntegration
 os.environ['USE_TORCH'] = '1'
@@ -61,6 +67,11 @@ class Validator(BaseValidatorNeuron):
         self.is_test = self.subtensor.network == 'test'
         self.integrations = integrations
         self.db_path = db_path
+        self.last_log_block = 0
+        self.is_test = 'subtensor.networktest' in (''.join(sys.argv))
+        self.base_api_url = 'https://stage.ifgames.win' if self.is_test else 'https://ifgames.win'
+        if self.is_test:
+            bt.logging.info(f'Using provider in test mode with base url: {self.base_api_url}')
 
     async def initialize_provider(self):
         if not self.event_provider:
@@ -251,13 +262,58 @@ class Validator(BaseValidatorNeuron):
             scores = torch.nn.functional.normalize(scores, p=1, dim=0)
             bt.logging.info(f'Normalized {scores}')
             self.update_scores(scores, miner_uids)
-            self.send_event_scores(zip(miner_uids, itertools.repeat(pe.market_type), itertools.repeat(pe.event_id), brier_scores, scores))
+            self.export_scores(p_event=pe, miner_score_data=zip(miner_uids, brier_scores, scores))
+            self.send_event_scores(zip(miner_uids, brier_scores, scores))
             return True
         elif pe.status == EventStatus.DISCARDED:
             bt.logging.info(f'Canceled event: {pe} removing from registry!')
             self.event_provider.remove_event(pe)
 
         return False
+
+    def export_scores(self, p_event: ProviderEvent, miner_score_data):
+        """Export all events data"""
+        try:
+            v_uid = self.metagraph.hotkeys.index(self.wallet.get_hotkey().ss58_address)
+            body = {
+                "results": [{
+                    "event_id": p_event.event_id,
+                    "provider_type": p_event.market_type,
+                    "title": p_event.description[:10], "description": p_event.description,
+                    "category": "event",
+                    "start_date": p_event.starts.isoformat() if p_event.starts else None,
+                    "end_date": p_event.resolve_date.isoformat() if p_event.resolve_date else None,
+                    "resolve_date": p_event.resolve_date.isoformat() if p_event.resolve_date else None,
+                    "settle_date": datetime.now(tz=timezone.utc).isoformat(),
+                    "prediction": 0.0,
+                    "answer": float(p_event.answer),
+                    "miner_hotkey": self.metagraph.hotkeys[miner_uid],
+                    "miner_uid": int(miner_uid.item()),
+                    "miner_score": float(score),
+                    "miner_effective_score": float(effective_score),
+                    "validator_hotkey": self.wallet.get_hotkey().ss58_address,
+                    "validator_uid": int(v_uid),
+                    "metadata": p_event.metadata,
+                } for miner_uid, score, effective_score in miner_score_data]
+            }
+            hk = self.wallet.get_hotkey()
+            signed = base64.b64encode(hk.sign(json.dumps(body))).decode('utf-8')
+            res = requests.post(
+                f'{self.base_api_url}/api/v1/validators/results',
+                headers={
+                    'Authorization': f'Bearer {signed}',
+                    'Validator': self.wallet.get_hotkey().ss58_address,
+                },
+                json=body
+            )
+            if not res.status_code == 200:
+                bt.logging.warning(f'Error processing scores for event {p_event}: {res.content}')
+            else:
+                bt.logging.info(f'Scores processed {res.status_code} {res.content}')
+            time.sleep(1)
+        except Exception as e:
+            bt.logging.error(e)
+            bt.logging.error(traceback.format_exc())
 
     async def forward(self):
         """
@@ -268,6 +324,9 @@ class Validator(BaseValidatorNeuron):
         self.reset_daily_average_scores()
         self.print_info()
         block_start = self.block
+
+        # if self.last_log_block - block_start > 20:
+        #     self.export_submissions()
         miner_uids = infinite_games.utils.uids.get_all_uids(self)
         # Create synapse object to send to the miner.
         synapse = infinite_games.protocol.EventPredictionSynapse()
@@ -354,12 +413,16 @@ if __name__ == "__main__":
     version = sys.version
     version_info = sys.version_info
     bt.logging.debug(f'Python version {version} {version_info}')
+    bt.logging.debug(f'Bittensor version  {bt.__version__}')
     bt.logging.debug(f'SQLite version  {sqlite3.sqlite_version}')
     bt.logging.debug(f'Bittensor version  {bt.__version__}')
     major, minor, patch = sqlite3.sqlite_version.split('.')
     if int(major) < 3 or int(minor) < 35:
         bt.logging.error(f'**** Please install SQLite version 3.35 or higher, current: {sqlite3.sqlite_version}')
         exit(1)
+    # if bt.__version__ != "7.0.2":
+    #     bt.logging.error(f'**** Please install bittensor==7.0.2 version , current: {bt.__version__}')
+    #     exit(1)
 
     v = Validator(integrations=[
             AzuroProviderIntegration(),
