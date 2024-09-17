@@ -71,7 +71,7 @@ class Validator(BaseValidatorNeuron):
         self.is_test = 'subtensor.networktest' in (''.join(sys.argv))
         self.base_api_url = 'https://stage.ifgames.win' if self.is_test else 'https://ifgames.win'
         if self.is_test:
-            self.log(f'Using provider in test mode with base url: {self.base_api_url}')
+            bt.logging.info(f'Using provider in test mode with base url: {self.base_api_url}')
 
     async def initialize_provider(self):
         if not self.event_provider:
