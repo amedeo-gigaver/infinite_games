@@ -263,7 +263,7 @@ class Validator(BaseValidatorNeuron):
             bt.logging.info(f'Normalized {scores}')
             self.update_scores(scores, miner_uids)
             self.export_scores(p_event=pe, miner_score_data=zip(miner_uids, brier_scores, scores))
-            self.send_event_scores(zip(miner_uids, brier_scores, scores))
+            self.send_event_scores(zip(miner_uids, itertools.repeat(pe.market_type), itertools.repeat(pe.event_id), brier_scores, scores))
             return True
         elif pe.status == EventStatus.DISCARDED:
             bt.logging.info(f'Canceled event: {pe} removing from registry!')
