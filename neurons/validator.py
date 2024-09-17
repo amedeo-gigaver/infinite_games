@@ -279,7 +279,7 @@ class Validator(BaseValidatorNeuron):
                 "results": [{
                     "event_id": p_event.event_id,
                     "provider_type": p_event.market_type,
-                    "title": p_event.description[:10], "description": p_event.description,
+                    "title": p_event.description[:50], "description": p_event.description,
                     "category": "event",
                     "start_date": p_event.starts.isoformat() if p_event.starts else None,
                     "end_date": p_event.resolve_date.isoformat() if p_event.resolve_date else None,
