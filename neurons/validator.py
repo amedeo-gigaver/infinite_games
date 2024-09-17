@@ -325,8 +325,8 @@ class Validator(BaseValidatorNeuron):
         self.print_info()
         block_start = self.block
 
-        if self.last_log_block - block_start > 20:
-            self.export_submissions()
+        # if self.last_log_block - block_start > 20:
+        #     self.export_submissions()
         miner_uids = infinite_games.utils.uids.get_all_uids(self)
         # Create synapse object to send to the miner.
         synapse = infinite_games.protocol.EventPredictionSynapse()
