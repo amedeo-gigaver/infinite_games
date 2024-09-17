@@ -376,7 +376,7 @@ class Validator(BaseValidatorNeuron):
                     bt.logging.error(f'No integration found to register miner submission {uid=} {event_id=} {score=}')
                     continue
                 if integration.available_for_submission(provider_event):
-                    bt.logging.info(f'Submission {uid=} for {interval_start_minutes} {event_id}')
+                    # bt.logging.info(f'Submission {uid=} for {interval_start_minutes} {event_id}')
                     any_miner_processed = True
                     await self.event_provider.miner_predict(provider_event, uid.item(), score, interval_start_minutes, self.block)
                 else:
