@@ -64,7 +64,7 @@ class AcledProviderIntegration(ProviderIntegration):
             self.convert_status(event),
             {},
             {
-                'market_type': event.get('market_type'),
+                'market_type': event.get('market_type').lower(),
                 'cutoff': event.get('cutoff'),
                 'end_date': end_date_ts
             }
