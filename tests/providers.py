@@ -103,7 +103,7 @@ class MockAcledProviderIntegration(AcledProviderIntegration):
                         "answer": None
                     },
                     {
-                        "event_id": "dbcba93a-fe3b-4092-b918-8231b23f2faa",
+                        "event_id": "cbcba93a-fe3b-4092-b918-8231b23f2faa",
                         "cutoff": 1722462600,
                         "market_type": "polymarket_prices",
                         "title": "Will the price be 1.5 tomorrow",
@@ -137,5 +137,17 @@ class MockAcledProviderIntegration(AcledProviderIntegration):
                 "end_date": 1722549599,
                 "answer": None
             }
+        elif url == self.base_url + '/api/events/cbcba93a-fe3b-4092-b918-8231b23f2faa':
+            return {
+                "event_id": "cbcba93a-fe3b-4092-b918-8231b23f2faa",
+                "cutoff": 1722462600,
+                "market_type": "polymarket_prices",
+                "title": "Will the repricing events..",
+                "description": "repricing text",
+                "start_date": 1722463200,
+                "end_date": 1722549599,
+                "answer": None
+            }
+
         else:
             raise ValueError(f'Not mocked or not expected url! {url}')

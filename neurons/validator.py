@@ -273,47 +273,50 @@ class Validator(BaseValidatorNeuron):
 
     def export_scores(self, p_event: ProviderEvent, miner_score_data):
         """Export all events data"""
-        try:
-            v_uid = self.metagraph.hotkeys.index(self.wallet.get_hotkey().ss58_address)
-            body = {
-                "results": [{
-                    "event_id": p_event.event_id,
-                    "provider_type": p_event.market_type,
-                    "title": p_event.description[:50], "description": p_event.description,
-                    "category": "event",
-                    "start_date": p_event.starts.isoformat() if p_event.starts else None,
-                    "end_date": p_event.resolve_date.isoformat() if p_event.resolve_date else None,
-                    "resolve_date": p_event.resolve_date.isoformat() if p_event.resolve_date else None,
-                    "settle_date": datetime.now(tz=timezone.utc).isoformat(),
-                    "prediction": 0.0,
-                    "answer": float(p_event.answer),
-                    "miner_hotkey": self.metagraph.hotkeys[miner_uid],
-                    "miner_uid": int(miner_uid.item()),
-                    "miner_score": float(score),
-                    "miner_effective_score": float(effective_score),
-                    "validator_hotkey": self.wallet.get_hotkey().ss58_address,
-                    "validator_uid": int(v_uid),
-                    "metadata": p_event.metadata,
-                } for miner_uid, score, effective_score in miner_score_data]
-            }
-            hk = self.wallet.get_hotkey()
-            signed = base64.b64encode(hk.sign(json.dumps(body))).decode('utf-8')
-            res = requests.post(
-                f'{self.base_api_url}/api/v1/validators/results',
-                headers={
-                    'Authorization': f'Bearer {signed}',
-                    'Validator': self.wallet.get_hotkey().ss58_address,
-                },
-                json=body
-            )
-            if not res.status_code == 200:
-                bt.logging.warning(f'Error processing scores for event {p_event}: {res.content}')
-            else:
-                bt.logging.info(f'Scores processed {res.status_code} {res.content}')
-            time.sleep(1)
-        except Exception as e:
-            bt.logging.error(e)
-            bt.logging.error(traceback.format_exc())
+        if os.environ.get('ENV') != 'pytest':
+            try:
+                v_uid = self.metagraph.hotkeys.index(self.wallet.get_hotkey().ss58_address)
+                body = {
+                    "results": [{
+                        "event_id": p_event.event_id,
+                        "provider_type": p_event.market_type,
+                        "title": p_event.description[:50], "description": p_event.description,
+                        "category": "event",
+                        "start_date": p_event.starts.isoformat() if p_event.starts else None,
+                        "end_date": p_event.resolve_date.isoformat() if p_event.resolve_date else None,
+                        "resolve_date": p_event.resolve_date.isoformat() if p_event.resolve_date else None,
+                        "settle_date": datetime.now(tz=timezone.utc).isoformat(),
+                        "prediction": 0.0,
+                        "answer": float(p_event.answer),
+                        "miner_hotkey": self.metagraph.hotkeys[miner_uid],
+                        "miner_uid": int(miner_uid.item()),
+                        "miner_score": float(score),
+                        "miner_effective_score": float(effective_score),
+                        "validator_hotkey": self.wallet.get_hotkey().ss58_address,
+                        "validator_uid": int(v_uid),
+                        "metadata": p_event.metadata,
+                    } for miner_uid, score, effective_score in miner_score_data]
+                }
+                hk = self.wallet.get_hotkey()
+                signed = base64.b64encode(hk.sign(json.dumps(body))).decode('utf-8')
+                res = requests.post(
+                    f'{self.base_api_url}/api/v1/validators/results',
+                    headers={
+                        'Authorization': f'Bearer {signed}',
+                        'Validator': self.wallet.get_hotkey().ss58_address,
+                    },
+                    json=body
+                )
+                if not res.status_code == 200:
+                    bt.logging.warning(f'Error processing scores for event {p_event}: {res.content}')
+                else:
+                    bt.logging.info(f'Scores processed {res.status_code} {res.content}')
+                time.sleep(1)
+            except Exception as e:
+                bt.logging.error(e)
+                bt.logging.error(traceback.format_exc())
+        else:
+            bt.logging.info('Skip export scores in test')
 
     async def forward(self):
         """
@@ -359,7 +362,7 @@ class Validator(BaseValidatorNeuron):
             # print(uid, resp)
             for (event_id, event_data) in resp.events.items():
                 market_event_id = event_data.get('event_id')
-                provider_name = event_data.get('market_type')
+                provider_name = event_data.get('market_type') if event_data.get('market_type') != 'polymarket_prices' else 'acled'
                 score = event_data.get('probability')
 
                 provider_event = self.event_provider.get_registered_event(provider_name, market_event_id)
