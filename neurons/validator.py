@@ -196,11 +196,13 @@ class Validator(BaseValidatorNeuron):
                 if pe.market_type == 'azuro':
                     if not prediction_intervals:
                         scores.append(0)
+                        non_penalty_brier.append(0)
                         continue
 
                     ans = prediction_intervals[0]['interval_agg_prediction']
                     if ans is None:
                         scores.append(0)
+                        non_penalty_brier.append(0)
                         continue
                     ans = max(0, min(1, ans))  # Clamp the answer
                     brier_score = 1 - ((ans - correct_ans)**2)
@@ -212,6 +214,7 @@ class Validator(BaseValidatorNeuron):
                     # self.event_provider._resolve_previous_intervals(pe, uid.item(), None)
                     if not prediction_intervals:
                         scores.append(0)
+                        non_penalty_brier.append(0)
                         continue
                     mk = []
 
@@ -249,6 +252,7 @@ class Validator(BaseValidatorNeuron):
 
                     scores.append(penalty_brier_score)
             brier_scores = torch.FloatTensor(non_penalty_brier)
+            bt.logging.info(f'Brier scores log: {brier_scores}')
             scores = torch.FloatTensor(scores)
             if all(score.item() <= 0.0 for score in scores):
                 # bt.logging.info('All effective scores zero for this event!')
