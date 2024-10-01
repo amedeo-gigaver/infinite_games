@@ -198,8 +198,10 @@ class TestTemplateValidatorNeuronTestCase:
         assert v.scores[2] == 0.0
         # 0.7, 0.9
         # uid 3 and 4 calculated based on respective brier score -> moving average
-        assert (round(v.scores[3].item(), 4), round(v.scores[4].item(), 4)) == (0.0221, 0.7779)
-        assert (round(v.average_scores[3].item(), 3), round(v.average_scores[4].item(), 3)) == (0.028, 0.972)
+        assert (round(v.average_scores[3].item(), 3), round(v.average_scores[4].item(), 3)) == (0.151, 0.64)
+        v.update_scores()
+        assert (round(v.scores[3].item(), 4), round(v.scores[4].item(), 4)) == (0.151, 0.6398)
+        assert v.scoring_iterations == 1
 
     async def test_validator_polymarket_pricing_events(
             self, mock_network, caplog, monkeypatch
@@ -243,9 +245,9 @@ class TestTemplateValidatorNeuronTestCase:
 
             self.next_run(v)
 
+        assert (round(v.average_scores[3].item(), 3), round(v.average_scores[4].item(), 3)) == (1, 1)
+        v.update_scores()
         assert (round(v.scores[3].item(), 4), round(v.scores[4].item(), 4)) == (0.4, 0.4)
-
-        assert (round(v.average_scores[3].item(), 3), round(v.average_scores[4].item(), 3)) == (0.5, 0.5)
 
     async def test_validator_settled_event_scores_polymarket_short(self, mock_network, caplog, monkeypatch, disable_event_updates):
         wallet, subtensor = mock_network
