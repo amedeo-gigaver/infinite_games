@@ -413,10 +413,9 @@ class BaseValidatorNeuron(BaseNeuron):
         else:
             bt.logging.info('No daily average available yet, prefer scores for moving average')
             self.scores: torch.FloatTensor = self.average_scores
-        self.scores = torch.exp(10 * self.scores)
+        self.scores = torch.exp(7 * self.scores)
         self.scores = torch.nn.functional.normalize(self.scores, p=1, dim=0)
         bt.logging.debug(f"Updated moving avg scores: {self.scores}")
-
 
     @backoff.on_exception(backoff.expo, Exception, max_tries=6)
     def send_average_scores(self, miner_scores=None):
