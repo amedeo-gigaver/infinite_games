@@ -358,7 +358,7 @@ class BaseValidatorNeuron(BaseNeuron):
         latest_reset_ts = latest_reset_date.timestamp()
         now = datetime.now(timezone.utc)
         now_ts = now.timestamp()
-        bt.logging.info(f'{now_ts} - {latest_reset_ts}, {now_ts - latest_reset_ts}')
+        bt.logging.info(f'Bulk update scores info: {now_ts} - {latest_reset_ts} = {now_ts - latest_reset_ts} > {RESET_INTERVAL_SECONDS}, hour: {now.hour}')
         if now_ts - latest_reset_ts > RESET_INTERVAL_SECONDS and now.hour > 8 and now.hour <= 12:
             bt.logging.info(f'Calculating and updating daily scores: {datetime.now(timezone.utc)}')
             if self.average_scores is None:
