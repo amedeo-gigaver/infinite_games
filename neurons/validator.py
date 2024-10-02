@@ -327,7 +327,7 @@ class Validator(BaseValidatorNeuron):
 
         """
         await self.initialize_provider()
-        # self.bulk_update_scores_daily()
+        self.bulk_update_scores_daily()
         self.print_info()
         block_start = self.block
 
