@@ -287,7 +287,7 @@ class TestTemplateValidatorNeuronTestCase:
         assert (round(v.average_scores[2].item(), 3), round(v.average_scores[3].item(), 3), round(v.average_scores[4].item(), 3), round(v.average_scores[5].item(), 3),
                 round(v.average_scores[6].item(), 3), round(v.average_scores[6].item(), 3), round(v.average_scores[8].item(), 3), round(v.average_scores[9].item(), 3),
                 round(v.average_scores[10].item(), 3), round(v.average_scores[11].item(), 3), round(v.average_scores[12].item(), 3)) == (
-                    -0.5, -0.5, -0.5, -0.5, -0.322, -0.322, 0.263, 0.485, 0.678, 0.848, 1
+                    -6, -6, -6, -6, -0.322, -0.322, 0.263, 0.485, 0.678, 0.848, 1
                 )
         assert v.scoring_iterations == 1
         v.update_scores()

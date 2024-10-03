@@ -154,14 +154,14 @@ class Validator(BaseValidatorNeuron):
     def compute_log_score(self, ans: float , event: int) -> float:
         if event == 1:
             if ans == 0:
-                return -0.5
+                return -6
             else:
-                return max(1 + math.log2(ans), -0.5)
+                return max(1 + math.log2(ans), -6)
         else:
             if ans == 1:
-                return -0.5
+                return -6
             else:
-                return max(1 + math.log2(1-ans), -0.5)
+                return max(1 + math.log2(1-ans), -6)
 
     def on_event_update(self, pe: ProviderEvent):
         """Hook called whenever we have settling events. Event removed when we return True"""
