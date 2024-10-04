@@ -1,0 +1,58 @@
+{
+    "items": [
+        {
+            "title": "Things Will Be Different",
+            "score": "72%",
+            "question": "Will Things Will Be Different movie make an Audience score below 72% in rotten tomatoes after the opening weekend?",
+            "cutoff": "2024-10-04 00:00:00",
+            "resolution_date": "2024-10-08 00:00:00",
+            "description": "This market resolves to YES if at any point after 2024-10-08 00:00:00 the audience score is above 72%. The only source of truth is rotten tomatoes (https://www.rottentomatoes.com)",
+            "reasons": "The film's unique sci-fi narrative and character-driven story may resonate well with viewers, especially those who appreciate indie thrillers. However, its pacing and ambiguous elements could lead to mixed reactions, suggesting a moderate score."
+        },
+        {
+            "title": "It Lives Inside",
+            "score": "65%",
+            "question": "Will It Lives Inside movie make an Audience score below 65% in rotten tomatoes after the opening weekend?",
+            "cutoff": "2024-10-04 00:00:00",
+            "resolution_date": "2024-10-08 00:00:00",
+            "description": "This market resolves to YES if at any point after 2024-10-08 00:00:00 the audience score is above 65%. The only source of truth is rotten tomatoes (https://www.rottentomatoes.com)",
+            "reasons": "The film's performance may hinge on its genre appeal and initial marketing impact. Audience familiarity with horror elements and previous similar films can shape perceptions, leading to a moderate audience score reflected through varied reviews and engagement."
+        },
+        {
+            "title": "Salem's Lot",
+            "score": "60%",
+            "question": "Will Salem's Lot movie make an Audience score below 60% in rotten tomatoes after the opening weekend?",
+            "cutoff": "2024-10-03 00:00:00",
+            "resolution_date": "2024-10-07 00:00:00",
+            "description": "This market resolves to YES if at any point after 2024-10-07 00:00:00 the audience score is above 60%. The only source of truth is rotten tomatoes (https://www.rottentomatoes.com)",
+            "reasons": "The film's mixed reception may stem from its nostalgic elements versus pacing issues. Its Halloween-themed release might attract niche audiences, but less depth in character development may hinder its overall score. Expect a moderate audience reaction."
+        },
+        {
+            "title": "Hold Your Breath",
+            "score": "67%",
+            "question": "Will Hold Your Breath movie make an Audience score below 67% in rotten tomatoes after the opening weekend?",
+            "cutoff": "2024-10-04 00:00:00",
+            "resolution_date": "2024-10-08 00:00:00",
+            "description": "This market resolves to YES if at any point after 2024-10-08 00:00:00 the audience score is above 67%. The only source of truth is rotten tomatoes (https://www.rottentomatoes.com)",
+            "reasons": "The film benefits from strong performances, particularly by Sarah Paulson, which may engage viewers. However, its pacing problems and use of familiar tropes might lead to mixed reactions, resulting in a moderate audience score."
+        },
+        {
+            "title": "Monster Summer",
+            "score": "70%",
+            "question": "Will Monster Summer movie make an Audience score below 70% in rotten tomatoes after the opening weekend?",
+            "cutoff": "2024-10-04 00:00:00",
+            "resolution_date": "2024-10-08 00:00:00",
+            "description": "This market resolves to YES if at any point after 2024-10-08 00:00:00 the audience score is above 70%. The only source of truth is rotten tomatoes (https://www.rottentomatoes.com)",
+            "reasons": "The film's nostalgic appeal and family-friendly nature, combined with strong performances from familiar actors, are likely to engage younger viewers and parents alike. However, potential pacing and character development issues may yield mixed reactions from critics and adult audiences, leading to a moderate score."
+        },
+        {
+            "title": "The Platform 2",
+            "score": "75%",
+            "question": "Will The Platform 2 movie make an Audience score below 75% in rotten tomatoes after the opening weekend?",
+            "cutoff": "2024-10-04 00:00:00",
+            "resolution_date": "2024-10-08 00:00:00",
+            "description": "This market resolves to YES if at any point after 2024-10-08 00:00:00 the audience score is above 75%. The only source of truth is rotten tomatoes (https://www.rottentomatoes.com)",
+            "reasons": "Following the success of the original film, 'The Platform 2' is likely to draw a dedicated fan base. Its capacity to build on the initial story and introduce engaging new themes may lead to a positive audience reception, despite varying opinions on execution."
+        }
+    ]
+}
