@@ -200,7 +200,7 @@ class TestTemplateValidatorNeuronTestCase:
         # uid 3 and 4 calculated based on respective brier score -> moving average
         assert (round(v.average_scores[3].item(), 3), round(v.average_scores[4].item(), 3)) == (0.151, 0.64)
         v.update_scores()
-        assert (round(v.scores[3].item(), 4), round(v.scores[4].item(), 4)) == (0.0083, 0.2555)
+        assert (round(v.scores[3].item(), 4), round(v.scores[4].item(), 4)) == (0.0316, 0.9684)
         assert v.scoring_iterations == 1
 
     async def test_validator_settled_event_scores_distribution(
@@ -341,7 +341,7 @@ class TestTemplateValidatorNeuronTestCase:
 
         assert (round(v.average_scores[3].item(), 3), round(v.average_scores[4].item(), 3)) == (1, 1)
         v.update_scores()
-        assert (round(v.scores[3].item(), 4), round(v.scores[4].item(), 4)) == (0.4481, 0.4481)
+        assert (round(v.scores[3].item(), 4), round(v.scores[4].item(), 4)) == (0.5, 0.5)
 
     async def test_validator_settled_event_scores_polymarket_short(self, mock_network, caplog, monkeypatch, disable_event_updates):
         wallet, subtensor = mock_network
@@ -398,7 +398,7 @@ class TestTemplateValidatorNeuronTestCase:
         v.event_provider.register_or_update_event(test_event)
         assert v.scores[2] == 0.0
         v.update_scores()
-        assert (round(v.scores[3].item(), 4), round(v.scores[4].item(), 4)) == (0.0452, 0.5713)
+        assert (round(v.scores[3].item(), 4), round(v.scores[4].item(), 4)) == (0.0732, 0.9268)
 
         assert (round(v.average_scores[3].item(), 3), round(v.average_scores[4].item(), 3)) == (0.485, 0.848)
 
@@ -538,8 +538,8 @@ class TestTemplateValidatorNeuronTestCase:
         v.event_provider.register_or_update_event(test_event)
         assert v.scores[2] == 0.0
         v.update_scores()
-        assert (round(v.scores[3].item(), 4), round(v.scores[4].item(), 4)) == (0.006, 0.0083)
-        assert (round(v.average_scores[3].item(), 3), round(v.average_scores[4].item(), 3)) == (0.063, 0.109)
+        assert (round(v.scores[3].item(), 4), round(v.scores[4].item(), 4)) == (0.0002, 0.0003)
+        assert (round(v.average_scores[3].item(), 3), round(v.average_scores[4].item(), 3)) == (-5.164, -5.118)
 
     async def test_validator_settled_event_scores_polymarket_earlier_settle_date(self, mock_network, caplog, monkeypatch, disable_event_updates):
         wallet, subtensor = mock_network
@@ -601,11 +601,11 @@ class TestTemplateValidatorNeuronTestCase:
         # 0.7, 0.9
         # uid 3 and 4 calculated based on respective score -> moving average
         v.update_scores()
-        assert round(v.scores[3].item(), 4) == 0.0224
-        assert round(v.scores[4].item(), 4) == 0.0898
+        assert round(v.scores[3].item(), 4) == 0.1997
+        assert round(v.scores[4].item(), 4) == 0.8003
 
-        assert round(v.average_scores[3].item(), 3) == 0.265
-        assert round(v.average_scores[4].item(), 3) == 0.464
+        assert round(v.average_scores[3].item(), 3) == -2.454
+        assert round(v.average_scores[4].item(), 3) == -2.255
 
     async def test_validator_settled_event_scores_azuro(self, mock_network, caplog, monkeypatch, disable_event_updates):
         wallet, subtensor = mock_network
@@ -652,6 +652,6 @@ class TestTemplateValidatorNeuronTestCase:
         # 0.7, 0.9
         # uid 3 and 4 calculated based on respective score -> moving average
         v.update_scores()
-        assert (round(v.scores[3].item(), 4), round(v.scores[4].item(), 4)) == (0.0452, 0.5713)
+        assert (round(v.scores[3].item(), 4), round(v.scores[4].item(), 4)) == (0.0732, 0.9268)
 
         assert (round(v.average_scores[3].item(), 3), round(v.average_scores[4].item(), 3))  == (0.485, 0.848)

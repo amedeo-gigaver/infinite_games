@@ -243,7 +243,7 @@ class Validator(BaseValidatorNeuron):
                         weights_sum += wk
                         # bt.logging.info(f'answer for {uid=} {interval_start_minutes=} {ans=} total={total_intervals} curr={current_interval_no} {wk=} ')
                         if ans is None:
-                            mk.append(-6)
+                            mk.append(wk * -6)
                             continue
                         ans = max(0, min(1, ans))  # Clamp the answer
                         # bt.logging.debug(f'Submission of {uid=} {ans=}')
