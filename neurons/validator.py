@@ -201,20 +201,17 @@ class Validator(BaseValidatorNeuron):
             first_n_intervals = 1
             bt.logging.info(f'{integration.__class__.__name__} {first_n_intervals=} intervals: {pe.registered_date=} {effective_finish_start_minutes=} {pe.resolve_date=} {cutoff=}  total={total_intervals}')
             scores = []
-            non_penalty_brier = []
             for uid in miner_uids:
                 prediction_intervals = predictions.get(uid)
                 # bt.logging.info(prediction_intervals)
                 if pe.market_type == 'azuro':
                     if not prediction_intervals:
-                        scores.append(0)
-                        non_penalty_brier.append(0)
+                        scores.append(-6)
                         continue
 
                     ans = prediction_intervals[0]['interval_agg_prediction']
                     if ans is None:
-                        scores.append(0)
-                        non_penalty_brier.append(0)
+                        scores.append(-6)
                         continue
                     ans = max(0, min(1, ans))  # Clamp the answer
                     log_score = self.compute_log_score(ans, correct_ans)
@@ -224,8 +221,7 @@ class Validator(BaseValidatorNeuron):
 
                     # self.event_provider._resolve_previous_intervals(pe, uid, None)
                     if not prediction_intervals:
-                        scores.append(0)
-                        non_penalty_brier.append(0)
+                        scores.append(-6)
                         continue
                     mk = []
 
@@ -247,7 +243,7 @@ class Validator(BaseValidatorNeuron):
                         weights_sum += wk
                         # bt.logging.info(f'answer for {uid=} {interval_start_minutes=} {ans=} total={total_intervals} curr={current_interval_no} {wk=} ')
                         if ans is None:
-                            mk.append(0)
+                            mk.append(-6)
                             continue
                         ans = max(0, min(1, ans))  # Clamp the answer
                         # bt.logging.debug(f'Submission of {uid=} {ans=}')
@@ -263,6 +259,7 @@ class Validator(BaseValidatorNeuron):
             scores = torch.FloatTensor(scores)
             bt.logging.info(f'Normalized {scores}')
             self.average_scores = (self.average_scores * self.scoring_iterations + scores) / (self.scoring_iterations + 1)
+            bt.logging.info(f'Updated average {self.average_scores}')
             self.scoring_iterations += 1
             self.export_scores(p_event=pe, miner_score_data=zip(miner_uids, scores, scores))
             self.send_event_scores(zip(miner_uids, itertools.repeat(pe.market_type), itertools.repeat(pe.event_id), scores, scores))
@@ -348,14 +345,6 @@ class Validator(BaseValidatorNeuron):
         # The dendrite client queries the network.
         responses = query_miners(self.dendrite, [self.metagraph.axons[uid] for uid in miner_uids], synapse)
 
-        # synapse.events['azuro-0x7f3f3f19c4e4015fd9db2f22e653c766154091ef_100100000000000015927405030000000000000357953524_142'] = {
-        #     'event_id': '0x7f3f3f19c4e4015fd9db2f22e653c766154091ef_100100000000000015927405030000000000000357953524_142',
-        #     'probability': 0.7,
-        #     'market_type': 'azuro'
-        # }
-
-        # Update answers
-        miners_activity = set()
         now = datetime.now(timezone.utc)
         minutes_since_epoch = int((now - CLUSTER_EPOCH_2024).total_seconds()) // 60
         interval_start_minutes = minutes_since_epoch - (minutes_since_epoch % (CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES))

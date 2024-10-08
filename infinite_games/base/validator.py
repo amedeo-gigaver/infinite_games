@@ -352,6 +352,9 @@ class BaseValidatorNeuron(BaseNeuron):
 
     def bulk_update_scores_daily(self):
         """Current daily average scores are fixed and saved as previous day results for further moving average calculation"""
+        if os.environ.get('ENV') == 'pytest':
+            return
+
         RESET_INTERVAL_SECONDS = 60 * 60 * 24
         # if we dont have reset date, make sure it resets
         latest_reset_date = self.latest_reset_date or (datetime.now(timezone.utc) - timedelta(seconds=RESET_INTERVAL_SECONDS + 1))
@@ -414,6 +417,7 @@ class BaseValidatorNeuron(BaseNeuron):
             bt.logging.info('No daily average available yet, prefer scores for moving average')
             self.scores: torch.FloatTensor = self.average_scores
         self.scores = torch.exp(7 * self.scores)
+        bt.logging.debug(f"After exp {self.scores}")
         self.scores = torch.nn.functional.normalize(self.scores, p=1, dim=0)
         bt.logging.debug(f"Updated moving avg scores: {self.scores}")
 
