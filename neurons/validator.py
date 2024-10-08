@@ -151,13 +151,25 @@ class Validator(BaseValidatorNeuron):
             bt.logging.info(f'Waiting for next {self.SEND_MINER_LOGS_INTERVAL} seconds to schedule interval logs..')
             await asyncio.sleep(self.SEND_MINER_LOGS_INTERVAL)
 
+    def compute_log_score(self, ans: float , event: int) -> float:
+        if event == 1:
+            if ans == 0:
+                return -6
+            else:
+                return max(1 + math.log2(ans), -6)
+        else:
+            if ans == 1:
+                return -6
+            else:
+                return max(1 + math.log2(1-ans), -6)
+
     def on_event_update(self, pe: ProviderEvent):
         """Hook called whenever we have settling events. Event removed when we return True"""
         if pe.status == EventStatus.SETTLED:
             market_type = pe.metadata.get('market_type', pe.market_type)
             event_text = f'{market_type} {pe.event_id}'
             bt.logging.info(f'Settled event: {event_text} {pe.description[:100]} answer: {pe.answer}')
-            miner_uids = infinite_games.utils.uids.get_all_uids(self)
+            miner_uids = [uid for uid in range(self.metagraph.n.item())]
             correct_ans = pe.answer
             if correct_ans is None:
                 bt.logging.info(f"Unknown answer for event, discarding : {pe}")
@@ -189,32 +201,27 @@ class Validator(BaseValidatorNeuron):
             first_n_intervals = 1
             bt.logging.info(f'{integration.__class__.__name__} {first_n_intervals=} intervals: {pe.registered_date=} {effective_finish_start_minutes=} {pe.resolve_date=} {cutoff=}  total={total_intervals}')
             scores = []
-            non_penalty_brier = []
             for uid in miner_uids:
-                prediction_intervals = predictions.get(uid.item())
+                prediction_intervals = predictions.get(uid)
                 # bt.logging.info(prediction_intervals)
                 if pe.market_type == 'azuro':
                     if not prediction_intervals:
-                        scores.append(0)
-                        non_penalty_brier.append(0)
+                        scores.append(-6)
                         continue
 
                     ans = prediction_intervals[0]['interval_agg_prediction']
                     if ans is None:
-                        scores.append(0)
-                        non_penalty_brier.append(0)
+                        scores.append(-6)
                         continue
                     ans = max(0, min(1, ans))  # Clamp the answer
-                    brier_score = 1 - ((ans - correct_ans)**2)
-                    non_penalty_brier.append(brier_score)
-                    scores.append(max(brier_score - 0.75, 0)) 
-                    bt.logging.info(f'settled answer for {uid=} for {pe.event_id=} {ans=} {brier_score=}')
+                    log_score = self.compute_log_score(ans, correct_ans)
+                    scores.append(log_score)
+                    bt.logging.info(f'settled answer for {uid=} for {pe.event_id=} {ans=} {log_score=}')
                 else:
 
-                    # self.event_provider._resolve_previous_intervals(pe, uid.item(), None)
+                    # self.event_provider._resolve_previous_intervals(pe, uid, None)
                     if not prediction_intervals:
-                        scores.append(0)
-                        non_penalty_brier.append(0)
+                        scores.append(-6)
                         continue
                     mk = []
 
@@ -236,38 +243,27 @@ class Validator(BaseValidatorNeuron):
                         weights_sum += wk
                         # bt.logging.info(f'answer for {uid=} {interval_start_minutes=} {ans=} total={total_intervals} curr={current_interval_no} {wk=} ')
                         if ans is None:
-                            mk.append(0)
+                            mk.append(wk * -6)
                             continue
                         ans = max(0, min(1, ans))  # Clamp the answer
                         # bt.logging.debug(f'Submission of {uid=} {ans=}')
-                        brier_score = 1 - ((ans - correct_ans)**2)
-                        mk.append(wk * brier_score)
+                        log_score = self.compute_log_score(ans, correct_ans)
+                        mk.append(wk * log_score)
 
-                        bt.logging.info(f'answer for {uid=} {interval_start_minutes=} {interval_start_date=} {ans=} total={total_intervals} curr={current_interval_no} {wk=} {brier_score=}')
-                    final_avg_brier = sum(mk) / weights_sum
-                    bt.logging.info(f'final avg brier answer for {uid=} {final_avg_brier=}')
+                        bt.logging.info(f'answer for {uid=} {interval_start_minutes=} {interval_start_date=} {ans=} total={total_intervals} curr={current_interval_no} {wk=} {log_score=}')
+                    final_avg = sum(mk) / weights_sum
+                    bt.logging.info(f'final avg answer for {uid=} {final_avg=}')
                     # 1/2 does not bring any value, add penalty for that
-                    non_penalty_brier.append(final_avg_brier)
-                    penalty_brier_score = max(final_avg_brier - 0.75 , 0)
 
-                    scores.append(penalty_brier_score)
-            brier_scores = torch.FloatTensor(non_penalty_brier)
-            bt.logging.info(f'Brier scores log: {brier_scores}')
+                    scores.append(final_avg)
             scores = torch.FloatTensor(scores)
-            if all(score.item() <= 0.0 for score in scores):
-                # bt.logging.info('All effective scores zero for this event!')
-                pass
-            else:
-                alpha = 0
-                beta = 1
-                non_zeros = scores != 0
-                scores[non_zeros] = alpha * scores[non_zeros] + (beta * torch.exp(25*scores[non_zeros]))
-            bt.logging.info(f'With exp scores {scores}')
-            scores = torch.nn.functional.normalize(scores, p=1, dim=0)
             bt.logging.info(f'Normalized {scores}')
-            self.update_scores(scores, miner_uids)
-            self.export_scores(p_event=pe, miner_score_data=zip(miner_uids, brier_scores, scores))
-            self.send_event_scores(zip(miner_uids, itertools.repeat(pe.market_type), itertools.repeat(pe.event_id), brier_scores, scores))
+            self.average_scores = (self.average_scores * self.scoring_iterations + scores) / (self.scoring_iterations + 1)
+            bt.logging.info(f'Updated average {self.average_scores}')
+            self.scoring_iterations += 1
+            self.export_scores(p_event=pe, miner_score_data=zip(miner_uids, scores, scores))
+            self.send_event_scores(zip(miner_uids, itertools.repeat(pe.market_type), itertools.repeat(pe.event_id), scores, scores))
+            self.save_state()
             return True
         elif pe.status == EventStatus.DISCARDED:
             bt.logging.info(f'Canceled event: {pe} removing from registry!')
@@ -328,7 +324,7 @@ class Validator(BaseValidatorNeuron):
 
         """
         await self.initialize_provider()
-        self.reset_daily_average_scores()
+        self.bulk_update_scores_daily()
         self.print_info()
         block_start = self.block
 
@@ -349,14 +345,6 @@ class Validator(BaseValidatorNeuron):
         # The dendrite client queries the network.
         responses = query_miners(self.dendrite, [self.metagraph.axons[uid] for uid in miner_uids], synapse)
 
-        # synapse.events['azuro-0x7f3f3f19c4e4015fd9db2f22e653c766154091ef_100100000000000015927405030000000000000357953524_142'] = {
-        #     'event_id': '0x7f3f3f19c4e4015fd9db2f22e653c766154091ef_100100000000000015927405030000000000000357953524_142',
-        #     'probability': 0.7,
-        #     'market_type': 'azuro'
-        # }
-
-        # Update answers
-        miners_activity = set()
         now = datetime.now(timezone.utc)
         minutes_since_epoch = int((now - CLUSTER_EPOCH_2024).total_seconds()) // 60
         interval_start_minutes = minutes_since_epoch - (minutes_since_epoch % (CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES))
