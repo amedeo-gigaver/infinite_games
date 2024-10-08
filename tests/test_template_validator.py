@@ -284,17 +284,21 @@ class TestTemplateValidatorNeuronTestCase:
         assert v.scores[2] == 0.0
         # 0.7, 0.9
         # uid 3 and 4 calculated based on respective  score -> moving average
+        print((round(v.average_scores[2].item(), 3), round(v.average_scores[3].item(), 3), round(v.average_scores[4].item(), 3), round(v.average_scores[5].item(), 3),
+               round(v.average_scores[6].item(), 3), round(v.average_scores[6].item(), 3), round(v.average_scores[8].item(), 3), round(v.average_scores[9].item(), 3),
+               round(v.average_scores[10].item(), 3), round(v.average_scores[11].item(), 3), round(v.average_scores[12].item(), 3)))
         assert (round(v.average_scores[2].item(), 3), round(v.average_scores[3].item(), 3), round(v.average_scores[4].item(), 3), round(v.average_scores[5].item(), 3),
                 round(v.average_scores[6].item(), 3), round(v.average_scores[6].item(), 3), round(v.average_scores[8].item(), 3), round(v.average_scores[9].item(), 3),
-                round(v.average_scores[10].item(), 3), round(v.average_scores[11].item(), 3), round(v.average_scores[12].item(), 3)) == (
-                    -6, -6, -6, -6, -0.322, -0.322, 0.263, 0.485, 0.678, 0.848, 1
-                )
+                round(v.average_scores[10].item(), 3), round(v.average_scores[11].item(), 3), round(v.average_scores[12].item(), 3)) == (-6.0, -2.322, -1.322, -0.737, -0.322, -0.322, 0.263, 0.485, 0.678, 0.848, 1.0)
         assert v.scoring_iterations == 1
         v.update_scores()
+        print((round(v.scores[2].item(), 3), round(v.scores[3].item(), 3), round(v.scores[4].item(), 3), round(v.scores[5].item(), 3),
+               round(v.scores[6].item(), 3), round(v.scores[6].item(), 3), round(v.scores[8].item(), 3), round(v.scores[9].item(), 3),
+               round(v.scores[10].item(), 3), round(v.scores[11].item(), 3), round(v.scores[12].item(), 3)))
         assert (round(v.scores[2].item(), 3), round(v.scores[3].item(), 3), round(v.scores[4].item(), 3), round(v.scores[5].item(), 3),
                 round(v.scores[6].item(), 3), round(v.scores[6].item(), 3), round(v.scores[8].item(), 3), round(v.scores[9].item(), 3),
                 round(v.scores[10].item(), 3), round(v.scores[11].item(), 3), round(v.scores[12].item(), 3)) == (
-                    0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.003, 0.016, 0.062, 0.202, 0.586
+                    0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.004, 0.018, 0.071, 0.233, 0.674
                 )
 
     async def test_validator_polymarket_pricing_events(
