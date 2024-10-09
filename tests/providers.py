@@ -111,8 +111,18 @@ class MockAcledProviderIntegration(AcledProviderIntegration):
                         "start_date": 1722463200,
                         "end_date": 1722549599,
                         "answer": None
+                    },
+                    {
+                        "event_id": "dbcba93a-fe3b-4092-b918-8231b23f2faa",
+                        "cutoff": 1722462600,
+                        "market_type": "uma",
+                        "title": "Will the price be 1.5 tomorrow",
+                        "description": "Will the price be 1.5 tomorrow",
+                        "start_date": 1722463200,
+                        "end_date": 1722549599,
+                        "answer": None
                     }
-                
+
                 ]
             }
         elif url == self.base_url + '/api/events/7b787c68-d6df-4138-a10b-0de76eeec5c3':
@@ -148,6 +158,16 @@ class MockAcledProviderIntegration(AcledProviderIntegration):
                 "end_date": 1722549599,
                 "answer": None
             }
-
+        elif url == self.base_url + '/api/events/dbcba93a-fe3b-4092-b918-8231b23f2faa':
+            return {
+                "event_id": "dbcba93a-fe3b-4092-b918-8231b23f2faa",
+                "cutoff": 1722462600,
+                "market_type": "uma",
+                "title": "Will the price be 1.5 tomorrow",
+                "description": "Will the price be 1.5 tomorrow",
+                "start_date": 1722463200,
+                "end_date": 1722549599,
+                "answer": None
+            }
         else:
             raise ValueError(f'Not mocked or not expected url! {url}')
