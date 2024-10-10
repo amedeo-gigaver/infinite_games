@@ -262,7 +262,7 @@ class Validator(BaseValidatorNeuron):
             bt.logging.info(f'Updated average {self.average_scores}')
             self.scoring_iterations += 1
             self.export_scores(p_event=pe, miner_score_data=zip(miner_uids, scores, scores))
-            self.send_event_scores(zip(miner_uids, itertools.repeat(pe.market_type), itertools.repeat(pe.event_id), scores, scores))
+            # self.send_event_scores(zip(miner_uids, itertools.repeat(pe.market_type), itertools.repeat(pe.event_id), scores, scores))
             self.save_state()
             return True
         elif pe.status == EventStatus.DISCARDED:
@@ -289,7 +289,7 @@ class Validator(BaseValidatorNeuron):
                         "prediction": 0.0,
                         "answer": float(p_event.answer),
                         "miner_hotkey": self.metagraph.hotkeys[miner_uid],
-                        "miner_uid": int(miner_uid.item()),
+                        "miner_uid": int(miner_uid),
                         "miner_score": float(score),
                         "miner_effective_score": float(effective_score),
                         "validator_hotkey": self.wallet.get_hotkey().ss58_address,
