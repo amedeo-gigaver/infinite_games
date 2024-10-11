@@ -144,6 +144,8 @@ validator  default  197    True   0.00000  0.00000  0.00000    0.00000    0.0000
 
 Run the following command inside the `infinite_games` directory:
 
+`export USE_TORCH=1`
+
 `python neurons/validator.py --netuid 155 --subtensor.network test --wallet.name validator --wallet.hotkey default`
 
 
@@ -164,6 +166,8 @@ Install and run pm2 commands to keep your validator online at all times.
 
 
 Command to run the validator:
+
+`export USE_TORCH=1`
 
 `pm2 start neurons/validator.py --interpreter python3  --name validator -- --wallet.name validator --netuid 6 --wallet.hotkey hotkey --subtensor.network test --logging.debug --logging.trace` 
 
