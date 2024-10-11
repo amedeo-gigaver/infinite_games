@@ -251,7 +251,10 @@ class Validator(BaseValidatorNeuron):
                         mk.append(wk * log_score)
 
                         bt.logging.info(f'answer for {uid=} {interval_start_minutes=} {interval_start_date=} {ans=} total={total_intervals} curr={current_interval_no} {wk=} {log_score=}')
-                    final_avg = sum(mk) / weights_sum
+                    final_avg = sum(mk) / weights_sum if weights_sum > 0 else -6
+                    if weights_sum < 0.01:
+                        range_list = range(start_interval_start_minutes, effective_finish_start_minutes, CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES)
+                        bt.logging.error(f'Weight WK is zero for event {uid} {pe}  {range_list}')
                     bt.logging.info(f'final avg answer for {uid=} {final_avg=}')
                     # 1/2 does not bring any value, add penalty for that
 

@@ -144,6 +144,8 @@ validator  default  197    True   0.00000  0.00000  0.00000    0.00000    0.0000
 
 Run the following command inside the `infinite_games` directory:
 
+`export USE_TORCH=1`
+
 `python neurons/validator.py --netuid 155 --subtensor.network test --wallet.name validator --wallet.hotkey default`
 
 
