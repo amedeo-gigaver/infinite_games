@@ -199,7 +199,7 @@ class AzuroProviderIntegration(ProviderIntegration):
     # @backoff.on_exception(backoff.expo, Exception, max_time=300)
     async def sync_events(self, start_from: int = None) -> AsyncIterator[ProviderEvent]:
         """For azuro we fetch first n events for tomorrow (starting at 8 UTC) only between 8 and 13 UTC"""
-        MAX_DAILY_EVENTS = 20
+        MAX_DAILY_EVENTS = 10
         now = datetime.now(tz=timezone.utc)
 
         if not (now.hour > 7 and now.hour < 14):
