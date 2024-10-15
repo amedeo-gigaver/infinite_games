@@ -280,6 +280,7 @@ class BaseValidatorNeuron(BaseNeuron):
         )
         bt.logging.trace("processed_weights", processed_weights)
         bt.logging.trace("processed_weight_uids", processed_weight_uids)
+        bt.logging.info(f'current weight version {self.spec_version}')
 
         # Set the weights on chain via our subtensor connection.
         set_weight = False
