@@ -28,6 +28,9 @@ from infinite_games.utils.misc import ttl_get_block
 from infinite_games import __spec_version__ as spec_version
 
 
+bt.logging.info(f'Subnet weight version:  {spec_version}')
+
+
 def get_wallet(config: "bt.Config"):
     return bt.wallet(config=config)
 
