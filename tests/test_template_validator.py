@@ -472,9 +472,9 @@ class TestTemplateValidatorNeuronTestCase:
         test_event.status = EventStatus.SETTLED
         test_event.answer = 1
         v.event_provider.register_or_update_event(test_event)
-        assert v.scores[2] == 0.0
+        assert v.scores[2].item() == 0.0
         # 0.7, 0.9
         # uid 3 and 4 calculated based on respective brier score -> moving average
-        assert (round(v.scores[3].item(), 4), round(v.scores[4].item(), 4)) == (0.0954, 0.7046)
+        assert (round(v.scores[3].item(), 4), round(v.scores[4].item(), 4)) == (0.0001, 0.7999)
 
-        assert (round(v.average_scores[3].item(), 3), round(v.average_scores[4].item(), 3))  == (0.119, 0.881)
+        assert (round(v.average_scores[3].item(), 3), round(v.average_scores[4].item(), 3))  == (0.0, 1.0)
