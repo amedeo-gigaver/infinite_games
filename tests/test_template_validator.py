@@ -478,3 +478,25 @@ class TestTemplateValidatorNeuronTestCase:
         assert (round(v.scores[3].item(), 4), round(v.scores[4].item(), 4)) == (0.0001, 0.7999)
 
         assert (round(v.average_scores[3].item(), 3), round(v.average_scores[4].item(), 3))  == (0.0, 1.0)
+
+    # async def test_send_interval_data(self, mock_network, caplog, monkeypatch, disable_event_updates):
+    #     wallet, subtensor = mock_network
+    #     v = Validator(integrations=[
+    #         MockAzuroProviderIntegration(max_pending_events=6),
+    #         MockPolymarketProviderIntegration()
+    #     ], db_path='test.db')
+    #     miner_data = []
+    #     for miner in range(0, 255):
+    #         for event in range(200):
+
+    #             miner_data.append(
+    #                 [
+    #                     miner,
+    #                     f'polymarket-idevent' + f'{miner}',
+    #                     'polymarket',
+    #                     100000,
+    #                     0.9,
+    #                     23
+    #                  ]
+    #             )
+    #     v.send_interval_data(miner_data)

@@ -16,8 +16,10 @@
 # DEALINGS IN THE SOFTWARE.
 
 
+import base64
 import copy
 from datetime import datetime, timedelta, timezone
+import json
 import os
 import pathlib
 import time
@@ -37,6 +39,7 @@ import wandb
 
 from infinite_games.base.neuron import BaseNeuron
 from infinite_games import __version__
+from infinite_games.events.base import CLUSTER_EPOCH_2024
 
 
 class BaseValidatorNeuron(BaseNeuron):
@@ -496,37 +499,48 @@ class BaseValidatorNeuron(BaseNeuron):
 
     @backoff.on_exception(backoff.expo, Exception, max_tries=6)
     def send_interval_data(self, miner_data):
-        if not self.GRAFANA_API_KEY:
-            return
-        miner_logs = ''
-        measurement = os.environ.get('EVENT_DATA_MEASUREMENT_NAME', 'miners_event_data')
-        if miner_data:
+        if os.environ.get('ENV') != 'pytest':
+            try:
+                v_uid = self.metagraph.hotkeys.index(self.wallet.get_hotkey().ss58_address)
+                body = {
 
-            for miner_id, event_id, market_type, interval_minutes, avg_prediction in miner_data:
-                # bt.logging.debug(f'{measurement},market_type={market_type},source={miner_id},vali={self.wallet.hotkey.ss58_address},event_id={event_id} metric={avg_prediction}')
-                miner_logs += f'{measurement},source={miner_id},vali={self.wallet.hotkey.ss58_address},event_id={event_id} metric={avg_prediction}\n'
-
-        body = f'''
-        {miner_logs}
-        '''
-
-        response = requests.post(
-            'https://influx-prod-24-prod-eu-west-2.grafana.net/api/v1/push/influx/write',
-            headers={
-                'Content-Type': 'text/plain',
-            },
-            data=str(body),
-            auth=(self.USER_ID, self.GRAFANA_API_KEY)
-        )
-
-        status_code = response.status_code
-        if status_code != 204:
-            bt.logging.error(f'*** Error sending logs! {response.content.decode("utf8")}')
+                    "submissions": [{
+                        "unique_event_id": unique_event_id,
+                        "provider_type": market_type,
+                        "title": None,
+                        "prediction": agg_prediction,
+                        "outcome": None,
+                        "interval_start_minutes": interval_minutes,
+                        "interval_agg_prediction": agg_prediction,
+                        "interval_agg_count": count,
+                        "interval_datetime": (CLUSTER_EPOCH_2024 + timedelta(minutes=interval_minutes)).isoformat(),
+                        "miner_hotkey": self.metagraph.hotkeys[miner_uid],
+                        "miner_uid": int(miner_uid),
+                        "validator_hotkey": self.wallet.get_hotkey().ss58_address,
+                        "validator_uid": int(v_uid)
+                    } for miner_uid, unique_event_id, market_type,  interval_minutes, agg_prediction, count in miner_data],
+                    "events": None
+                }
+                hk = self.wallet.get_hotkey()
+                signed = base64.b64encode(hk.sign(json.dumps(body))).decode('utf-8')
+                res = requests.post(
+                    f'{self.base_api_url}/api/v1/validators/data',
+                    headers={
+                        'Authorization': f'Bearer {signed}',
+                        'Validator': self.wallet.get_hotkey().ss58_address,
+                    },
+                    json=body
+                )
+                if not res.status_code == 200:
+                    bt.logging.warning(f'Error processing submission {res.content}')
+                else:
+                    bt.logging.info(f'{len(miner_data)} submissions processed {res.status_code} {res.content}')
+                time.sleep(1)
+            except Exception as e:
+                bt.logging.error(e)
+                bt.logging.error(traceback.format_exc())
         else:
-            if miner_data:
-                bt.logging.debug(f'*** Grafana {len(miner_data)} logs uid={miner_data[0][0]} sent for interval {miner_data[0][3]}')
-            else:
-                bt.logging.debug(f'*** Empty grafana logs for intervals!')
+            bt.logging.info('Skip export submissions in test')
 
     def save_state(self):
         """Saves the state of the validator to a file."""
