@@ -728,6 +728,7 @@ class EventAggregator:
         except Exception as e:
             bt.logging.error(e)
             bt.logging.error(traceback.format_exc())
+            return []
         conn.close()
         output = result
         return output
