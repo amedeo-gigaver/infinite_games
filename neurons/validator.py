@@ -151,8 +151,8 @@ class Validator(BaseValidatorNeuron):
         if not metrics:
             bt.logging.info('no new submission to send skip..')
         if metrics and len(metrics) > 0:
-            chunk_metrics = await split_chunks(list(metrics), 15000)
-            for metrics in chunk_metrics:
+            chunk_metrics = split_chunks(list(metrics), 15000)
+            async for metrics in chunk_metrics:
                 self.send_interval_data(miner_data=metrics)
                 bt.logging.info(f'chunk submissions processed {len(metrics)}')
                 await asyncio.sleep(4)
