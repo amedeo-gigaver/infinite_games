@@ -514,7 +514,7 @@ class BaseValidatorNeuron(BaseNeuron):
                         "interval_agg_prediction": agg_prediction,
                         "interval_agg_count": count,
                         "interval_datetime": (CLUSTER_EPOCH_2024 + timedelta(minutes=interval_minutes)).isoformat(),
-                        "miner_hotkey": self.metagraph.hotkeys[miner_uid],
+                        "miner_hotkey": self.metagraph.hotkeys[int(miner_uid)],
                         "miner_uid": int(miner_uid),
                         "validator_hotkey": self.wallet.get_hotkey().ss58_address,
                         "validator_uid": int(v_uid)
