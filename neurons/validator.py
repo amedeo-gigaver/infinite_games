@@ -116,7 +116,7 @@ class Validator(BaseValidatorNeuron):
         bt.logging.debug(f"Sending interval data: {interval_prev_start_minutes} -> {interval_date}")
         metrics = []
         predictions_data = self.event_provider.get_all_non_exported_event_predictions(interval_prev_start_minutes)
-        for metadata, unique_event_id, _, uid, _, interval_minutes, agg_prediction, count, _, _ in predictions_data.items():
+        for metadata, unique_event_id, _, uid, _, interval_minutes, agg_prediction, count, _, _ in predictions_data:
             market_type = unique_event_id.split('-')[0]
             if metadata:
                 md = json.load(metadata)
