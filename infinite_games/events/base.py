@@ -720,7 +720,7 @@ class EventAggregator:
                 select e.metadata, e.unique_event_id, p.minerHotkey, p.minerUid, p.predictedOutcome, p.interval_start_minutes, p.interval_agg_prediction,p.interval_count,p.submitted,p.blocktime
                 from predictions p join events e on p.unique_event_id = e.unique_event_id
                 where
-                exported = false and interval_start_minutes = ?
+                p.exported = false and interval_start_minutes = ?
                 """,
                 (interval_minutes,)
             )
