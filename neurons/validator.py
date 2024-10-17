@@ -120,15 +120,18 @@ class Validator(BaseValidatorNeuron):
                 if event.market_type == 'azuro':
                     if not prediction_intervals:
                         ans = None
+                        count = 0
                     else:
                         ans = prediction_intervals[0]['total_score']
                         if ans is not None:
                             ans = max(0, min(1, ans))  # Clamp the answer
+                        count = 1
                 else:
 
                     # self.event_provider._resolve_previous_intervals(pe, uid.item(), None)
                     if not prediction_intervals:
                         ans = -1
+                        count = 0
                     else:
 
                         interval_data = prediction_intervals.get(interval_prev_start_minutes, {
