@@ -122,12 +122,14 @@ class Validator(BaseValidatorNeuron):
                 # bt.logging.info(prediction_intervals)
                 if event.market_type == 'azuro':
                     if not prediction_intervals:
-                        ans = None
+                        ans = -1
                         count = 0
                     else:
                         ans = prediction_intervals[0]['total_score']
                         if ans is not None:
                             ans = max(0, min(1, ans))  # Clamp the answer
+                        else:
+                            ans = -1
                         count = 1
                 else:
 
@@ -140,7 +142,7 @@ class Validator(BaseValidatorNeuron):
                         interval_data = prediction_intervals.get(interval_prev_start_minutes, {
                             'interval_agg_prediction': None
                         })
-                        ans: float = interval_data['interval_agg_prediction']
+                        ans: float = interval_data['interval_agg_prediction'] or -1
                         count: int = interval_data['interval_count']
                 agg_prediction = ans
                 metrics.append([uid, f'{event.market_type}-{event.event_id}', event.metadata.get('market_type', event.market_type), interval_prev_start_minutes, agg_prediction or -99, count ])
@@ -358,15 +360,6 @@ class Validator(BaseValidatorNeuron):
         bt.logging.info("Querying miners..")
         # The dendrite client queries the network.
         responses = query_miners(self.dendrite, [self.metagraph.axons[uid] for uid in miner_uids], synapse)
-
-        # synapse.events['azuro-0x7f3f3f19c4e4015fd9db2f22e653c766154091ef_100100000000000015927405030000000000000357953524_142'] = {
-        #     'event_id': '0x7f3f3f19c4e4015fd9db2f22e653c766154091ef_100100000000000015927405030000000000000357953524_142',
-        #     'probability': 0.7,
-        #     'market_type': 'azuro'
-        # }
-
-        # Update answers
-        miners_activity = set()
         now = datetime.now(timezone.utc)
         minutes_since_epoch = int((now - CLUSTER_EPOCH_2024).total_seconds()) // 60
         interval_start_minutes = minutes_since_epoch - (minutes_since_epoch % (CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES))
