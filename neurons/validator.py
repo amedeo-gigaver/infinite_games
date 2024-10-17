@@ -30,6 +30,7 @@ from typing import List
 import requests
 
 from infinite_games.events.acled import AcledProviderIntegration
+from infinite_games.utils.misc import split_chunks
 os.environ['USE_TORCH'] = '1'
 import time
 
@@ -113,8 +114,8 @@ class Validator(BaseValidatorNeuron):
         all_uids = [uid for uid in range(self.metagraph.n.item())]
         interval_date = CLUSTER_EPOCH_2024 + timedelta(minutes=interval_prev_start_minutes)
         bt.logging.debug(f"Sending interval data: {interval_prev_start_minutes} -> {interval_date}")
+        metrics = []
         for uid in all_uids:
-            metrics = []
             for event in self.event_provider.get_events_for_submission():
                 predictions = self.event_provider.get_non_exported_event_predictions(event)
                 if not predictions:
@@ -147,11 +148,15 @@ class Validator(BaseValidatorNeuron):
                         count: int = interval_data.get('interval_count', 0)
                 agg_prediction = ans
                 metrics.append([uid, f'{event.market_type}-{event.event_id}', event.metadata.get('market_type', event.market_type), interval_prev_start_minutes, agg_prediction or -99, count ])
-            if not metrics:
-                bt.logging.info('no new submission to send skip..')
-            if metrics and len(metrics) > 0 and self.send_interval_data(miner_data=metrics):
-                self.event_provider.mark_submissions_as_exported()
-            await asyncio.sleep(2)
+        if not metrics:
+            bt.logging.info('no new submission to send skip..')
+        if metrics and len(metrics) > 0
+            chunk_metrics = await split_chunks(list(metrics), 15000)
+            async for metrics in chunk_metrics:
+                self.send_interval_data(miner_data=metrics)
+                bt.logging.info(f'chunk submissions processed {len(metrics)}')
+                await asyncio.sleep(4)
+            self.event_provider.mark_submissions_as_exported()
 
     async def track_interval_stats(self):
         bt.logging.info('Scheduling sending interval stats.')
