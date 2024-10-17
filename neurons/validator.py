@@ -119,7 +119,7 @@ class Validator(BaseValidatorNeuron):
         for metadata, unique_event_id, _, uid, _, interval_minutes, agg_prediction, count, _, _ in predictions_data:
             market_type = unique_event_id.split('-')[0]
             if metadata:
-                md = json.load(metadata)
+                md = json.loads(metadata)
                 market_type = md.get('market_type', market_type)
             metrics.append([uid, unique_event_id, market_type, interval_minutes, agg_prediction or -99, count ])
         if not metrics:
