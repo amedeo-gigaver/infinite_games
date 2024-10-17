@@ -125,7 +125,7 @@ class Validator(BaseValidatorNeuron):
                         ans = -1
                         count = 0
                     else:
-                        ans = prediction_intervals[0]['interval_agg_prediction']
+                        ans = prediction_intervals[0].get('interval_agg_prediction')
                         if ans is not None:
                             ans = max(0, min(1, ans))  # Clamp the answer
                         else:
@@ -142,8 +142,8 @@ class Validator(BaseValidatorNeuron):
                         interval_data = prediction_intervals.get(interval_prev_start_minutes, {
                             'interval_agg_prediction': None
                         })
-                        ans: float = interval_data['interval_agg_prediction'] or -1
-                        count: int = interval_data['interval_count']
+                        ans: float = interval_data.get('interval_agg_prediction') or -1
+                        count: int = interval_data.get('interval_count', 0)
                 agg_prediction = ans
                 metrics.append([uid, f'{event.market_type}-{event.event_id}', event.metadata.get('market_type', event.market_type), interval_prev_start_minutes, agg_prediction or -99, count ])
             if not metrics:
