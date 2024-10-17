@@ -138,7 +138,7 @@ class Validator(BaseValidatorNeuron):
                             'interval_agg_prediction': None
                         })
                         ans: float = interval_data['interval_agg_prediction']
-                        count: int = interval_data['interval_agg_count']
+                        count: int = interval_data['interval_count']
                 agg_prediction = ans
                 metrics.append([uid, f'{event.market_type}-{event.event_id}', event.metadata.get('market_type', event.market_type), interval_prev_start_minutes, agg_prediction or -99, count ])
             self.send_interval_data(miner_data=metrics)
