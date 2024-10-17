@@ -110,7 +110,8 @@ class Validator(BaseValidatorNeuron):
         # previous interval from current one filled already, sending it.
         interval_prev_start_minutes = minutes_since_epoch - (minutes_since_epoch % (CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES)) - CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES
         all_uids = [uid for uid in range(self.metagraph.n.item())]
-        bt.logging.debug(f"Sending interval data: {interval_prev_start_minutes}")
+        interval_date = CLUSTER_EPOCH_2024 + timedelta(minutes=interval_prev_start_minutes)
+        bt.logging.debug(f"Sending interval data: {interval_prev_start_minutes} -> {interval_date}")
         for uid in all_uids:
             metrics = []
             for event in self.event_provider.get_events_for_submission():
@@ -143,7 +144,8 @@ class Validator(BaseValidatorNeuron):
                         count: int = interval_data['interval_count']
                 agg_prediction = ans
                 metrics.append([uid, f'{event.market_type}-{event.event_id}', event.metadata.get('market_type', event.market_type), interval_prev_start_minutes, agg_prediction or -99, count ])
-            
+            if not metrics:
+                bt.logging.info('no new submission to send skip..')
             if metrics and len(metrics) > 0 and self.send_interval_data(miner_data=metrics):
                 self.event_provider.mark_submissions_as_exported()
             await asyncio.sleep(2)
