@@ -594,7 +594,7 @@ class EventAggregator:
             try:
                 cursor.execute(
                     """
-                    UPDATE predictions set processed = true
+                    UPDATE predictions set exported = true
                     """,
                 )
                 # bt.logging.debug(result)
@@ -668,6 +668,32 @@ class EventAggregator:
                 select unique_event_id, minerHotkey, minerUid, predictedOutcome,interval_start_minutes,interval_agg_prediction,interval_count,submitted,blocktime
                 from predictions
                 where unique_event_id = ?
+                """,
+                (self.event_key(pe.market_type, event_id=pe.event_id),)
+            )
+            result: List[sqlite3.Row] = c.fetchall()
+        except Exception as e:
+            bt.logging.error(e)
+            bt.logging.error(traceback.format_exc())
+        conn.close()
+        output = defaultdict(dict)
+        for row in result:
+            interval_prediction = dict(row)
+            if int(interval_prediction['interval_start_minutes']) not in output[int(interval_prediction['minerUid'])]:
+                output[int(interval_prediction['minerUid'])][int(interval_prediction['interval_start_minutes'])] = interval_prediction
+        return output
+
+    def get_non_exported_event_predictions(self, pe: ProviderEvent):
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        result = []
+        try:
+            c = cursor.execute(
+                """
+                select unique_event_id, minerHotkey, minerUid, predictedOutcome,interval_start_minutes,interval_agg_prediction,interval_count,submitted,blocktime
+                from predictions
+                where unique_event_id = ? and exported = false
                 """,
                 (self.event_key(pe.market_type, event_id=pe.event_id),)
             )

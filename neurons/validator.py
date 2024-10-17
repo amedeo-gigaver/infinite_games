@@ -114,7 +114,9 @@ class Validator(BaseValidatorNeuron):
         for uid in all_uids:
             metrics = []
             for event in self.event_provider.get_events_for_submission():
-                predictions = self.event_provider.get_event_predictions(event)
+                predictions = self.event_provider.get_non_exported_event_predictions(event)
+                if not predictions:
+                    continue
                 prediction_intervals = predictions.get(uid)
                 # bt.logging.info(prediction_intervals)
                 if event.market_type == 'azuro':
@@ -141,7 +143,8 @@ class Validator(BaseValidatorNeuron):
                         count: int = interval_data['interval_count']
                 agg_prediction = ans
                 metrics.append([uid, f'{event.market_type}-{event.event_id}', event.metadata.get('market_type', event.market_type), interval_prev_start_minutes, agg_prediction or -99, count ])
-            if self.send_interval_data(miner_data=metrics):
+            
+            if metrics and len(metrics) > 0 and self.send_interval_data(miner_data=metrics):
                 self.event_provider.mark_submissions_as_exported()
             await asyncio.sleep(2)
 
