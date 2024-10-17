@@ -125,7 +125,7 @@ class Validator(BaseValidatorNeuron):
                         ans = -1
                         count = 0
                     else:
-                        ans = prediction_intervals[0]['total_score']
+                        ans = prediction_intervals[0]['interval_agg_prediction']
                         if ans is not None:
                             ans = max(0, min(1, ans))  # Clamp the answer
                         else:
