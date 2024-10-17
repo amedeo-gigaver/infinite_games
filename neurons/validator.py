@@ -150,7 +150,9 @@ class Validator(BaseValidatorNeuron):
                 metrics.append([uid, f'{event.market_type}-{event.event_id}', event.metadata.get('market_type', event.market_type), interval_prev_start_minutes, agg_prediction or -99, count ])
         if not metrics:
             bt.logging.info('no new submission to send skip..')
+
         if metrics and len(metrics) > 0:
+            bt.logging.info(f'Total submission to export: {len(metrics)}')
             chunk_metrics = split_chunks(list(metrics), 15000)
             async for metrics in chunk_metrics:
                 self.send_interval_data(miner_data=metrics)
