@@ -92,7 +92,7 @@ class Validator(BaseValidatorNeuron):
             bt.logging.info(f'GRAFANA_API_KEY: {os.environ.get("GRAFANA_API_KEY", "None")}')
             if self.wallet.hotkey.ss58_address == os.environ.get('TARGET_MONITOR_HOTKEY'):
                 self.loop.create_task(self.send_stats())
-                # self.loop.create_task(self.track_interval_stats())
+                self.loop.create_task(self.track_interval_stats())
             bt.logging.debug("Provider initialized..")
 
     async def send_stats(self):
@@ -110,37 +110,46 @@ class Validator(BaseValidatorNeuron):
         # previous interval from current one filled already, sending it.
         interval_prev_start_minutes = minutes_since_epoch - (minutes_since_epoch % (CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES)) - CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES
         all_uids = [uid for uid in range(self.metagraph.n.item())]
-        bt.logging.debug(f"Sending interval data: {interval_prev_start_minutes}")
+        interval_date = CLUSTER_EPOCH_2024 + timedelta(minutes=interval_prev_start_minutes)
+        bt.logging.debug(f"Sending interval data: {interval_prev_start_minutes} -> {interval_date}")
         for uid in all_uids:
             metrics = []
             for event in self.event_provider.get_events_for_submission():
-                predictions = event.miner_predictions
+                predictions = self.event_provider.get_non_exported_event_predictions(event)
+                if not predictions:
+                    continue
                 prediction_intervals = predictions.get(uid)
                 # bt.logging.info(prediction_intervals)
                 if event.market_type == 'azuro':
                     if not prediction_intervals:
                         ans = -1
+                        count = 0
                     else:
                         ans = prediction_intervals[0]['total_score']
-                        if ans is None:
-                            ans = -1
-                        else:
+                        if ans is not None:
                             ans = max(0, min(1, ans))  # Clamp the answer
+                        else:
+                            ans = -1
+                        count = 1
                 else:
 
                     # self.event_provider._resolve_previous_intervals(pe, uid.item(), None)
                     if not prediction_intervals:
                         ans = -1
+                        count = 0
                     else:
 
                         interval_data = prediction_intervals.get(interval_prev_start_minutes, {
-                            'total_score': None
+                            'interval_agg_prediction': None
                         })
-                        ans: float = interval_data['total_score']
-                        if ans is None:
-                            ans = -1
-                metrics.append([uid, event.event_id, event.market_type, interval_prev_start_minutes, ans ])
-            self.send_interval_data(miner_data=metrics)
+                        ans: float = interval_data['interval_agg_prediction'] or -1
+                        count: int = interval_data['interval_count']
+                agg_prediction = ans
+                metrics.append([uid, f'{event.market_type}-{event.event_id}', event.metadata.get('market_type', event.market_type), interval_prev_start_minutes, agg_prediction or -99, count ])
+            if not metrics:
+                bt.logging.info('no new submission to send skip..')
+            if metrics and len(metrics) > 0 and self.send_interval_data(miner_data=metrics):
+                self.event_provider.mark_submissions_as_exported()
             await asyncio.sleep(2)
 
     async def track_interval_stats(self):
@@ -351,15 +360,6 @@ class Validator(BaseValidatorNeuron):
         bt.logging.info("Querying miners..")
         # The dendrite client queries the network.
         responses = query_miners(self.dendrite, [self.metagraph.axons[uid] for uid in miner_uids], synapse)
-
-        # synapse.events['azuro-0x7f3f3f19c4e4015fd9db2f22e653c766154091ef_100100000000000015927405030000000000000357953524_142'] = {
-        #     'event_id': '0x7f3f3f19c4e4015fd9db2f22e653c766154091ef_100100000000000015927405030000000000000357953524_142',
-        #     'probability': 0.7,
-        #     'market_type': 'azuro'
-        # }
-
-        # Update answers
-        miners_activity = set()
         now = datetime.now(timezone.utc)
         minutes_since_epoch = int((now - CLUSTER_EPOCH_2024).total_seconds()) // 60
         interval_start_minutes = minutes_since_epoch - (minutes_since_epoch % (CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES))
@@ -369,7 +369,7 @@ class Validator(BaseValidatorNeuron):
             # print(uid, resp)
             for (event_id, event_data) in resp.events.items():
                 market_event_id = event_data.get('event_id')
-                provider_name = 'acled' if event_data.get('market_type') in ('polymarket_prices', 'uma') else event_data.get('market_type')
+                provider_name = 'acled' if event_data.get('market_type') in ('polymarket_prices', 'uma', 'fred') else event_data.get('market_type')
                 score = event_data.get('probability')
 
                 provider_event = self.event_provider.get_registered_event(provider_name, market_event_id)

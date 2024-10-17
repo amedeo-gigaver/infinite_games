@@ -329,8 +329,7 @@ class EventAggregator:
         return False
 
     def save_state(self):
-        with open(self.state_path, 'wb') as f:
-            pickle.dump(self.registered_events, f)
+        pass
 
     def get_events_for_submission(self) -> List[ProviderEvent]:
         """Get events that are available for submission"""
@@ -585,6 +584,41 @@ class EventAggregator:
             return result[0][1] == result[0][2]
         return False
 
+    def mark_submissions_as_exported(self) -> bool:
+        """Returns true if new event"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        tries = 4
+        tried = 0
+        while tried < tries:
+            try:
+                cursor.execute(
+                    """
+                    UPDATE predictions set exported = true
+                    """,
+                )
+                # bt.logging.debug(result)
+                conn.execute("COMMIT")
+                break
+            except Exception as e:
+                if 'locked' in str(e):
+                    bt.logging.warning(
+                        f"Database locked, retry {tried + 1}.."
+                    )
+                    time.sleep(1 + (2 * tried))
+
+                else:
+                    bt.logging.error(
+                        'Error marking submissions!'
+                    )
+                    bt.logging.error(e)
+                    bt.logging.error(traceback.format_exc())
+                    break
+            tried += 1
+
+        conn.close()
+        return True
+
     def update_cluster_prediction(self, pe: ProviderEvent, uid: int, blocktime: int, interval_start_minutes: int, new_prediction):
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
@@ -634,6 +668,32 @@ class EventAggregator:
                 select unique_event_id, minerHotkey, minerUid, predictedOutcome,interval_start_minutes,interval_agg_prediction,interval_count,submitted,blocktime
                 from predictions
                 where unique_event_id = ?
+                """,
+                (self.event_key(pe.market_type, event_id=pe.event_id),)
+            )
+            result: List[sqlite3.Row] = c.fetchall()
+        except Exception as e:
+            bt.logging.error(e)
+            bt.logging.error(traceback.format_exc())
+        conn.close()
+        output = defaultdict(dict)
+        for row in result:
+            interval_prediction = dict(row)
+            if int(interval_prediction['interval_start_minutes']) not in output[int(interval_prediction['minerUid'])]:
+                output[int(interval_prediction['minerUid'])][int(interval_prediction['interval_start_minutes'])] = interval_prediction
+        return output
+
+    def get_non_exported_event_predictions(self, pe: ProviderEvent):
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        result = []
+        try:
+            c = cursor.execute(
+                """
+                select unique_event_id, minerHotkey, minerUid, predictedOutcome,interval_start_minutes,interval_agg_prediction,interval_count,submitted,blocktime
+                from predictions
+                where unique_event_id = ? and exported = false
                 """,
                 (self.event_key(pe.market_type, event_id=pe.event_id),)
             )
