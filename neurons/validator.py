@@ -111,44 +111,18 @@ class Validator(BaseValidatorNeuron):
         minutes_since_epoch = int((now - CLUSTER_EPOCH_2024).total_seconds()) // 60
         # previous interval from current one filled already, sending it.
         interval_prev_start_minutes = minutes_since_epoch - (minutes_since_epoch % (CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES)) - CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES
-        all_uids = [uid for uid in range(self.metagraph.n.item())]
+        # all_uids = [uid for uid in range(self.metagraph.n.item())]
         interval_date = CLUSTER_EPOCH_2024 + timedelta(minutes=interval_prev_start_minutes)
         bt.logging.debug(f"Sending interval data: {interval_prev_start_minutes} -> {interval_date}")
         metrics = []
-        for uid in all_uids:
-            bt.logging.info(f'Processing {uid=} submissions..')
-            for event in self.event_provider.get_events_for_submission():
-                predictions = self.event_provider.get_non_exported_event_predictions(event)
-                if not predictions:
-                    continue
-                prediction_intervals = predictions.get(uid)
-                # bt.logging.info(prediction_intervals)
-                if event.market_type == 'azuro':
-                    if not prediction_intervals:
-                        ans = -1
-                        count = 0
-                    else:
-                        ans = prediction_intervals[0].get('interval_agg_prediction')
-                        if ans is not None:
-                            ans = max(0, min(1, ans))  # Clamp the answer
-                        else:
-                            ans = -1
-                        count = 1
-                else:
-
-                    # self.event_provider._resolve_previous_intervals(pe, uid.item(), None)
-                    if not prediction_intervals:
-                        ans = -1
-                        count = 0
-                    else:
-
-                        interval_data = prediction_intervals.get(interval_prev_start_minutes, {
-                            'interval_agg_prediction': None
-                        })
-                        ans: float = interval_data.get('interval_agg_prediction') or -1
-                        count: int = interval_data.get('interval_count', 0)
-                agg_prediction = ans
-                metrics.append([uid, f'{event.market_type}-{event.event_id}', event.metadata.get('market_type', event.market_type), interval_prev_start_minutes, agg_prediction or -99, count ])
+        predictions_data = self.event_provider.get_all_non_exported_event_predictions(interval_prev_start_minutes)
+        bt.logging.debug(f'Loaded {len(predictions_data)} submissions..')
+        for metadata, unique_event_id, _, uid, _, interval_minutes, agg_prediction, count, _, _ in predictions_data:
+            market_type = unique_event_id.split('-')[0]
+            if metadata:
+                md = json.loads(metadata)
+                market_type = md.get('market_type', market_type)
+            metrics.append([uid, unique_event_id, market_type, interval_minutes, agg_prediction or -99, count ])
         if not metrics:
             bt.logging.info('no new submission to send skip..')
 

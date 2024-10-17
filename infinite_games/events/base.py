@@ -709,6 +709,30 @@ class EventAggregator:
                 output[int(interval_prediction['minerUid'])][int(interval_prediction['interval_start_minutes'])] = interval_prediction
         return output
 
+    def get_all_non_exported_event_predictions(self, interval_minutes):
+        conn = sqlite3.connect(self.db_path)
+        # conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        result = []
+        try:
+            c = cursor.execute(
+                """
+                select e.metadata, e.unique_event_id, p.minerHotkey, p.minerUid, p.predictedOutcome, p.interval_start_minutes, p.interval_agg_prediction,p.interval_count,p.submitted,p.blocktime
+                from predictions p join events e on p.unique_event_id = e.unique_event_id
+                where
+                p.exported = false and interval_start_minutes = ?
+                """,
+                (interval_minutes,)
+            )
+            result: List = c.fetchall()
+        except Exception as e:
+            bt.logging.error(e)
+            bt.logging.error(traceback.format_exc())
+            return []
+        conn.close()
+        output = result
+        return output
+
     async def miner_predict(self, pe: ProviderEvent, uid: int, answer: float, interval_start_minutes: int, blocktime: int) -> Submission:
         # bt.logging.info(f'{uid=} retrieving submission..')
         submission: Submission = pe.miner_predictions.get(uid)
