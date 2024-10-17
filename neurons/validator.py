@@ -376,7 +376,7 @@ class Validator(BaseValidatorNeuron):
             # print(uid, resp)
             for (event_id, event_data) in resp.events.items():
                 market_event_id = event_data.get('event_id')
-                provider_name = 'acled' if event_data.get('market_type') in ('polymarket_prices', 'uma') else event_data.get('market_type')
+                provider_name = 'acled' if event_data.get('market_type') in ('polymarket_prices', 'uma', 'fred') else event_data.get('market_type')
                 score = event_data.get('probability')
 
                 provider_event = self.event_provider.get_registered_event(provider_name, market_event_id)
