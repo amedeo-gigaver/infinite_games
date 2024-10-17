@@ -116,6 +116,7 @@ class Validator(BaseValidatorNeuron):
         bt.logging.debug(f"Sending interval data: {interval_prev_start_minutes} -> {interval_date}")
         metrics = []
         for uid in all_uids:
+            bt.logging.info(f'Processing {uid=} submissions..')
             for event in self.event_provider.get_events_for_submission():
                 predictions = self.event_provider.get_non_exported_event_predictions(event)
                 if not predictions:
