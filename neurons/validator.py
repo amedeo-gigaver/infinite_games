@@ -141,7 +141,8 @@ class Validator(BaseValidatorNeuron):
                         count: int = interval_data['interval_count']
                 agg_prediction = ans
                 metrics.append([uid, f'{event.market_type}-{event.event_id}', event.metadata.get('market_type', event.market_type), interval_prev_start_minutes, agg_prediction or -99, count ])
-            self.send_interval_data(miner_data=metrics)
+            if self.send_interval_data(miner_data=metrics):
+                self.event_provider.mark_submissions_as_exported()
             await asyncio.sleep(2)
 
     async def track_interval_stats(self):

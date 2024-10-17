@@ -535,6 +535,7 @@ class BaseValidatorNeuron(BaseNeuron):
                     bt.logging.warning(f'Error processing submission {res.content}')
                 else:
                     bt.logging.info(f'{len(miner_data)} submissions processed {res.status_code} {res.content}')
+                    return True
                 time.sleep(1)
             except Exception as e:
                 bt.logging.error(e)

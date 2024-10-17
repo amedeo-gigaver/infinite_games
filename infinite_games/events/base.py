@@ -584,6 +584,41 @@ class EventAggregator:
             return result[0][1] == result[0][2]
         return False
 
+    def mark_submissions_as_exported(self) -> bool:
+        """Returns true if new event"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        tries = 4
+        tried = 0
+        while tried < tries:
+            try:
+                cursor.execute(
+                    """
+                    UPDATE predictions set processed = true
+                    """,
+                )
+                # bt.logging.debug(result)
+                conn.execute("COMMIT")
+                break
+            except Exception as e:
+                if 'locked' in str(e):
+                    bt.logging.warning(
+                        f"Database locked, retry {tried + 1}.."
+                    )
+                    time.sleep(1 + (2 * tried))
+
+                else:
+                    bt.logging.error(
+                        'Error marking submissions!'
+                    )
+                    bt.logging.error(e)
+                    bt.logging.error(traceback.format_exc())
+                    break
+            tried += 1
+
+        conn.close()
+        return True
+
     def update_cluster_prediction(self, pe: ProviderEvent, uid: int, blocktime: int, interval_start_minutes: int, new_prediction):
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
