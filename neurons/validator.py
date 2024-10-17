@@ -33,14 +33,15 @@ from infinite_games.events.acled import AcledProviderIntegration
 os.environ['USE_TORCH'] = '1'
 import time
 
-from infinite_games.utils.query import query_miners
 import bittensor as bt
 import torch
 import infinite_games
 
 # import base validator class which takes care of most of the boilerplate
+from infinite_games import __spec_version__ as spec_version
 from infinite_games.base.validator import BaseValidatorNeuron
 from infinite_games.events.base import CLUSTER_EPOCH_2024, CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES, EventAggregator, EventStatus, ProviderEvent, ProviderIntegration, Submission
+from infinite_games.utils.query import query_miners
 from infinite_games.events.azuro import AzuroProviderIntegration
 from infinite_games.events.polymarket import PolymarketProviderIntegration
 
@@ -311,6 +312,7 @@ class Validator(BaseValidatorNeuron):
                         "validator_hotkey": self.wallet.get_hotkey().ss58_address,
                         "validator_uid": int(v_uid),
                         "metadata": p_event.metadata,
+                        "spec_version": spec_version or "0.0.0"
                     } for miner_uid, score, effective_score in miner_score_data]
                 }
                 hk = self.wallet.get_hotkey()
