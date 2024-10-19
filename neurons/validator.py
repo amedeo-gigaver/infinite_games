@@ -294,7 +294,7 @@ class Validator(BaseValidatorNeuron):
                         "validator_hotkey": self.wallet.get_hotkey().ss58_address,
                         "validator_uid": int(v_uid),
                         "metadata": p_event.metadata,
-                        "spec_version": spec_version or "0.0.0"
+                        "spec_version": str(spec_version) or "0"
                     } for miner_uid, score, effective_score in miner_score_data]
                 }
                 hk = self.wallet.get_hotkey()

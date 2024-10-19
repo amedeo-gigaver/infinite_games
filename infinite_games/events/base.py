@@ -724,7 +724,7 @@ class EventAggregator:
                 """,
                 (interval_minutes,)
             )
-            result: List = c.fetchall()
+            result: list = c.fetchall()
         except Exception as e:
             bt.logging.error(e)
             bt.logging.error(traceback.format_exc())
