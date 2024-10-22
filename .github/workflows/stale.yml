@@ -46,3 +46,20 @@ jobs:
             export TARGET_MONITOR_HOTKEY=${{ secrets.TARGET_MONITOR_HOTKEY }}
             pm2 start neurons/validator.py --name validator --interpreter python3 -- --netuid 6 --subtensor.network finney --wallet.name nkey --wallet.hotkey hkey --logging.debug --logging.trace
             EOF
+     # - name: Send success message to Telegram
+     #   if: ${{ success() }}
+     #   run: |
+     #     BOT_TOKEN="${{ secrets.BOT_TOKEN }}"
+     #     CHAT_ID="-1002124646587"
+     #     MESSAGE="Deploy to validator server prod complete"
+     #     curl -s -X POST "https://api.telegram.org/bot${BOT_TOKEN}/sendMessage" \
+     #     -d chat_id="${CHAT_ID}" -d text="${MESSAGE}"
+
+      #- name: Send failure message to Telegram
+      #  if: ${{ failure() }}
+      #  run: |
+      #    BOT_TOKEN="${{ secrets.BOT_TOKEN }}"
+      #    CHAT_ID="-1002124646587"
+      #    MESSAGE="Deploy to validator server prod failed"
+      #    curl -s -X POST "https://api.telegram.org/bot${BOT_TOKEN}/sendMessage" \
+      #    -d chat_id="${CHAT_ID}" -d text="${MESSAGE}"      
