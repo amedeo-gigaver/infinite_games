@@ -194,12 +194,15 @@ class Validator(BaseValidatorNeuron):
                 prediction_intervals = predictions.get(uid.item())
                 # bt.logging.info(prediction_intervals)
                 if pe.market_type == 'azuro':
-                    if not prediction_intervals:
+                    if pe.registered_date < miner_reg_time and not prediction_intervals:
                         scores.append(0)
                         non_penalty_brier.append(0)
                         continue
 
                     ans = prediction_intervals[0]['interval_agg_prediction']
+                    if miner_reg_time < pe.registered_date:
+                        ans = 1/2
+
                     if ans is None:
                         scores.append(0)
                         non_penalty_brier.append(0)
@@ -227,7 +230,6 @@ class Validator(BaseValidatorNeuron):
                         ans: float = interval_data['interval_agg_prediction']
                         interval_start_date = CLUSTER_EPOCH_2024 + timedelta(minutes=interval_start_minutes)
                         if miner_reg_time > interval_start_date:
-                            
                             ans = 1/2
 
                         current_interval_no = (interval_start_minutes - start_interval_start_minutes) // CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES
