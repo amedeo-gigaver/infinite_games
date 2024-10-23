@@ -205,12 +205,13 @@ class Validator(BaseValidatorNeuron):
                 prediction_intervals = predictions.get(uid.item())
                 # bt.logging.info(prediction_intervals)
                 if pe.market_type == 'azuro':
-                    if pe.registered_date < miner_reg_time and not prediction_intervals:
+                    if miner_reg_time < pe.registered_date and not prediction_intervals:
                         scores.append(-6)
                         continue
 
                     ans = prediction_intervals[0]['interval_agg_prediction']
-                    if miner_reg_time < pe.registered_date:
+                    # if miner registered after the cutoff.
+                    if miner_reg_time > cutoff:
                         ans = 1/2
 
                     if ans is None:
@@ -220,7 +221,7 @@ class Validator(BaseValidatorNeuron):
                     bt.logging.info(f'settled answer for {uid=} for {pe.event_id=} {ans=} {log_score=}')
                 else:
                     # if miner is registered before the event streamed
-                    if pe.registered_date < miner_reg_time and not prediction_intervals:
+                    if miner_reg_time < pe.registered_date and not prediction_intervals:
                         scores.append(-6)
                         continue
                     mk = []
@@ -234,7 +235,7 @@ class Validator(BaseValidatorNeuron):
                         })
                         ans: float = interval_data['interval_agg_prediction']
                         interval_start_date = CLUSTER_EPOCH_2024 + timedelta(minutes=interval_start_minutes)
-                        if miner_reg_time > interval_start_date:
+                        if miner_reg_time > interval_start_date and ans is None:
                             ans = 1/2
 
                         current_interval_no = (interval_start_minutes - start_interval_start_minutes) // CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES
@@ -246,7 +247,7 @@ class Validator(BaseValidatorNeuron):
                         weights_sum += wk
                         # bt.logging.info(f'answer for {uid=} {interval_start_minutes=} {ans=} total={total_intervals} curr={current_interval_no} {wk=} ')
                         if ans is None:
-                            mk.append(0)
+                            mk.append(-6)
                             continue
                         ans = max(0, min(1, ans))  # Clamp the answer
                         # bt.logging.debug(f'Submission of {uid=} {ans=}')
