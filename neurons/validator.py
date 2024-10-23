@@ -167,7 +167,7 @@ class Validator(BaseValidatorNeuron):
             bt.logging.info(f'Miners to update: {len(miner_uids)} submissions: {len(predictions.keys())} from {self.metagraph.n.item()}')
             bt.logging.info(f'Register: {pe.registered_date} cutoff: {cutoff} tz {cutoff.tzinfo}, resolve: {pe.resolve_date}')
 
-            # we take either now or cutoff whatever is lowest(event can be settled earlier
+            # we take either now or cutoff time (event can be settled earlier)
             cutoff_minutes_since_epoch = int((cutoff - CLUSTER_EPOCH_2024).total_seconds()) // 60
             cutoff_interval_start_minutes = cutoff_minutes_since_epoch - (cutoff_minutes_since_epoch % CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES)
             now = datetime.now(timezone.utc)
@@ -183,6 +183,14 @@ class Validator(BaseValidatorNeuron):
             scores = []
             non_penalty_brier = []
             for uid in miner_uids:
+                miner_data = self.event_provider.get_miner_data_by_uid(int(uid))
+                # bt.logging.info(dict(miner_data))
+
+                miner_reg_time = datetime.fromisoformat(miner_data['registered_date']).replace(tzinfo=timezone.utc)
+                bt.logging.info(f'Miner reg time: {miner_reg_time}')
+                # scores.append(0)
+                # bt.logging.info(f'Miner data {uid}')
+                # bt.logging.info(dict(miner_data))
                 prediction_intervals = predictions.get(uid.item())
                 # bt.logging.info(prediction_intervals)
                 if pe.market_type == 'azuro':
@@ -202,9 +210,8 @@ class Validator(BaseValidatorNeuron):
                     scores.append(max(brier_score - 0.75, 0)) 
                     bt.logging.info(f'settled answer for {uid=} for {pe.event_id=} {ans=} {brier_score=}')
                 else:
-
-                    # self.event_provider._resolve_previous_intervals(pe, uid.item(), None)
-                    if not prediction_intervals:
+                    # if miner is registered before the event streamed
+                    if pe.registered_date < miner_reg_time and not prediction_intervals:
                         scores.append(0)
                         non_penalty_brier.append(0)
                         continue
@@ -218,8 +225,12 @@ class Validator(BaseValidatorNeuron):
                             'interval_agg_prediction': None
                         })
                         ans: float = interval_data['interval_agg_prediction']
-                        current_interval_no = (interval_start_minutes - start_interval_start_minutes) // CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES
                         interval_start_date = CLUSTER_EPOCH_2024 + timedelta(minutes=interval_start_minutes)
+                        if miner_reg_time > interval_start_date:
+                            
+                            ans = 1/2
+
+                        current_interval_no = (interval_start_minutes - start_interval_start_minutes) // CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES
                         if current_interval_no + 1 <= first_n_intervals:
                             wk = 1
                         else:
@@ -340,7 +351,7 @@ class Validator(BaseValidatorNeuron):
         bt.logging.info(f'Axons: {len(self.metagraph.axons)}')
         # for axon in self.metagraph.axons:
         #     bt.logging.info(f'IP: {axon.ip}, hotkey id: {axon.hotkey}')
-
+        self.event_provider.sync_miners([(uid, self.metagraph.axons[uid]) for uid in range(self.metagraph.n.item())], block_start)
         bt.logging.info("Querying miners..")
         # The dendrite client queries the network.
         responses = query_miners(self.dendrite, [self.metagraph.axons[uid] for uid in miner_uids], synapse)
