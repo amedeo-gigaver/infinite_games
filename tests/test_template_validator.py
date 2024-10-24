@@ -197,7 +197,7 @@ class TestTemplateValidatorNeuronTestCase:
         v.event_provider.register_or_update_event(test_event)
         assert round(v.scores[2].item(), 1) == 0.0
         # 0.7, 0.9
-        # uid 3 and 4 calculated based on respective brier score -> moving average
+        # uid 3 and 4 calculated based on respective  score -> moving average
         assert (round(v.scores[3].item(), 4), round(v.scores[4].item(), 4)) == (0.0006, 0.7940)
         assert (round(v.average_scores[3].item(), 3), round(v.average_scores[4].item(), 3)) == (0.006, 0.7940)
 
@@ -304,7 +304,7 @@ class TestTemplateValidatorNeuronTestCase:
         v.event_provider.register_or_update_event(test_event)
         assert round(v.scores[2].item(), 1) == 0.0
         # 0.7, 0.9
-        # uid 3 and 4 calculated based on respective brier score -> moving average
+        # uid 3 and 4 calculated based on respective  score -> moving average
         assert (round(v.scores[3].item(), 4), round(v.scores[4].item(), 4)) == (0.0208, 0.7792)
 
         assert (round(v.average_scores[3].item(), 3), round(v.average_scores[4].item(), 3)) == (0.026, 0.974)
@@ -365,7 +365,7 @@ class TestTemplateValidatorNeuronTestCase:
         v.event_provider.register_or_update_event(test_event)
         assert round(v.scores[2].item(), 1) == 0.0
         # 0.7, 0.9
-        # uid 3 and 4 calculated based on respective brier score -> moving average
+        # uid 3 and 4 calculated based on respective  score -> moving average
         assert (round(v.scores[3].item(), 4), round(v.scores[4].item(), 4)) == (0.0, 0.0)
 
         assert (round(v.average_scores[3].item(), 3), round(v.average_scores[4].item(), 3)) == (0.0, 0.0)
@@ -430,7 +430,7 @@ class TestTemplateValidatorNeuronTestCase:
             v.event_provider.register_or_update_event(test_event)
         assert round(v.scores[2].item(), 1) == 0.0
         # 0.7, 0.9
-        # uid 3 and 4 calculated based on respective brier score -> moving average
+        # uid 3 and 4 calculated based on respective  score -> moving average
         assert round(v.scores[3].item(), 4) == 0.0
         assert round(v.scores[4].item(), 4) == 0.0
 
@@ -482,7 +482,7 @@ class TestTemplateValidatorNeuronTestCase:
         v.event_provider.register_or_update_event(test_event)
         assert round(v.scores[2].item(), 1) == 0.0
         # 0.7, 0.9
-        # uid 3 and 4 calculated based on respective brier score -> moving average
+        # uid 3 and 4 calculated based on respective  score -> moving average
         assert (round(v.scores[3].item(), 4), round(v.scores[4].item(), 4)) == (0.0208, 0.7792)
 
         assert (round(v.average_scores[3].item(), 3), round(v.average_scores[4].item(), 3))  == (0.026, 0.974)
@@ -535,7 +535,7 @@ class TestTemplateValidatorNeuronTestCase:
         test_event.answer = 1
         v.event_provider.register_or_update_event(test_event)
         # 0.7, 0.9
-        # uid 3 and 4 calculated based on respective brier score -> moving average
+        # uid 3 and 4 calculated based on respective  score -> moving average
         assert (
             round(v.scores[1].item(), 4), round(v.scores[2].item(), 4), round(v.scores[3].item(), 4), round(v.scores[4].item(), 4)
         ) == (0.0002, 0.000, 0.0207, 0.7791)
