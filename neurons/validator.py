@@ -177,7 +177,7 @@ class Validator(BaseValidatorNeuron):
             #     return True
             cutoff = integration.latest_submit_date(pe)
             bt.logging.info(f'Miners to update: {len(miner_uids)} submissions: {len(predictions.keys())} from {self.metagraph.n.item()}')
-            bt.logging.info(f'Register: {pe.registered_date} cutoff: {cutoff} tz {cutoff.tzinfo}, resolve: {pe.resolve_date}')
+            bt.logging.info(f'Register: {pe.registered_date} cutoff: {cutoff} tz: {cutoff.tzinfo}, resolve: {pe.resolve_date}')
 
             # we take either now or cutoff time (event can be settled earlier)
             cutoff_minutes_since_epoch = int((cutoff - CLUSTER_EPOCH_2024).total_seconds()) // 60
@@ -195,15 +195,9 @@ class Validator(BaseValidatorNeuron):
             scores = []
             for uid in miner_uids:
                 miner_data = self.event_provider.get_miner_data_by_uid(int(uid))
-                # bt.logging.info(dict(miner_data))
-
                 miner_reg_time = datetime.fromisoformat(miner_data['registered_date']).replace(tzinfo=timezone.utc)
                 bt.logging.info(f'Miner reg time: {miner_reg_time}')
-                # scores.append(0)
-                # bt.logging.info(f'Miner data {uid}')
-                # bt.logging.info(dict(miner_data))
                 prediction_intervals = predictions.get(uid.item())
-                # bt.logging.info(prediction_intervals)
                 if pe.market_type == 'azuro':
                     if miner_reg_time < pe.registered_date and not prediction_intervals:
                         scores.append(-6)
@@ -220,7 +214,7 @@ class Validator(BaseValidatorNeuron):
                     scores.append(self.compute_log_score(ans, correct_ans))
                     bt.logging.info(f'settled answer for {uid=} for {pe.event_id=} {ans=} {log_score=}')
                 else:
-                    # if miner is registered before the event streamed
+                    # if miner is registered before the event is streamed
                     if miner_reg_time < pe.registered_date and not prediction_intervals:
                         scores.append(-6)
                         continue
@@ -250,21 +244,19 @@ class Validator(BaseValidatorNeuron):
                             mk.append(-6)
                             continue
                         ans = max(0, min(1, ans))  # Clamp the answer
-                        # bt.logging.debug(f'Submission of {uid=} {ans=}')
                         log_score = self.compute_log_score(ans, correct_ans)
                         mk.append(wk * log_score)
 
-                        bt.logging.info(f'answer for {uid=} {interval_start_minutes=} {interval_start_date=} {ans=} total={total_intervals} curr={current_interval_no} {wk=} {log_score=}')
+                        bt.logging.info(f'{pe} answer for {uid=} {interval_start_minutes=} {interval_start_date=} {ans=} total={total_intervals} curr={current_interval_no} {wk=} {log_score=}')
                     if weights_sum < 0.01:
                         range_list = range(start_interval_start_minutes, effective_finish_start_minutes, CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES)
                         bt.logging.error(f'Weight WK is zero for event {uid} {pe}  {range_list}')
                     final_avg_score = sum(mk) / weights_sum if weights_sum > 0 else 0
-                    bt.logging.info(f'final avg brier answer for {uid=} {final_avg_score=}')
-                    # 1/2 does not bring any value, add penalty for that
+                    bt.logging.info(f'final avg answer for {uid=} {final_avg_score=}')
 
                     scores.append(final_avg_score)
             scores = torch.FloatTensor(scores)
-            scores = torch.exp(25*scores)
+            scores = torch.exp(25 * scores)
             bt.logging.info(f'With exp scores {scores}')
             scores = torch.nn.functional.normalize(scores, p=1, dim=0)
             bt.logging.info(f'Normalized {scores}')
