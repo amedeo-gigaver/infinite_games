@@ -162,7 +162,7 @@ class Validator(BaseValidatorNeuron):
             market_type = pe.metadata.get('market_type', pe.market_type)
             event_text = f'{market_type} {pe.event_id}'
             bt.logging.info(f'Settled event: {event_text} {pe.description[:100]} answer: {pe.answer}')
-            miner_uids = infinite_games.utils.uids.get_all_uids(self)
+            miner_uids = torch.tensor([uid for uid in range(self.metagraph.n.item())])
             correct_ans = pe.answer
             if correct_ans is None:
                 bt.logging.info(f"Unknown answer for event, discarding : {pe}")
@@ -260,16 +260,11 @@ class Validator(BaseValidatorNeuron):
 
                     scores.append(final_avg_score)
             scores = torch.FloatTensor(scores)
-            bt.logging.info(f'scores {scores}')
-            if all(score.item() == 0.0 for score in scores):
-                # bt.logging.info('All effective scores zero for this event!')
-                pass
-            else:
-                non_zeros = scores != 0
-                scores[non_zeros] = torch.exp(10*scores[non_zeros])
-                bt.logging.info(f'With exp scores {scores}')
+            bt.logging.info(f'scores {torch.round(scores, decimals=3)}')
+            scores = torch.exp(10*scores)
+            bt.logging.info(f'expd {torch.round(scores, decimals=3)}')
             scores = torch.nn.functional.normalize(scores, p=1, dim=0)
-            bt.logging.info(f'Normalized {scores}')
+            bt.logging.info(f'Normalized {torch.round(scores, decimals=3)}')
             self.update_scores(scores, miner_uids)
             self.export_scores(p_event=pe, miner_score_data=zip(miner_uids, scores, scores))
             self.send_event_scores(zip(miner_uids, itertools.repeat(pe.market_type), itertools.repeat(pe.event_id), scores, scores))
