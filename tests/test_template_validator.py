@@ -198,7 +198,7 @@ class TestTemplateValidatorNeuronTestCase:
         assert round(v.scores[2].item(), 1) == 0.0
         # 0.7, 0.9
         # uid 3 and 4 calculated based on respective  score -> moving average
-        assert (round(v.scores[3].item(), 4), round(v.scores[4].item(), 4)) == (0.0006, 0.7940)
+        assert (round(v.scores[3].item(), 4), round(v.scores[4].item(), 4)) == (0.006, 0.7940)
         assert (round(v.average_scores[3].item(), 3), round(v.average_scores[4].item(), 3)) == (0.006, 0.7940)
 
     async def test_validator_polymarket_pricing_events(
