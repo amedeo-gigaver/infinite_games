@@ -379,7 +379,6 @@ class BaseValidatorNeuron(BaseNeuron):
 
     def update_scores(self, rewards: torch.FloatTensor, uids: torch.LongTensor):
         """Performs exponential moving average on the scores based on the rewards received from the miners."""
-
         # Check if rewards contains NaN values.
         if torch.isnan(rewards).any():
             bt.logging.warning(f"NaN values detected in rewards: {rewards}")
@@ -397,7 +396,7 @@ class BaseValidatorNeuron(BaseNeuron):
         scattered_scores: torch.FloatTensor = self.scores.scatter(
             0, uids.clone().detach(), rewards
         ).to(self.device)
-        bt.logging.debug(f"Scattered scores: {scattered_scores} {len(scattered_scores)}")
+        bt.logging.debug(f"Scattered scores: {torch.round(scattered_scores, decimals=3)} {len(scattered_scores)}")
 
         alpha: float = self.config.neuron.moving_average_alpha
 
@@ -413,12 +412,12 @@ class BaseValidatorNeuron(BaseNeuron):
             0, uids.clone().detach(), rewards
         )
 
-        bt.logging.debug(f"Scattered rewards: {zero_scattered_rewards}")
-        bt.logging.debug(f"Average total: {self.average_scores}")
+        bt.logging.debug(f"Scattered rewards: {torch.round(zero_scattered_rewards, decimals=3)}")
+        bt.logging.debug(f"Average total: {torch.round(self.average_scores, decimals=3)}")
         bt.logging.debug(f"Daily iteration: {self.scoring_iterations + 1}")
 
         self.average_scores = (self.average_scores * self.scoring_iterations + zero_scattered_rewards) / (self.scoring_iterations + 1)
-        bt.logging.debug(f"New Average total: {self.average_scores}")
+        bt.logging.debug(f"New Average total: {torch.round(self.average_scores, decimals=3)}")
 
         alpha = 0.8
         if self.previous_average_scores is not None and torch.count_nonzero(self.previous_average_scores).item() != 0:
