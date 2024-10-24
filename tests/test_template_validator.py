@@ -90,7 +90,7 @@ class TestTemplateValidatorNeuronTestCase:
     #     assert len(v.event_provider.registered_events) > 0, "There should be at least one registered event"
 
     async def test_validator_acled_events(
-            self, mock_network, caplog, monkeypatch
+        self, mock_miner_reg_time, mock_network, caplog, monkeypatch
     ):
         wallet, subtensor = mock_network
         acled_provider = MockAcledProviderIntegration()
@@ -136,7 +136,7 @@ class TestTemplateValidatorNeuronTestCase:
         assert (round(v.average_scores[3].item(), 3), round(v.average_scores[4].item(), 3)) == (0.5, 0.5)
 
     async def test_validator_settled_event_scores_polymarket_aggregation_interval(
-            self, mock_network, caplog, monkeypatch, disable_event_updates
+        self, mock_miner_reg_time, mock_network, caplog, monkeypatch, disable_event_updates
     ):
         wallet, subtensor = mock_network
         v = Validator(integrations=[
@@ -202,7 +202,7 @@ class TestTemplateValidatorNeuronTestCase:
         assert (round(v.average_scores[3].item(), 3), round(v.average_scores[4].item(), 3)) == (0.028, 0.972)
 
     async def test_validator_polymarket_pricing_events(
-            self, mock_network, caplog, monkeypatch
+        self, mock_miner_reg_time, mock_network, caplog, monkeypatch
     ):
         wallet, subtensor = mock_network
         acled_provider = MockAcledProviderIntegration()
@@ -247,7 +247,9 @@ class TestTemplateValidatorNeuronTestCase:
 
         assert (round(v.average_scores[3].item(), 3), round(v.average_scores[4].item(), 3)) == (0.5, 0.5)
 
-    async def test_validator_settled_event_scores_polymarket_short(self, mock_network, caplog, monkeypatch, disable_event_updates):
+    async def test_validator_settled_event_scores_polymarket_short(
+        self, mock_miner_reg_time, mock_network, caplog, monkeypatch, disable_event_updates
+    ):
         wallet, subtensor = mock_network
         v = Validator(integrations=[
             MockAzuroProviderIntegration(max_pending_events=6), 
@@ -307,7 +309,9 @@ class TestTemplateValidatorNeuronTestCase:
 
         assert (round(v.average_scores[3].item(), 3), round(v.average_scores[4].item(), 3)) == (0.119, 0.881)
 
-    async def test_validator_settled_event_scores_polymarket_longer_settle_date(self, mock_network, caplog, monkeypatch, disable_event_updates):
+    async def test_validator_settled_event_scores_polymarket_longer_settle_date(
+        self, mock_miner_reg_time, mock_network, caplog, monkeypatch, disable_event_updates
+    ):
         wallet, subtensor = mock_network
         v = Validator(integrations=[
             MockAzuroProviderIntegration(max_pending_events=6),
@@ -366,7 +370,9 @@ class TestTemplateValidatorNeuronTestCase:
 
         assert (round(v.average_scores[3].item(), 3), round(v.average_scores[4].item(), 3)) == (0.0, 0.0)
 
-    async def test_validator_settled_event_scores_polymarket_earlier_settle_date(self, mock_network, caplog, monkeypatch, disable_event_updates):
+    async def test_validator_settled_event_scores_polymarket_earlier_settle_date(
+        self, mock_miner_reg_time, mock_network, caplog, monkeypatch, disable_event_updates
+    ):
         wallet, subtensor = mock_network
         v = Validator(integrations=[
             MockAzuroProviderIntegration(max_pending_events=6),
@@ -431,7 +437,9 @@ class TestTemplateValidatorNeuronTestCase:
         assert round(v.average_scores[3].item(), 3) == 0.0
         assert round(v.average_scores[4].item(), 3) == 0.0
 
-    async def test_validator_settled_event_scores_azuro(self, mock_network, caplog, monkeypatch, disable_event_updates):
+    async def test_validator_settled_event_scores_azuro(
+        self, mock_miner_reg_time, mock_network, caplog, monkeypatch, disable_event_updates
+    ):
         wallet, subtensor = mock_network
         v = Validator(integrations=[
             MockAzuroProviderIntegration(max_pending_events=6),
@@ -479,6 +487,60 @@ class TestTemplateValidatorNeuronTestCase:
 
         assert (round(v.average_scores[3].item(), 3), round(v.average_scores[4].item(), 3))  == (0.119, 0.881)
 
+    async def test_validator_settled_event_scores_new_regged_miner_azuro(
+        self, mock_miner_reg_time, mock_network, caplog, monkeypatch, disable_event_updates,
+    ):
+        wallet, subtensor = mock_network
+        v = Validator(integrations=[
+            MockAzuroProviderIntegration(max_pending_events=6),
+            MockPolymarketProviderIntegration()
+        ], db_path='test.db')
+
+        reg_time = '2028-12-31 00:00'
+        monkeypatch.setattr('neurons.validator.get_miner_data_by_uid',
+                            lambda validator, uid: {'registered_date': reg_time if uid == 1 else '2024-01-01 00:00'})
+        # await v.forward()
+        print('First run')
+        initial_date = datetime(year=2024, month=1, day=3)
+        with freeze_time(initial_date):
+            self.next_run(v)
+            # await restarted_vali.initialize_provider()
+            # sleep(4)
+            # v.stop_run_thread()
+            test_event = ProviderEvent(
+                '0x8f3f3f19c4e4015fd9db2f22e653c766154091ef_100100000000000015927404810000000000000365390949_2000',
+                datetime.now(timezone.utc),
+                'azuro', 'Test event 1', after(hours=12), None,
+                None, datetime.now(timezone.utc), EventStatus.PENDING,
+                {},
+                {
+                    # 'conditionId': 'conditionid',
+                    # 'slug': 'soccer-game-slug',
+                    # 'league': 'league'
+                }
+            )
+            assert v.event_provider.register_or_update_event(test_event) is True
+            # assert v.event_provider.registered_events.get(f'{test_event.market_type}-{test_event.event_id}')
+            # assert len(v.event_provider.registered_events) == 1
+            assert v.event_provider.integrations
+            mock_response = fake_synapse_response(v.event_provider.get_events_for_submission())
+            mock_response[3].events[f'{test_event.market_type}-{test_event.event_id}']['probability'] = 0.7
+            mock_response[4].events[f'{test_event.market_type}-{test_event.event_id}']['probability'] = 0.9
+            mock_response[5].events[f'{test_event.market_type}-{test_event.event_id}']['probability'] = 0.0
+            monkeypatch.setattr('neurons.validator.query_miners', lambda a, b, c: mock_response)
+            print('Second run')
+            self.next_run(v)
+
+        test_event.status = EventStatus.SETTLED
+        test_event.answer = 1
+        v.event_provider.register_or_update_event(test_event)
+        assert v.scores[2] == 0.0
+        # 0.7, 0.9
+        # uid 3 and 4 calculated based on respective brier score -> moving average
+        assert (round(v.scores[3].item(), 4), round(v.scores[4].item(), 4)) == (0.0954, 0.7046)
+
+        assert (round(v.average_scores[3].item(), 3), round(v.average_scores[4].item(), 3))  == (0.119, 0.881)
+
         # async def test_send_interval_data(self, mock_network, caplog, monkeypatch, disable_event_updates):
         #     wallet, subtensor = mock_network
         #     v = Validator(integrations=[
@@ -500,3 +562,4 @@ class TestTemplateValidatorNeuronTestCase:
         #                  ]
         #             )
         #     v.send_interval_data(miner_data)
+    

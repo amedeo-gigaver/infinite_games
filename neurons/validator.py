@@ -31,6 +31,7 @@ import requests
 
 from infinite_games.events.acled import AcledProviderIntegration
 from infinite_games.utils.misc import split_chunks
+from infinite_games.utils.uids import get_miner_data_by_uid
 os.environ['USE_TORCH'] = '1'
 import time
 
@@ -194,24 +195,27 @@ class Validator(BaseValidatorNeuron):
             bt.logging.info(f'{integration.__class__.__name__} {first_n_intervals=} intervals: {pe.registered_date=} {effective_finish_start_minutes=} {pe.resolve_date=} {cutoff=}  total={total_intervals}')
             scores = []
             for uid in miner_uids:
-                miner_data = self.event_provider.get_miner_data_by_uid(int(uid))
+                miner_data = get_miner_data_by_uid(self, int(uid))
                 miner_reg_time = datetime.fromisoformat(miner_data['registered_date']).replace(tzinfo=timezone.utc)
-                bt.logging.info(f'Miner reg time: {miner_reg_time}')
+                bt.logging.info(f'miner {uid=} reg time: {miner_reg_time}')
                 prediction_intervals = predictions.get(uid.item())
                 if pe.market_type == 'azuro':
-                    if miner_reg_time < pe.registered_date and not prediction_intervals:
+                    # if miner registered after the cutoff.
+                    if miner_reg_time >= cutoff:
+                        bt.logging.info('new miner assign: 1/2')
+                        ans = 1/2
+                    # if we had a chance to submit, but did not submit anything
+                    elif miner_reg_time < cutoff and not prediction_intervals:
                         scores.append(-6)
                         continue
-
-                    ans = prediction_intervals[0]['interval_agg_prediction']
-                    # if miner registered after the cutoff.
-                    if miner_reg_time > cutoff:
-                        ans = 1/2
+                    else:
+                        ans = prediction_intervals[0]['interval_agg_prediction']
 
                     if ans is None:
                         scores.append(-6)
                         continue
-                    scores.append(self.compute_log_score(ans, correct_ans))
+                    log_score = self.compute_log_score(ans, correct_ans)
+                    scores.append(log_score)
                     bt.logging.info(f'settled answer for {uid=} for {pe.event_id=} {ans=} {log_score=}')
                 else:
                     # if miner is registered before the event is streamed
@@ -229,15 +233,15 @@ class Validator(BaseValidatorNeuron):
                         })
                         ans: float = interval_data['interval_agg_prediction']
                         interval_start_date = CLUSTER_EPOCH_2024 + timedelta(minutes=interval_start_minutes)
-                        if miner_reg_time > interval_start_date and ans is None:
+                        interval_end_date = CLUSTER_EPOCH_2024 + timedelta(minutes=interval_start_minutes + CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES)
+                        if miner_reg_time > interval_end_date:
                             ans = 1/2
 
                         current_interval_no = (interval_start_minutes - start_interval_start_minutes) // CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES
                         if current_interval_no + 1 <= first_n_intervals:
                             wk = 1
                         else:
-
-                            wk = math.exp(-(total_intervals/(total_intervals - current_interval_no )) + 1)
+                            wk = math.exp(-(total_intervals/(total_intervals - current_interval_no)) + 1)
                         weights_sum += wk
                         # bt.logging.info(f'answer for {uid=} {interval_start_minutes=} {ans=} total={total_intervals} curr={current_interval_no} {wk=} ')
                         if ans is None:
@@ -256,8 +260,14 @@ class Validator(BaseValidatorNeuron):
 
                     scores.append(final_avg_score)
             scores = torch.FloatTensor(scores)
-            scores = torch.exp(25 * scores)
-            bt.logging.info(f'With exp scores {scores}')
+            bt.logging.info(f'scores {scores}')
+            if all(score.item() == 0.0 for score in scores):
+                # bt.logging.info('All effective scores zero for this event!')
+                pass
+            else:
+                non_zeros = scores != 0
+                scores[non_zeros] = torch.exp(10*scores[non_zeros])
+                bt.logging.info(f'With exp scores {scores}')
             scores = torch.nn.functional.normalize(scores, p=1, dim=0)
             bt.logging.info(f'Normalized {scores}')
             self.update_scores(scores, miner_uids)

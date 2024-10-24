@@ -595,29 +595,6 @@ class EventAggregator:
             tried += 1
         conn.close()
 
-    def get_miner_data_by_uid(self, uid: int):
-        conn = sqlite3.connect(self.db_path)
-        conn.row_factory = sqlite3.Row
-        cursor = conn.cursor()
-        result = None
-        try:
-            c = cursor.execute(
-                """
-                select miner_hotkey, miner_uid, node_ip, registered_date,last_updated,blocktime,blocklisted
-                from miners
-                where miner_uid = ?
-                order by registered_date desc
-                limit 1
-                """,
-                (uid,)
-            )
-            result: sqlite3.Row = c.fetchone()
-        except Exception as e:
-            bt.logging.error(e)
-            bt.logging.error(traceback.format_exc())
-        conn.close()
-        return result
-
     def save_event(self, pe: ProviderEvent, processed=False) -> bool:
         """Returns true if new event"""
         conn = sqlite3.connect(self.db_path)

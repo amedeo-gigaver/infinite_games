@@ -1,4 +1,5 @@
 import asyncio
+from datetime import datetime
 import os
 
 from bittensor.mock.wallet_mock import MockWallet, get_mock_wallet
@@ -84,3 +85,12 @@ def disable_event_updates():
     os.environ['VALIDATOR_WATCH_EVENTS_DISABLED'] = '1'
     yield
     os.environ['VALIDATOR_WATCH_EVENTS_DISABLED'] = '0'
+
+
+@fixture
+def mock_miner_reg_time(monkeypatch):
+    reg_time = '2024-01-01 00:00'
+    monkeypatch.setattr('neurons.validator.get_miner_data_by_uid',
+                        lambda validator, _: {'registered_date': reg_time})
+
+    yield reg_time
