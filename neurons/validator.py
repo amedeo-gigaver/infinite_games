@@ -228,7 +228,7 @@ class Validator(BaseValidatorNeuron):
 
                     for interval_start_minutes in range(start_interval_start_minutes, effective_finish_start_minutes, CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES):
 
-                        interval_data = prediction_intervals.get(interval_start_minutes, {
+                        interval_data = (prediction_intervals or {}).get(interval_start_minutes, {
                             'interval_agg_prediction': None
                         })
                         ans: float = interval_data['interval_agg_prediction']
