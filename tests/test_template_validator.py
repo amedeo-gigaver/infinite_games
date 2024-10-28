@@ -198,8 +198,8 @@ class TestTemplateValidatorNeuronTestCase:
         assert round(v.scores[2].item(), 1) == 0.0
         # 0.7, 0.9
         # uid 3 and 4 calculated based on respective  score -> moving average
-        assert (round(v.scores[3].item(), 4), round(v.scores[4].item(), 4)) == (0.006, 0.7940)
-        assert (round(v.average_scores[3].item(), 3), round(v.average_scores[4].item(), 3)) == (0.006, 0.7940)
+        assert (round(v.scores[3].item(), 4), round(v.scores[4].item(), 4)) == (0.0221, 0.7779)
+        assert (round(v.average_scores[3].item(), 3), round(v.average_scores[4].item(), 3)) == (0.028, 0.972)
 
     async def test_validator_polymarket_pricing_events(
         self, mock_miner_reg_time, mock_network, caplog, monkeypatch
@@ -307,7 +307,7 @@ class TestTemplateValidatorNeuronTestCase:
         # uid 3 and 4 calculated based on respective  score -> moving average
         assert (round(v.scores[3].item(), 4), round(v.scores[4].item(), 4)) == (0.0208, 0.7792)
 
-        assert (round(v.average_scores[3].item(), 3), round(v.average_scores[4].item(), 3)) == (0.026, 0.974)
+        assert (round(v.average_scores[3].item(), 3), round(v.average_scores[4].item(), 3)) == (0.119, 0.881)
 
     async def test_validator_settled_event_scores_polymarket_longer_settle_date(
         self, mock_miner_reg_time, mock_network, caplog, monkeypatch, disable_event_updates
@@ -485,7 +485,7 @@ class TestTemplateValidatorNeuronTestCase:
         # uid 3 and 4 calculated based on respective  score -> moving average
         assert (round(v.scores[3].item(), 4), round(v.scores[4].item(), 4)) == (0.0208, 0.7792)
 
-        assert (round(v.average_scores[3].item(), 3), round(v.average_scores[4].item(), 3))  == (0.026, 0.974)
+        assert (round(v.average_scores[3].item(), 3), round(v.average_scores[4].item(), 3))  == (0.119, 0.881)
 
     async def test_validator_settled_event_scores_new_regged_miner_azuro(
         self, mock_miner_reg_time, mock_network, caplog, monkeypatch, disable_event_updates,
@@ -538,9 +538,9 @@ class TestTemplateValidatorNeuronTestCase:
         # uid 3 and 4 calculated based on respective  score -> moving average
         assert (
             round(v.scores[1].item(), 4), round(v.scores[2].item(), 4), round(v.scores[3].item(), 4), round(v.scores[4].item(), 4)
-        ) == (0.0002, 0.000, 0.0207, 0.7791)
+        ) == (0.0017, 0.000, 0.0952, 0.7031)
 
-        assert (round(v.average_scores[3].item(), 3), round(v.average_scores[4].item(), 3))  == (0.026, 0.974)
+        assert (round(v.average_scores[3].item(), 3), round(v.average_scores[4].item(), 3))  == (0.119, 0.879)
 
     async def test_validator_settled_event_scores_distribution(
         self, mock_network, caplog, monkeypatch, disable_event_updates,
@@ -620,7 +620,7 @@ class TestTemplateValidatorNeuronTestCase:
         assert (round(v.scores[2].item(), 3), round(v.scores[3].item(), 3), round(v.scores[4].item(), 3), round(v.scores[5].item(), 3),
                 round(v.scores[6].item(), 3), round(v.scores[6].item(), 3), round(v.scores[8].item(), 3), round(v.scores[9].item(), 3),
                 round(v.scores[10].item(), 3), round(v.scores[11].item(), 3), round(v.scores[12].item(), 3)) == (
-                    0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.004, 0.025, 0.138, 0.632
+                    0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.006, 0.037, 0.13, 0.274, 0.352
                 )
 
         # async def test_send_interval_data(self, mock_network, caplog, monkeypatch, disable_event_updates):

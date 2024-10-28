@@ -144,18 +144,6 @@ class Validator(BaseValidatorNeuron):
             bt.logging.info(f'Waiting for next {self.SEND_MINER_LOGS_INTERVAL} seconds to schedule interval logs..')
             await asyncio.sleep(self.SEND_MINER_LOGS_INTERVAL)
 
-    def compute_log_score(self, ans: float , event: int) -> float:
-        if event == 1:
-            if ans == 0:
-                return -6
-            else:
-                return max(1 + math.log2(ans), -6)
-        else:
-            if ans == 1:
-                return -6
-            else:
-                return max(1 + math.log2(1-ans), -6)
-
     def on_event_update(self, pe: ProviderEvent):
         """Hook called whenever we have settling events. Event removed when we return True"""
         if pe.status == EventStatus.SETTLED:
@@ -206,21 +194,21 @@ class Validator(BaseValidatorNeuron):
                         ans = 1/2
                     # if we had a chance to submit, but did not submit anything
                     elif miner_reg_time < cutoff and not prediction_intervals:
-                        scores.append(-6)
+                        scores.append(0)
                         continue
                     else:
                         ans = prediction_intervals[0]['interval_agg_prediction']
 
                     if ans is None:
-                        scores.append(-6)
+                        scores.append(0)
                         continue
-                    log_score = self.compute_log_score(ans, correct_ans)
-                    scores.append(log_score)
-                    bt.logging.info(f'settled answer for {uid=} for {pe.event_id=} {ans=} {log_score=}')
+                    brier_score = 1 - ((ans - correct_ans)**2)
+                    scores.append(brier_score)
+                    bt.logging.info(f'settled answer for {uid=} for {pe.event_id=} {ans=} {brier_score=}')
                 else:
                     # if miner is registered before the event is streamed
                     if miner_reg_time < pe.registered_date and not prediction_intervals:
-                        scores.append(-6)
+                        scores.append(0)
                         continue
                     mk = []
 
@@ -245,13 +233,13 @@ class Validator(BaseValidatorNeuron):
                         weights_sum += wk
                         # bt.logging.info(f'answer for {uid=} {interval_start_minutes=} {ans=} total={total_intervals} curr={current_interval_no} {wk=} ')
                         if ans is None:
-                            mk.append(-6)
+                            mk.append(0)
                             continue
                         ans = max(0, min(1, ans))  # Clamp the answer
-                        log_score = self.compute_log_score(ans, correct_ans)
-                        mk.append(wk * log_score)
+                        brier_score = 1 - ((ans - correct_ans)**2)
+                        mk.append(wk * brier_score)
 
-                        bt.logging.info(f'{pe} answer for {uid=} {interval_start_minutes=} {interval_start_date=} {ans=} total={total_intervals} curr={current_interval_no} {wk=} {log_score=}')
+                        bt.logging.info(f'{pe} answer for {uid=} {interval_start_minutes=} {interval_start_date=} {ans=} total={total_intervals} curr={current_interval_no} {wk=} {brier_score=}')
                     if weights_sum < 0.01:
                         range_list = range(start_interval_start_minutes, effective_finish_start_minutes, CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES)
                         bt.logging.error(f'Weight WK is zero for event {uid} {pe}  {range_list}')
@@ -261,8 +249,15 @@ class Validator(BaseValidatorNeuron):
                     scores.append(final_avg_score)
             scores = torch.FloatTensor(scores)
             bt.logging.info(f'scores {torch.round(scores, decimals=3)}')
-            scores = torch.exp(10*scores)
-            bt.logging.info(f'expd {torch.round(scores, decimals=3)}')
+            if all(score.item() <= 0.0 for score in scores):
+                # bt.logging.info('All effective scores zero for this event!')
+                pass
+            else:
+                alpha = 0
+                beta = 1
+                non_zeros = scores != 0
+                scores[non_zeros] = alpha * scores[non_zeros] + (beta * torch.exp(25*scores[non_zeros]))
+            bt.logging.info(f'expd {torch.round(scores, decimals=3)}')            
             scores = torch.nn.functional.normalize(scores, p=1, dim=0)
             bt.logging.info(f'Normalized {torch.round(scores, decimals=3)}')
             self.update_scores(scores, miner_uids)
