@@ -1,20 +1,32 @@
 import sqlite3
 
 
-conn = sqlite3.connect('validator.db')
+conn = sqlite3.connect('test.db')
 
 cursor = conn.cursor()
 c = cursor.execute(
     """
-        select event_id, market_type, description, starts, resolve_date, outcome,registered_date, local_updated_at,status, metadata, processed, exported
+        select
+        count(*) filter (where status = '2') as pending,
+        count(*) filter (where exported = '1') as exported,
+        count(*) filter (where processed = '1') as processed,
+        count(*) filter (where status = '3') as resolved,
+        min(registered_date) as older_event,
+        max(registered_date) as recently_registered,
+        count(*) filter (where registered_date > date('now', '-1 weeks')) as last_week_events,
+        count(*) filter (where registered_date > date('now', '-1 months')) as last_month_events
         from events
     """
 )
 result = c.fetchall()
-if result:
-    for r in result:
-        print(r[0])
-        print(f'{r[1]} - {r[2][:10]} -{r[3]} - {r[4]} - {r[5]} - {r[6]} - {r[7]} - {r[8]} - {r[10]} - {r[11]}' )
-
 cursor.close()
 conn.close()
+print('In progress events: ', result[0][0])
+print('Exported events: ', result[0][1])
+print('Processed events: ', result[0][2])
+print('Settled events: ', result[0][3])
+print('Oldest event date: ', result[0][4])
+print('Recent register date: ', result[0][5])
+print('Events registered within a week: ', result[0][6])
+print('Events registered within a month: ', result[0][7])
+

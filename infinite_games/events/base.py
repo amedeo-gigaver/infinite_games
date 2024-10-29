@@ -551,51 +551,6 @@ class EventAggregator:
         conn.commit()
         conn.close()
 
-    def migrate_pickle_to_sql(self):
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-        events = self.get_events()
-        if events and len(events) > 0:
-            bt.logging.info('Already migrated, found events in database.')
-            cursor.close()
-            conn.close()
-            return
-        else:
-            bt.logging.info('Migrating pickle to database...')
-        try:
-
-            for pe in list(self.registered_events.values()):
-                bt.logging.info(f'Saving {pe} event and submissions.')
-                c = cursor.execute(
-                    """
-                    INSERT into events ( unique_event_id, event_id, market_type, registered_date, description,starts, resolve_date, outcome,local_updated_at,status, metadata)
-                    Values (?, ?, ?, ?, ?, ?, ?, ?, ?, ? , ?)
-                    ON CONFLICT(unique_event_id)
-                    DO NOTHING
-                    """,
-                    (f'{pe.market_type}-{pe.event_id}', pe.event_id,  pe.market_type, pe.registered_date,  pe.description, pe.starts, pe.resolve_date , pe.answer,datetime.now(tz=timezone.utc), pe.status, json.dumps(pe.metadata)),
-                )
-                for uid, intervals_dict in pe.miner_predictions.items():
-                    for interval_start_minutes, data in intervals_dict.items():
-                        agg_prediction = data.get('total_score', 0)
-                        total_count = data.get('count', 0)
-                        cursor.execute(
-                            """
-                            INSERT into predictions ( unique_event_id, minerHotkey, minerUid, predictedOutcome,interval_start_minutes,interval_agg_prediction,interval_count,submitted,blocktime)
-                            Values (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                            ON CONFLICT(unique_event_id,  interval_start_minutes, minerUid)
-                            DO Nothing""",
-                            (f'{pe.market_type}-{pe.event_id}', None, uid, None, interval_start_minutes, agg_prediction , total_count,datetime.now(tz=timezone.utc), 0),
-                        )
-            if self.registered_events:
-                conn.execute("COMMIT")
-        except Exception as e:
-            bt.logging.error('Error migrating data! Ples')
-            bt.logging.error(traceback.format_exc())
-            exit()
-        conn.close()
-        bt.logging.info('Data migrated successfully!')
-
     def sync_miners(self, axons: List[Tuple[int, AxonInfo]], blocktime: int):
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
