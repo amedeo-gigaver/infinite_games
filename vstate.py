@@ -32,13 +32,15 @@ c = cursor.execute(
     """
         select
         count(*) as predictions,
-        count(*) filter (where exported = '1') as exported_predictions
+        count(*) filter (where exported = '1') as exported_predictions,
+        min(submitted) as oldest_prediction
         from predictions
     """
 )
 prediction_stat = c.fetchall()
 print('Predictions: ', prediction_stat[0][0])
 print('Predictions exported: ', event_stat[0][1])
+print('Oldest prediction: ', event_stat[0][2])
 
 cursor.close()
 conn.close()
