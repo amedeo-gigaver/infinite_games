@@ -108,7 +108,7 @@ class EventAggregator:
         self.COLLECTOR_WATCH_EVENTS_DELAY = 30
         self.MAX_PROVIDER_CONCURRENT_TASKS = 3
         self.db_path = db_path
-        self.create_tables()
+        self.init_migrations()
         # loop = asyncio.get_event_loop()
         # loop.create_task(self._watch_events())
 
@@ -121,8 +121,8 @@ class EventAggregator:
 
         return self
 
-    def get_registered_event(self, provider_name: str, event_id: str):
-        return self.get_event(f'{provider_name}-{event_id}')
+    def get_registered_event(self, unique_event_id: str):
+        return self.get_event(unique_event_id)
 
     def get_provider_pending_events(self, integration: ProviderIntegration) -> List[ProviderEvent]:
         pe_events = []
@@ -441,7 +441,7 @@ class EventAggregator:
                 interval_data['total_score'] = self._interval_aggregate_function(interval_data['entries'] or [])
         return True
 
-    def create_tables(self):
+    def init_migrations(self):
         conn = sqlite3.connect(self.db_path)
         c = conn.cursor()
 
@@ -501,6 +501,17 @@ class EventAggregator:
             );
 
         """
+        )
+
+        c.execute(
+            """
+            update events set market_type = 'ifgames', unique_event_id = replace(unique_event_id, 'acled-', 'ifgames-') where market_type='acled'
+            """
+        )
+        c.execute(
+            """
+            update predictions set unique_event_id = replace(unique_event_id, 'acled-', 'ifgames-') where unique_event_id like 'acled-%'
+            """
         )
 
         conn.commit()

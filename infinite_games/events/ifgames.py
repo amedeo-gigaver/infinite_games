@@ -10,7 +10,7 @@ from infinite_games.events.base import (
     EventStatus, ProviderEvent, ProviderIntegration
 )
 
-class AcledProviderIntegration(ProviderIntegration):
+class IFGamesProviderIntegration(ProviderIntegration):
     def __init__(self, max_pending_events=None) -> None:
         super().__init__(max_pending_events=max_pending_events)
         self.session = aiohttp.ClientSession()
@@ -19,11 +19,11 @@ class AcledProviderIntegration(ProviderIntegration):
         self.is_test = 'subtensor.networktest' in (''.join(sys.argv))
         self.base_url = 'https://stage.ifgames.win' if self.is_test else 'https://ifgames.win'
 
-    async def _ainit(self) -> 'AcledProviderIntegration':
+    async def _ainit(self) -> 'IFGamesProviderIntegration':
         return self
 
     def provider_name(self):
-        return 'acled'
+        return 'ifgames'
 
     def latest_submit_date(self, pe: ProviderEvent):
         cutoff = pe.metadata.get('cutoff')

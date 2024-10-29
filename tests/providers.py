@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 
 import backoff
-from infinite_games.events.acled import AcledProviderIntegration
+from infinite_games.events.ifgames import IFGamesProviderIntegration
 from infinite_games.events.azuro import AzuroProviderIntegration
 from infinite_games.events.base import EventStatus, ProviderEvent, ProviderIntegration
 from infinite_games.events.polymarket import PolymarketProviderIntegration
@@ -76,7 +76,7 @@ class MockPolymarketProviderIntegration(PolymarketProviderIntegration):
         return None
 
 
-class MockAcledProviderIntegration(AcledProviderIntegration):
+class MockIFGamesProviderIntegration(IFGamesProviderIntegration):
     async def _request(self, url, max_retries=3, expo_backoff=2):
         if url == self.base_url + '/api/v1/events':
             return {
