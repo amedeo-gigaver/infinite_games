@@ -29,4 +29,3 @@ print('Oldest event date: ', result[0][4])
 print('Recent register date: ', result[0][5])
 print('Events registered within a week: ', result[0][6])
 print('Events registered within a month: ', result[0][7])
-
