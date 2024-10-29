@@ -530,10 +530,12 @@ class EventAggregator:
                 c.execute(
                     """
                     delete from events
-                    where e.status = '3' and e.registered_date <  date('now', '-2 months')
+                    where status = '3' and registered_date <  date('now', '-2 months')
                     and exported = '1'
                     """
                 )
+                bt.logging.info('Cleaned old records..')
+                break
             except Exception as e:
                 if 'locked' in str(e):
                     bt.logging.warning(
@@ -545,6 +547,7 @@ class EventAggregator:
                     bt.logging.error(e)
                     bt.logging.error(traceback.format_exc())
                     break
+            tried += 1
         conn.commit()
         conn.close()
 

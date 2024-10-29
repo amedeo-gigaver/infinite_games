@@ -235,7 +235,7 @@ class Validator(BaseValidatorNeuron):
                         range_list = range(start_interval_start_minutes, effective_finish_start_minutes, CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES)
                         bt.logging.error(f'Weight WK is zero for event {uid} {pe}  {range_list}')
                     final_avg_score = sum(mk) / weights_sum if weights_sum > 0 else 0
-                    bt.logging.info(f'final avg answer for {uid=} {final_avg_score=}')
+                    bt.logging.info(f'final avg answer for intervals={len(range(start_interval_start_minutes, effective_finish_start_minutes, CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES))} {uid=} {final_avg_score=}')
 
                     scores.append(final_avg_score)
             scores = torch.FloatTensor(scores)
