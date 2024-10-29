@@ -124,13 +124,6 @@ class EventAggregator:
     def get_registered_event(self, unique_event_id: str):
         return self.get_event(unique_event_id)
 
-    def get_provider_pending_events(self, integration: ProviderIntegration) -> List[ProviderEvent]:
-        pe_events = []
-        for key, pe in self.registered_events.items():
-            if pe.market_type == integration.provider_name() and pe.status == EventStatus.PENDING:
-                pe_events.append(pe)
-        return pe_events
-
     async def _sync_provider(self, integration: ProviderIntegration):
         async for event in integration.sync_events():
 
@@ -142,7 +135,8 @@ class EventAggregator:
             raise Exception("No Provider Integrations Found. Please Add 'ProviderIntegration' compatible integrations ")
         self.log('Start collector..')
         while True:
-            self.log(f'Pulling events from providers. Current: {len(self.registered_events.items())}')
+            pending_events = self.get_events(statuses=[EventStatus.PENDING, EventStatus.SETTLED], processed=False)
+            self.log(f'Pulling events from providers. Current: {len(pending_events)}')
             try:
                 tasks = [self._sync_provider(integration) for _, integration in self.integrations.items()]
                 await asyncio.gather(*tasks)
@@ -221,7 +215,6 @@ class EventAggregator:
             # settled events has to be processed/scored, thus watch them too to force process
             pending_events = self.get_events(statuses=[EventStatus.PENDING, EventStatus.SETTLED], processed=False)
             self.log(f'Update events: {len(pending_events)}')
-            # self.log(f'Watching: {len(self.registered_events.items())} events')
             # self.log_upcoming(50)
             if len(pending_events) != 0:
 
@@ -320,11 +313,37 @@ class EventAggregator:
 
     def remove_event(self, pe: ProviderEvent) -> bool:
         """Removed event"""
-        key = self.event_key(provider_name=pe.market_type, event_id=pe.event_id)
-        if key in self.registered_events:
+        conn = sqlite3.connect(self.db_path)
+        c = conn.cursor()
+        tries = 4
+        tried = 0
+        while tried < tries:
+            try:
+                c.execute(
+                    """
+                    delete from events
+                    where unique_event_id = ?
+                    """,
+                    (f'{pe.market_type}-{pe.event_id}',)
+                )
+                bt.logging.info('Removed event {pe}..')
+                conn.commit()
+                return True
+            except Exception as e:
+                if 'locked' in str(e):
+                    bt.logging.warning(
+                        f"Database locked, retry {tried + 1}.."
+                    )
+                    time.sleep(1 + (2 * tried))
 
-            del self.registered_events[key]
-            return True
+                else:
+                    bt.logging.error(e)
+                    bt.logging.error(traceback.format_exc())
+                    break
+
+            tried += 1
+
+        conn.close()
         return False
 
     def save_state(self):
@@ -404,27 +423,7 @@ class EventAggregator:
         return events
 
     def load_state(self):
-        self.log(f'** Loading events from disk  {self.state_path} **')
-        try:
-            with open(self.state_path, 'rb') as f:
-                try:
-                    self.registered_events = pickle.load(f)
-                except EOFError as eof:
-                    self.error(eof)
-                    self.error('**** Could not load events! Your events file is corrupted, deleting it')
-                    os.remove(self.state_path)
-                    self.registered_events = {}
-            bt.logging.debug(f'****** Loaded state from disk - events: {len(self.registered_events.keys())} ******')
-        except FileNotFoundError:
-            bt.logging.debug("No file found, initialize empty state")
-            self.registered_events = {}
-        except pickle.UnpicklingError:
-            bt.logging.error("Invalid events state, initialize empty state!")
-            self.registered_events = {}
-
-    async def get_miner_prediction(self, uid: int, event_id: str) -> Optional[Submission]:
-        submission = self.registered_events.get(self.event_key(event_id), {}).get(uid)
-        return submission
+        pass
 
     def _interval_aggregate_function(self, interval_submissions: List[Submission]):
         avg = sum(submissions.answer for submissions in interval_submissions) / len(interval_submissions)
