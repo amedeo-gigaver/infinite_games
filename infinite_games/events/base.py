@@ -502,35 +502,49 @@ class EventAggregator:
 
         """
         )
+        tries = 4
+        tried = 0
+        bt.logging.info('Sync miner nodes..')
+        while tried < tries:
+            try:
+                c.execute(
+                    """
+                    update events set market_type = 'ifgames', unique_event_id = replace(unique_event_id, 'acled-', 'ifgames-') where market_type='acled'
+                    """
+                )
+                c.execute(
+                    """
+                    update predictions set unique_event_id = replace(unique_event_id, 'acled-', 'ifgames-') where unique_event_id like 'acled-%'
+                    """
+                )
 
-        c.execute(
-            """
-            update events set market_type = 'ifgames', unique_event_id = replace(unique_event_id, 'acled-', 'ifgames-') where market_type='acled'
-            """
-        )
-        c.execute(
-            """
-            update predictions set unique_event_id = replace(unique_event_id, 'acled-', 'ifgames-') where unique_event_id like 'acled-%'
-            """
-        )
+                c.execute(
+                    """
+                    delete from predictions where rowid in (
+                        select p.rowid from predictions p inner join events e
+                        on e.unique_event_id = p.unique_event_id
+                        where e.status = '3' and e.registered_date <  date('now', '-2 months')
+                    ) and exported = '1'
+                    """
+                )
+                c.execute(
+                    """
+                    delete from events
+                    where e.status = '3' and e.registered_date <  date('now', '-2 months')
+                    and exported = '1'
+                    """
+                )
+            except Exception as e:
+                if 'locked' in str(e):
+                    bt.logging.warning(
+                        f"Database locked, retry {tried + 1}.."
+                    )
+                    time.sleep(1 + (2 * tried))
 
-        c.execute(
-            """
-            delete from predictions where rowid in (
-                select p.rowid from predictions p inner join events e
-                on e.unique_event_id = p.unique_event_id
-                where e.status = '3' and e.registered_date <  date('now', '-2 months')
-            ) and exported = '1'
-            """
-        )
-        c.execute(
-            """
-            delete from events
-            where e.status = '3' and e.registered_date <  date('now', '-2 months')
-            and exported = '1'
-            """
-        )
-
+                else:
+                    bt.logging.error(e)
+                    bt.logging.error(traceback.format_exc())
+                    break
         conn.commit()
         conn.close()
 
