@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 import bittensor
 
 from infinite_games.events.base import (
-    EventStatus, ProviderEvent, ProviderIntegration
+    EventRemovedException, EventStatus, ProviderEvent, ProviderIntegration
 )
 
 class IFGamesProviderIntegration(ProviderIntegration):
@@ -121,6 +121,8 @@ class IFGamesProviderIntegration(ProviderIntegration):
                             return
                         if resp.status == 429:
                             await self._handle_429(resp)
+                        if resp.status == 410:
+                            raise EventRemovedException()
                         # self.log(f'Retry {url}.. {retried + 1}')
                     else:
 

@@ -22,6 +22,10 @@ CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES = 60 * 4
 CLUSTER_EPOCH_2024 = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0, month=1, day=1)
 
 
+class EventRemovedException(Exception):
+    pass
+
+
 @dataclass
 class Submission:
     """Miner submission data"""
@@ -166,14 +170,13 @@ class EventAggregator:
                     # self.update_event(updated_event_data)
                 else:
                     self.warning(f'Could not update event {event_data}')
-
+            except EventRemovedException:
+                self.remove_event(event_data)
             except Exception as e:
                 bt.logging.error(f'Failed to check event {event_data}')
                 bt.logging.error(e)
                 print(traceback.format_exc())
-            # bt.logging.debug(f'Fetching done {event_id}')
-            # await asyncio.sleep(2)
-  
+
     def log(self, msg):
         bt.logging.info(f'{self.__class__.__name__} {msg}')
 
