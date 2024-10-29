@@ -74,7 +74,7 @@ def mock_network(monkeypatch, test_network, netuid):
     print('Reset neuron path: ', neuron_path)
     try:
         shutil.rmtree(neuron_path)
-        # os.remove('test.db')
+        os.remove('test.db')
     except FileNotFoundError:
         pass
     yield w, s
