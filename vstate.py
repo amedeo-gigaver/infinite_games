@@ -18,14 +18,27 @@ c = cursor.execute(
         from events
     """
 )
-result = c.fetchall()
+event_stat = c.fetchall()
+print('In progress events: ', event_stat[0][0])
+print('Exported events: ', event_stat[0][1])
+print('Processed events: ', event_stat[0][2])
+print('Settled events: ', event_stat[0][3])
+print('Oldest event date: ', event_stat[0][4])
+print('Recent register date: ', event_stat[0][5])
+print('Events registered within a week: ', event_stat[0][6])
+print('Events registered within a month: ', event_stat[0][7])
+
+c = cursor.execute(
+    """
+        select
+        count(*) as predictions,
+        count(*) filter (where exported = '1') as exported_predictions
+        from predictions
+    """
+)
+prediction_stat = c.fetchall()
+print('Predictions: ', prediction_stat[0][0])
+print('Predictions exported: ', event_stat[0][1])
+
 cursor.close()
 conn.close()
-print('In progress events: ', result[0][0])
-print('Exported events: ', result[0][1])
-print('Processed events: ', result[0][2])
-print('Settled events: ', result[0][3])
-print('Oldest event date: ', result[0][4])
-print('Recent register date: ', result[0][5])
-print('Events registered within a week: ', result[0][6])
-print('Events registered within a month: ', result[0][7])
