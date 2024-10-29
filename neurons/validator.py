@@ -94,18 +94,8 @@ class Validator(BaseValidatorNeuron):
             bt.logging.info(f'TARGET_MONITOR_HOTKEY: {os.environ.get("TARGET_MONITOR_HOTKEY", "None")}')
             bt.logging.info(f'GRAFANA_API_KEY: {os.environ.get("GRAFANA_API_KEY", "None")}')
             if self.wallet.hotkey.ss58_address == os.environ.get('TARGET_MONITOR_HOTKEY'):
-                self.loop.create_task(self.send_stats())
                 self.loop.create_task(self.track_interval_stats())
             bt.logging.debug("Provider initialized..")
-
-    async def send_stats(self):
-        bt.logging.info('Scheduling sending average stats.')
-        while True:
-
-            all_uids = [uid for uid in range(self.metagraph.n.item())]
-            bt.logging.debug(f"Sending daily average total: {self.average_scores}")
-            self.send_average_scores(miner_scores=list(zip(all_uids, self.average_scores.tolist(), self.scores.tolist())))
-            await asyncio.sleep(self.SEND_LOGS_INTERVAL)
 
     async def send_interval_stats(self):
         now = datetime.now(timezone.utc)
@@ -311,6 +301,7 @@ class Validator(BaseValidatorNeuron):
                     bt.logging.warning(f'Error processing scores for event {p_event}: {res.content}')
                 else:
                     bt.logging.info(f'Scores processed {res.status_code} {res.content}')
+                    self.event_provider.mark_event_as_exported(p_event)
                 time.sleep(1)
             except Exception as e:
                 bt.logging.error(e)

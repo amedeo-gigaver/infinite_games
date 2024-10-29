@@ -514,6 +514,23 @@ class EventAggregator:
             """
         )
 
+        c.execute(
+            """
+            delete from predictions where rowid in (
+                select p.rowid from predictions p inner join events e
+                on e.unique_event_id = p.unique_event_id
+                where e.status = '3' and e.registered_date <  date('now', '-2 months')
+            ) and exported = '1'
+            """
+        )
+        c.execute(
+            """
+            delete from events
+            where e.status = '3' and e.registered_date <  date('now', '-2 months')
+            and exported = '1'
+            """
+        )
+
         conn.commit()
         conn.close()
 
@@ -652,6 +669,46 @@ class EventAggregator:
         if result and result[0]:
             # bt.logging.debug(result)
             return result[0][1] == result[0][2]
+        return False
+
+    def mark_event_as_exported(self, pe: ProviderEvent) -> bool:
+        """Returns true if new event"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        tries = 4
+        tried = 0
+        while tried < tries:
+            # bt.logging.info(f'Now time: {datetime.now(tz=timezone.utc)}, {pe} ')
+            try:
+                cursor.execute(
+                    """
+                    UPDATE events set exported = true
+                    where unique_event_id = ?
+                    """,
+                    (self.event_key(pe.market_type, event_id=pe.event_id)),
+                )
+                # bt.logging.debug(result)
+                conn.execute("COMMIT")
+                conn.close()
+                return True
+            except Exception as e:
+                if 'locked' in str(e):
+                    bt.logging.warning(
+                        f"Database locked, retry {tried + 1}.."
+                    )
+                    time.sleep(1 + (2 * tried))
+
+                else:
+                    bt.logging.error(e)
+                    bt.logging.error(
+                        (self.event_key(pe.market_type, event_id=pe.event_id), pe.event_id,  pe.market_type, pe.registered_date,  pe.description, pe.starts, pe.resolve_date , pe.answer,pe.registered_date, pe.status, json.dumps(pe.metadata),
+                         pe.answer, pe.status, datetime.now(tz=timezone.utc), processed)
+                    )
+                    bt.logging.error(traceback.format_exc())
+                    break
+            tried += 1
+
+        conn.close()
         return False
 
     def mark_submissions_as_exported(self) -> bool:
