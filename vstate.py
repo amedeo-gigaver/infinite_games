@@ -1,4 +1,6 @@
+import json
 import sqlite3
+import sys
 
 
 conn = sqlite3.connect('validator.db')
@@ -41,6 +43,23 @@ prediction_stat = c.fetchall()
 print('Predictions: ', prediction_stat[0][0])
 print('Predictions exported: ', event_stat[0][1])
 print('Oldest prediction: ', event_stat[0][2])
+
+if 'events' in (''.join(sys.argv)):
+    c = cursor.execute(
+        """
+            select
+            market_type, metadata, unique_event_id, description, registered_date
+            from events where status = '2'
+        """
+    )
+    result = c.fetchall()
+    for market, metadata, event_id, title, reg_date in result:
+        md = json.loads(metadata)
+        sub_market = md.get('market_type', market)
+        if 'events-id' in (''.join(sys.argv)):
+            print(sub_market, event_id)
+        else:
+            print(market, sub_market, event_id, title[:40], reg_date)
 
 cursor.close()
 conn.close()
