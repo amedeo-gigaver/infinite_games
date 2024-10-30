@@ -109,8 +109,8 @@ class TestTemplateValidatorNeuronTestCase:
             sleep(2)
             print('Second run')
             mock_response = fake_synapse_response(v.event_provider.get_events_for_submission())
-            mock_response[3].events['ifgames-dbcba93a-fe3b-4092-b918-8231b23f2faa']['probability'] = 1
-            mock_response[4].events['ifgames-dbcba93a-fe3b-4092-b918-8231b23f2faa']['probability'] = 1
+            mock_response[3].events['acled-dbcba93a-fe3b-4092-b918-8231b23f2faa']['probability'] = 1
+            mock_response[4].events['acled-dbcba93a-fe3b-4092-b918-8231b23f2faa']['probability'] = 1
             monkeypatch.setattr('neurons.validator.query_miners', lambda a, b, c: mock_response)
             self.next_run(v)
         for window in range(1, 42):
@@ -221,8 +221,8 @@ class TestTemplateValidatorNeuronTestCase:
             sleep(2)
             print('Second run')
             mock_response = fake_synapse_response(v.event_provider.get_events_for_submission())
-            mock_response[3].events['ifgames-cbcba93a-fe3b-4092-b918-8231b23f2faa']['probability'] = 1
-            mock_response[4].events['ifgames-cbcba93a-fe3b-4092-b918-8231b23f2faa']['probability'] = 1
+            mock_response[3].events['acled-cbcba93a-fe3b-4092-b918-8231b23f2faa']['probability'] = 1
+            mock_response[4].events['acled-cbcba93a-fe3b-4092-b918-8231b23f2faa']['probability'] = 1
             monkeypatch.setattr('neurons.validator.query_miners', lambda a, b, c: mock_response)
             self.next_run(v)
         for window in range(1, 42):
