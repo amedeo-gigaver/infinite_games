@@ -37,7 +37,7 @@ from neurons.validator import Validator
 from bittensor.mock import wallet_mock
 from bittensor.mock.wallet_mock import MockWallet
 
-from tests.providers import MockAcledProviderIntegration, MockAzuroProviderIntegration, MockPolymarketProviderIntegration
+from tests.providers import MockIFGamesProviderIntegration, MockAzuroProviderIntegration, MockPolymarketProviderIntegration
 from tests.utils import after, before, fake_synapse_response
 
 
@@ -93,7 +93,7 @@ class TestTemplateValidatorNeuronTestCase:
         self, mock_miner_reg_time, mock_network, caplog, monkeypatch
     ):
         wallet, subtensor = mock_network
-        acled_provider = MockAcledProviderIntegration()
+        acled_provider = MockIFGamesProviderIntegration()
         v = Validator(integrations=[
             acled_provider
         ], db_path='test.db')
@@ -109,8 +109,8 @@ class TestTemplateValidatorNeuronTestCase:
             sleep(2)
             print('Second run')
             mock_response = fake_synapse_response(v.event_provider.get_events_for_submission())
-            mock_response[3].events['acled-dbcba93a-fe3b-4092-b918-8231b23f2faa']['probability'] = 1
-            mock_response[4].events['acled-dbcba93a-fe3b-4092-b918-8231b23f2faa']['probability'] = 1
+            mock_response[3].events['ifgames-dbcba93a-fe3b-4092-b918-8231b23f2faa']['probability'] = 1
+            mock_response[4].events['ifgames-dbcba93a-fe3b-4092-b918-8231b23f2faa']['probability'] = 1
             monkeypatch.setattr('neurons.validator.query_miners', lambda a, b, c: mock_response)
             self.next_run(v)
         for window in range(1, 42):
@@ -142,7 +142,7 @@ class TestTemplateValidatorNeuronTestCase:
         v = Validator(integrations=[
             MockAzuroProviderIntegration(max_pending_events=6),
             MockPolymarketProviderIntegration(),
-            MockAcledProviderIntegration()
+            MockIFGamesProviderIntegration()
         ], db_path='test.db')
 
         # await v.forward()
@@ -205,7 +205,7 @@ class TestTemplateValidatorNeuronTestCase:
         self, mock_miner_reg_time, mock_network, caplog, monkeypatch
     ):
         wallet, subtensor = mock_network
-        acled_provider = MockAcledProviderIntegration()
+        acled_provider = MockIFGamesProviderIntegration()
         v = Validator(integrations=[
             acled_provider
         ], db_path='test.db')
@@ -221,8 +221,8 @@ class TestTemplateValidatorNeuronTestCase:
             sleep(2)
             print('Second run')
             mock_response = fake_synapse_response(v.event_provider.get_events_for_submission())
-            mock_response[3].events['acled-cbcba93a-fe3b-4092-b918-8231b23f2faa']['probability'] = 1
-            mock_response[4].events['acled-cbcba93a-fe3b-4092-b918-8231b23f2faa']['probability'] = 1
+            mock_response[3].events['ifgames-cbcba93a-fe3b-4092-b918-8231b23f2faa']['probability'] = 1
+            mock_response[4].events['ifgames-cbcba93a-fe3b-4092-b918-8231b23f2faa']['probability'] = 1
             monkeypatch.setattr('neurons.validator.query_miners', lambda a, b, c: mock_response)
             self.next_run(v)
         for window in range(1, 42):
@@ -366,9 +366,9 @@ class TestTemplateValidatorNeuronTestCase:
         assert round(v.scores[2].item(), 1) == 0.0
         # 0.7, 0.9
         # uid 3 and 4 calculated based on respective  score -> moving average
-        assert (round(v.scores[3].item(), 4), round(v.scores[4].item(), 4)) == (0.0, 0.0)
+        assert (round(v.scores[3].item(), 4), round(v.scores[4].item(), 4)) == (0.3386, 0.4614)
 
-        assert (round(v.average_scores[3].item(), 3), round(v.average_scores[4].item(), 3)) == (0.0, 0.0)
+        assert (round(v.average_scores[3].item(), 3), round(v.average_scores[4].item(), 3)) == (0.423, 0.577)
 
     async def test_validator_settled_event_scores_polymarket_earlier_settle_date(
         self, mock_miner_reg_time, mock_network, caplog, monkeypatch, disable_event_updates
@@ -431,11 +431,9 @@ class TestTemplateValidatorNeuronTestCase:
         assert round(v.scores[2].item(), 1) == 0.0
         # 0.7, 0.9
         # uid 3 and 4 calculated based on respective  score -> moving average
-        assert round(v.scores[3].item(), 4) == 0.0
-        assert round(v.scores[4].item(), 4) == 0.0
+        assert (round(v.scores[3].item(), 4), round(v.scores[4].item(), 4)) == (0.1697, 0.6303)
 
-        assert round(v.average_scores[3].item(), 3) == 0.0
-        assert round(v.average_scores[4].item(), 3) == 0.0
+        assert round(v.average_scores[3].item(), 3), round(v.average_scores[4].item(), 3) == (0.0, 0.0)
 
     async def test_validator_settled_event_scores_azuro(
         self, mock_miner_reg_time, mock_network, caplog, monkeypatch, disable_event_updates
@@ -550,7 +548,7 @@ class TestTemplateValidatorNeuronTestCase:
         v = Validator(integrations=[
             MockAzuroProviderIntegration(max_pending_events=6),
             MockPolymarketProviderIntegration(),
-            MockAcledProviderIntegration()
+            MockIFGamesProviderIntegration()
         ], db_path='test.db')
         # await v.forward()
         print('First run')
