@@ -37,7 +37,7 @@ from neurons.validator import Validator
 from bittensor.mock import wallet_mock
 from bittensor.mock.wallet_mock import MockWallet
 
-from tests.providers import MockIFGamesProviderIntegration, MockAzuroProviderIntegration, MockPolymarketProviderIntegration
+from tests.providers import MockAcledProviderIntegration, MockAzuroProviderIntegration, MockPolymarketProviderIntegration
 from tests.utils import after, before, fake_synapse_response
 
 
@@ -93,7 +93,7 @@ class TestTemplateValidatorNeuronTestCase:
         self, mock_miner_reg_time, mock_network, caplog, monkeypatch
     ):
         wallet, subtensor = mock_network
-        acled_provider = MockIFGamesProviderIntegration()
+        acled_provider = MockAcledProviderIntegration()
         v = Validator(integrations=[
             acled_provider
         ], db_path='test.db')
@@ -142,7 +142,7 @@ class TestTemplateValidatorNeuronTestCase:
         v = Validator(integrations=[
             MockAzuroProviderIntegration(max_pending_events=6),
             MockPolymarketProviderIntegration(),
-            MockIFGamesProviderIntegration()
+            MockAcledProviderIntegration()
         ], db_path='test.db')
 
         # await v.forward()
@@ -205,7 +205,7 @@ class TestTemplateValidatorNeuronTestCase:
         self, mock_miner_reg_time, mock_network, caplog, monkeypatch
     ):
         wallet, subtensor = mock_network
-        acled_provider = MockIFGamesProviderIntegration()
+        acled_provider = MockAcledProviderIntegration()
         v = Validator(integrations=[
             acled_provider
         ], db_path='test.db')
@@ -548,7 +548,7 @@ class TestTemplateValidatorNeuronTestCase:
         v = Validator(integrations=[
             MockAzuroProviderIntegration(max_pending_events=6),
             MockPolymarketProviderIntegration(),
-            MockIFGamesProviderIntegration()
+            MockAcledProviderIntegration()
         ], db_path='test.db')
         # await v.forward()
         print('First run')
