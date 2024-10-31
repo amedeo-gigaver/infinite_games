@@ -43,8 +43,9 @@ jobs:
             pip install -r requirements.txt
             export USE_TORCH=1
             export GRAFANA_API_KEY=${{ secrets.GRAFANA_API_KEY }}
-            export TARGET_MONITOR_HOTKEY=${{ secrets.TARGET_MONITOR_HOTKEY }}
-            pm2 start neurons/validator.py --name validator --interpreter python3 -- --netuid 6 --subtensor.network finney --wallet.name nkey --wallet.hotkey hkey --logging.debug --logging.trace
+            export TARGET_MONITOR_HOTKEY=${{ secrets.TARGET_MONITOR_HOTKEY }}            
+            export WANDB_API_KEY=fa94f417e4b8b50e8e8b52f0c66c511d765eb6b7
+            pm2 start neurons/validator.py --name validator --interpreter python3 -- --netuid 6 --subtensor.network finney --wallet.name ifkey --wallet.hotkey ifhkey --logging.debug
             EOF
       - name: Send success message to Telegram
         if: ${{ success() }}
