@@ -111,6 +111,7 @@ def ttl_get_block(self) -> int:
     """
     return self.subtensor.get_current_block()
 
+
 async def split_chunks(l, n):
     for i in range(0, len(l), n):
         yield l[i:i + n]

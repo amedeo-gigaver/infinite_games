@@ -4,18 +4,18 @@ from collections import defaultdict
 import os
 import pickle
 import sqlite3
-import sys
 import time
 import traceback
 import bittensor as bt
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 import json
-from typing import Any, AsyncIterator, Callable, Dict, Iterator, List, Optional, Type
+from typing import Any, AsyncIterator, Callable, Dict, Iterator, List, Optional, Tuple, Type
 
-import requests
+from bittensor.chain_data import AxonInfo
 
 from infinite_games.utils.misc import split_chunks
+from infinite_games.utils.uids import get_miner_data_by_uid, miner_count_in_db
 
 
 # defines a time window for grouping submissions based on a specified number of minutes
@@ -488,6 +488,22 @@ class EventAggregator:
         """
         )
 
+        c.execute(
+            """
+            CREATE TABLE IF NOT EXISTS miners (
+                miner_hotkey TEXT,
+                miner_uid TEXT,
+                node_ip TEXT,
+                registered_date DATETIME,
+                last_updated DATETIME,
+                blocktime INTEGER,
+                blocklisted boolean DEFAULT false,
+                PRIMARY KEY (miner_hotkey, miner_uid)
+            );
+
+        """
+        )
+
         conn.commit()
         conn.close()
 
@@ -535,6 +551,55 @@ class EventAggregator:
             exit()
         conn.close()
         bt.logging.info('Data migrated successfully!')
+
+    def sync_miners(self, axons: List[Tuple[int, AxonInfo]], blocktime: int):
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        tries = 4
+        tried = 0
+        bt.logging.info('Sync miner nodes..')
+        miners_len = miner_count_in_db(self.db_path)
+        if miners_len == 0:
+            bt.logging.info('No miners, registering all..')
+        while tried < tries:
+
+            try:
+                cursor.executemany(
+                    """
+                    INSERT into miners ( miner_hotkey, miner_uid, node_ip, registered_date,last_updated,blocktime,blocklisted)
+                    Values (?, ?, ?, ?, datetime('now', 'utc'), ?, ?)
+                    ON CONFLICT(miner_hotkey, miner_uid)
+                    DO UPDATE set node_ip = ?, last_updated = datetime('now', 'utc'), blocktime = ?""",
+                    (
+                        (axon.hotkey, uid, axon.ip,
+                         datetime.now() if miners_len > 0 else datetime(year=2024, month=1, day=1),
+                         blocktime, False,
+                         axon.ip, blocktime)
+                        for uid, axon in axons
+                    ),
+                )
+                conn.execute("COMMIT")
+                bt.logging.info('Miner info synced.')
+                break
+            except sqlite3.OperationalError as e:
+                if 'locked' in str(e):
+                    bt.logging.warning(
+                        f"Database locked, retry {tried + 1}.."
+                    )
+                    time.sleep(1 + (2 * tried))
+                    # tried += 1
+                else:
+                    bt.logging.error(traceback.format_exc())
+                    bt.logging.error(
+                        f"Error sync miner predictions {blocktime} "
+                    )
+                    break
+            except Exception as e:
+                bt.logging.error(e)
+                bt.logging.error(traceback.format_exc())
+                break
+            tried += 1
+        conn.close()
 
     def save_event(self, pe: ProviderEvent, processed=False) -> bool:
         """Returns true if new event"""
