@@ -183,7 +183,7 @@ class Validator(BaseValidatorNeuron):
             bt.logging.info(f'{integration.__class__.__name__} {first_n_intervals=} intervals: {pe.registered_date=} {effective_finish_start_minutes=} {pe.resolve_date=} {cutoff=}  total={total_intervals}')
             scores = []
             for uid in miner_uids:
-                miner_data = get_miner_data_by_uid(self, int(uid))
+                miner_data = get_miner_data_by_uid(self.db_path, int(uid))
                 miner_reg_time = datetime.fromisoformat(miner_data['registered_date']).replace(tzinfo=timezone.utc)
                 bt.logging.info(f'miner {uid=} reg time: {miner_reg_time}')
                 prediction_intervals = predictions.get(uid.item())

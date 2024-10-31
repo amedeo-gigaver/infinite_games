@@ -15,6 +15,7 @@ from typing import Any, AsyncIterator, Callable, Dict, Iterator, List, Optional,
 from bittensor.chain_data import AxonInfo
 
 from infinite_games.utils.misc import split_chunks
+from infinite_games.utils.uids import get_miner_data_by_uid, miner_count_in_db
 
 
 # defines a time window for grouping submissions based on a specified number of minutes
@@ -557,17 +558,22 @@ class EventAggregator:
         tries = 4
         tried = 0
         bt.logging.info('Sync miner nodes..')
+        miners_len = miner_count_in_db(self.db_path)
+        if miners_len == 0:
+            bt.logging.info('No miners, registering all..')
         while tried < tries:
 
             try:
                 cursor.executemany(
                     """
                     INSERT into miners ( miner_hotkey, miner_uid, node_ip, registered_date,last_updated,blocktime,blocklisted)
-                    Values (?, ?, ?, datetime('now', 'utc'), datetime('now', 'utc'), ?, ?)
+                    Values (?, ?, ?, ?, datetime('now', 'utc'), ?, ?)
                     ON CONFLICT(miner_hotkey, miner_uid)
                     DO UPDATE set node_ip = ?, last_updated = datetime('now', 'utc'), blocktime = ?""",
                     (
-                        (axon.hotkey, uid, axon.ip, blocktime, False,
+                        (axon.hotkey, uid, axon.ip,
+                         datetime.now() if miners_len > 0 else datetime(year=2024, month=1, day=1),
+                         blocktime, False,
                          axon.ip, blocktime)
                         for uid, axon in axons
                     ),
