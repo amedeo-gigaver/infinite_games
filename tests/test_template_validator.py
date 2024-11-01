@@ -93,9 +93,9 @@ class TestTemplateValidatorNeuronTestCase:
         self, mock_miner_reg_time, mock_network, caplog, monkeypatch
     ):
         wallet, subtensor = mock_network
-        acled_provider = MockIFGamesProviderIntegration()
+        iggames_provider = MockIFGamesProviderIntegration()
         v = Validator(integrations=[
-            acled_provider
+            iggames_provider
         ], db_path='test.db')
 
         # await v.forward()
@@ -123,7 +123,7 @@ class TestTemplateValidatorNeuronTestCase:
         settle_date = initial_date + timedelta(days=7)
         with freeze_time(settle_date):
 
-            test_event = await acled_provider.get_single_event('dbcba93a-fe3b-4092-b918-8231b23f2faa')
+            test_event = await iggames_provider.get_single_event('dbcba93a-fe3b-4092-b918-8231b23f2faa')
 
             test_event.status = EventStatus.SETTLED
             test_event.answer = 1
@@ -205,9 +205,9 @@ class TestTemplateValidatorNeuronTestCase:
         self, mock_miner_reg_time, mock_network, caplog, monkeypatch
     ):
         wallet, subtensor = mock_network
-        acled_provider = MockIFGamesProviderIntegration()
+        iggames_provider = MockIFGamesProviderIntegration()
         v = Validator(integrations=[
-            acled_provider
+            iggames_provider
         ], db_path='test.db')
 
         # await v.forward()
@@ -235,7 +235,7 @@ class TestTemplateValidatorNeuronTestCase:
         settle_date = initial_date + timedelta(days=7)
         with freeze_time(settle_date):
 
-            test_event = await acled_provider.get_single_event('cbcba93a-fe3b-4092-b918-8231b23f2faa')
+            test_event = await iggames_provider.get_single_event('cbcba93a-fe3b-4092-b918-8231b23f2faa')
 
             test_event.status = EventStatus.SETTLED
             test_event.answer = 1
