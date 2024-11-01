@@ -141,15 +141,22 @@ class IFGamesProviderIntegration(ProviderIntegration):
 
     async def sync_events(self, start_from: int = None) -> AsyncIterator[ProviderEvent]:
         self.log(f"syncing events {start_from=} ")
-        resp = await self._request(self.base_url + '/api/v1/events')
-
-        if resp:
-            for event in resp["items"]:
-                pe = self.construct_provider_event(event['event_id'], event)
-                if not pe:
-                    continue
-                if not self.available_for_submission(pe):
-                    continue
-                yield pe
-        else:
+        # resp = await self._request(self.base_url + f'/api/v1/events?limit=200&from_date={start_from}')
+        if start_from is None:
+            start_from = 1
+        while start_from is not None:
+            await asyncio.sleep(2)
+            self.log(f'Sync events after {start_from}..')
+            resp = await self._request(self.base_url + f'/api/v1/events?limit=200&from_date={start_from}')
+            if resp:
+                event = {}
+                for event in resp["items"]:
+                    pe = self.construct_provider_event(event['event_id'], event)
+                    if not pe:
+                        continue
+                    if not self.available_for_submission(pe):
+                        continue
+                    yield pe
+                start_from = event.get('start_date')
+            else:
                 return
