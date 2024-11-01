@@ -6,6 +6,8 @@ Your validator will be sending binary outcomes events to miners. In the first ph
 
 The main computational prerequisite is related to storage. Validators are now storing the entire time-series of a miner's predictions for a given event, cf. the [scoring doc](https://hackmd.io/@nielsma/S1sB8xO_C). 
 
+There are two auto-update scripts in the repo: [auto_update](/auto_update.sh) and [update_script](/update_script.py).
+
 **IMPORTANT**
 
 Before attempting to register on mainnet, we strongly recommend that you run a validator on the testnet. For that matter ensure you add the appropriate testnet flag `--subtensor.network test`.

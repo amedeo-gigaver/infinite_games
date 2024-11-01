@@ -173,7 +173,7 @@ class Validator(BaseValidatorNeuron):
             scores = []
             market_type = pe.metadata.get('market_type', pe.market_type)
             for uid in miner_uids:
-                miner_data = get_miner_data_by_uid(self, int(uid))
+                miner_data = get_miner_data_by_uid(self.db_path, int(uid))
                 miner_reg_time = datetime.fromisoformat(miner_data['registered_date']).replace(tzinfo=timezone.utc)
                 bt.logging.info(f'miner {uid=} reg time: {miner_reg_time}')
                 prediction_intervals = predictions.get(uid.item())

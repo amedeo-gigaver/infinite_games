@@ -95,8 +95,8 @@ def get_all_uids(
     return uids
 
 
-def get_miner_data_by_uid(validator, uid: int):
-    conn = sqlite3.connect(validator.db_path)
+def get_miner_data_by_uid(db_path, uid: int):
+    conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     result = None
@@ -112,6 +112,25 @@ def get_miner_data_by_uid(validator, uid: int):
             (uid,)
         )
         result: sqlite3.Row = c.fetchone()
+    except Exception as e:
+        bt.logging.error(e)
+        bt.logging.error(traceback.format_exc())
+    conn.close()
+    return result
+
+
+def miner_count_in_db(db_path) -> int:
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    result = None
+    try:
+        c = cursor.execute(
+            """
+            select count(*)
+            from miners
+            """
+        )
+        result: int = c.fetchone()[0]
     except Exception as e:
         bt.logging.error(e)
         bt.logging.error(traceback.format_exc())
