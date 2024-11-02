@@ -150,4 +150,5 @@ class AcledProviderIntegration(ProviderIntegration):
                     continue
                 yield pe
         else:
+
                 return
