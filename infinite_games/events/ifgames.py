@@ -144,6 +144,7 @@ class IFGamesProviderIntegration(ProviderIntegration):
         # resp = await self._request(self.base_url + f'/api/v1/events?limit=200&from_date={start_from}')
         if start_from is None:
             start_from = 1
+            
         while start_from is not None:
             await asyncio.sleep(1.5)
             self.log(f'Sync events after {start_from}..')
