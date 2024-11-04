@@ -158,6 +158,6 @@ class IFGamesProviderIntegration(ProviderIntegration):
                     if not self.available_for_submission(pe):
                         continue
                     yield pe
-                start_from = event.get('start_date')
+                start_from = event.get('created_at')
             else:
                 return
