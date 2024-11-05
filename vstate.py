@@ -75,7 +75,7 @@ if 'events-predictions' in (''.join(sys.argv)):
     for market, metadata, event_id, title, reg_date, preds in result:
         md = json.loads(metadata)
         sub_market = md.get('market_type', market)
-        print(market, sub_market, event_id, title[:40], reg_date, preds)
+        print(market, sub_market, event_id, title[:40], reg_date, ' predictions: ', preds)
 
 
 cursor.close()
