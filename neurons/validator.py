@@ -398,8 +398,8 @@ if __name__ == "__main__":
     #     exit(1)
 
     v = Validator(integrations=[
-            AzuroProviderIntegration(),
-            PolymarketProviderIntegration(),
+            # AzuroProviderIntegration(),
+            # PolymarketProviderIntegration(),
             IFGamesProviderIntegration()
         ])
     v.run_in_background_thread()
