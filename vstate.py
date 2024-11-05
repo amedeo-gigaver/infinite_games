@@ -61,5 +61,22 @@ if 'events' in (''.join(sys.argv)):
         else:
             print(market, sub_market, event_id, title[:40], reg_date)
 
+if 'events-predictions' in (''.join(sys.argv)):
+    c = cursor.execute(
+        """
+            select
+            market_type, metadata, unique_event_id, description, registered_date, count(*) as predictions
+            from events predictions p inner join events e
+                        on e.unique_event_id = p.unique_event_id where status = '2'
+            group by unique_event_id, market_type, metadata, description, registered_date
+        """
+    )
+    result = c.fetchall()
+    for market, metadata, event_id, title, reg_date, preds in result:
+        md = json.loads(metadata)
+        sub_market = md.get('market_type', market)
+        print(market, sub_market, event_id, title[:40], reg_date, preds)
+
+
 cursor.close()
 conn.close()

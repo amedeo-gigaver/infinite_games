@@ -510,33 +510,33 @@ class EventAggregator:
         bt.logging.info('Sync miner nodes..')
         while tried < tries:
             try:
-                # c.execute(
-                #     """
-                #     update events set market_type = 'ifgames', unique_event_id = replace(unique_event_id, 'acled-', 'ifgames-') where market_type in ('acled')
-                #     """
-                # )
-                # c.execute(
-                #     """
-                #     update events set market_type = 'ifgames', unique_event_id = replace(unique_event_id, 'polymarket-', 'ifgames-') where market_type in ('polymarket')
-                #     """
-                # )
+                c.execute(
+                    """
+                    update events set market_type = 'ifgames', unique_event_id = replace(unique_event_id, 'acled-', 'ifgames-') where market_type in ('acled')
+                    """
+                )
+                c.execute(
+                    """
+                    update events set market_type = 'ifgames', unique_event_id = replace(unique_event_id, 'polymarket-', 'ifgames-') where market_type in ('polymarket')
+                    """
+                )
 
-                # c.execute(
-                #     """
-                #     update predictions set unique_event_id = replace(unique_event_id, 'acled-', 'ifgames-') where unique_event_id like 'acled-%'
-                #     """
-                # )
-                # c.execute(
-                #     """
-                #     update predictions set unique_event_id = replace(unique_event_id, 'azuro-', 'ifgames-') where unique_event_id like 'azuro-%'
-                #     """
-                # )
+                c.execute(
+                    """
+                    update predictions set unique_event_id = replace(unique_event_id, 'acled-', 'ifgames-') where unique_event_id like 'acled-%'
+                    """
+                )
+                c.execute(
+                    """
+                    update predictions set unique_event_id = replace(unique_event_id, 'azuro-', 'ifgames-') where unique_event_id like 'azuro-%'
+                    """
+                )
 
-                # c.execute(
-                #     """
-                #     update predictions set unique_event_id = replace(unique_event_id, 'polymarket-', 'ifgames-') where unique_event_id like 'polymarket-%'
-                #     """
-                # )
+                c.execute(
+                    """
+                    update predictions set unique_event_id = replace(unique_event_id, 'polymarket-', 'ifgames-') where unique_event_id like 'polymarket-%'
+                    """
+                )
 
                 c.execute(
                     """
