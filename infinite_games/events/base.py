@@ -687,11 +687,11 @@ class EventAggregator:
                     INSERT into events ( unique_event_id, event_id, market_type, registered_date, description,starts, resolve_date, outcome,local_updated_at,status, metadata)
                     Values (?, ?, ?, ?, ?, ?, ?, ?, ?, ? , ?)
                     ON CONFLICT(unique_event_id)
-                    DO UPDATE set outcome = ?, status = ?, local_updated_at = ?, processed = ?
+                    DO UPDATE set outcome = ?, status = ?, local_updated_at = ?, processed = ?, metadata = ?, description = ?
                     RETURNING unique_event_id, registered_date, local_updated_at
                     """,
                     (self.event_key(pe.market_type, event_id=pe.event_id), pe.event_id,  pe.market_type, pe.registered_date,  pe.description, pe.starts, pe.resolve_date , pe.answer,pe.registered_date, pe.status, json.dumps(pe.metadata),
-                    pe.answer, pe.status, datetime.now(tz=timezone.utc), processed),
+                    pe.answer, pe.status, datetime.now(tz=timezone.utc), processed, pe.metadata, pe.description),
                 )
                 result = c.fetchall()
                 # bt.logging.debug(result)
