@@ -58,7 +58,7 @@ class IFGamesProviderIntegration(ProviderIntegration):
             event_id,
             datetime.now(timezone.utc),
             self.provider_name(),
-            event.get('title') + event.get('description'),
+            event.get('title', '') + event.get('description', ''),
             start_date,
             None,  # end_date,
             self._get_answer(event),
