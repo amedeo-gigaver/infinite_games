@@ -52,8 +52,8 @@ class IFGamesProviderIntegration(ProviderIntegration):
         start_date = datetime.fromtimestamp(start_date, tz=timezone.utc)
         cutoff = event.get('cutoff')
         cutoff = datetime.fromtimestamp(cutoff, tz=timezone.utc)
-        if event.get('market_type').lower() in ('polymarket', 'azuro'):
-            return
+        # if event.get('market_type').lower() in ('polymarket', 'azuro'):
+        #     return
         return ProviderEvent(
             event_id,
             datetime.now(timezone.utc),
