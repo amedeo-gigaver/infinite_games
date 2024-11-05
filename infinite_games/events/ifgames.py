@@ -153,7 +153,7 @@ class IFGamesProviderIntegration(ProviderIntegration):
         while start_from is not None:
             await asyncio.sleep(1.5)
             self.log(f'Sync events after {start_from}..')
-            resp = await self._request(self.base_url + f'/api/v1/events?limit=100&from_date={start_from}')
+            resp = await self._request(self.base_url + f'/api/v1/events?limit=250&from_date={start_from}')
             if resp:
                 event = {}
                 for event in resp["items"]:
