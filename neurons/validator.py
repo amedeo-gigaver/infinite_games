@@ -237,8 +237,9 @@ class Validator(BaseValidatorNeuron):
                     bt.logging.info(f'final avg answer for intervals={len(range(start_interval_start_minutes, effective_finish_start_minutes, CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES))} {uid=} {final_avg_score=}')
 
                     scores.append(final_avg_score)
+            brier_scores = torch.FloatTensor(scores)
+            bt.logging.info(f'scores {torch.round(brier_scores, decimals=3)}')
             scores = torch.FloatTensor(scores)
-            bt.logging.info(f'scores {torch.round(scores, decimals=3)}')
             if all(score.item() <= 0.0 for score in scores):
                 # bt.logging.info('All effective scores zero for this event!')
                 pass
@@ -251,7 +252,7 @@ class Validator(BaseValidatorNeuron):
             scores = torch.nn.functional.normalize(scores, p=1, dim=0)
             bt.logging.info(f'Normalized {torch.round(scores, decimals=3)}')
             self.update_scores(scores, miner_uids)
-            self.export_scores(p_event=pe, miner_score_data=zip(miner_uids, scores, scores))
+            self.export_scores(p_event=pe, miner_score_data=zip(miner_uids, brier_score, scores))
             return True
         elif pe.status == EventStatus.DISCARDED:
             bt.logging.info(f'Canceled event: {pe} removing from registry!')
