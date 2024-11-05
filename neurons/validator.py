@@ -342,7 +342,7 @@ class Validator(BaseValidatorNeuron):
                 score = event_data.get('probability')
                 provider_event = self.event_provider.get_registered_event(unique_event_id)
                 if not provider_event:
-                    bt.logging.trace(f'Miner submission for non registered event detected  {uid=} {provider_name=} {market_event_id=}')
+                    bt.logging.trace(f'Miner submission for non registered event detected  {uid=} {unique_event_id=}')
                     continue
                 if score is None:
                     bt.logging.trace(f'uid: {uid.item()} no prediction for {unique_event_id} sent, skip..')
