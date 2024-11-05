@@ -95,7 +95,7 @@ class IFGamesProviderIntegration(ProviderIntegration):
         return
 
     async def get_event_by_id(self, event_id) -> Optional[dict]:
-        return await self._request(self.base_url + '/api/events/{}'.format(event_id))
+        return await self._request(self.base_url + '/api/v1/events/{}'.format(event_id))
 
     async def get_single_event(self, event_id) -> Optional[ProviderEvent]:
         payload: Optional[dict] = await self.get_event_by_id(event_id)

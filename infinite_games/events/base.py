@@ -697,7 +697,7 @@ class EventAggregator:
         return False
 
     def mark_event_as_exported(self, pe: ProviderEvent) -> bool:
-        """Returns true if new event"""
+        """Returns true if exported successfully"""
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         tries = 4
@@ -737,7 +737,7 @@ class EventAggregator:
         return False
 
     def mark_submissions_as_exported(self) -> bool:
-        """Returns true if new event"""
+        """Returns true if submitted successfully"""
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         tries = 4
