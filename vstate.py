@@ -65,10 +65,10 @@ if 'events-predictions' in (''.join(sys.argv)):
     c = cursor.execute(
         """
             select
-            market_type, metadata, unique_event_id, description, registered_date, count(*) as preds
+            e.market_type, e.metadata,e.unique_event_id, e.description, e.registered_date, count(*) as preds
             from predictions p inner join events e
                         on e.unique_event_id = p.unique_event_id where status = '2'
-            group by unique_event_id, market_type, metadata, description, registered_date
+            group by e.unique_event_id, e.market_type, e.metadata, e.description, e.registered_date
         """
     )
     result = c.fetchall()
