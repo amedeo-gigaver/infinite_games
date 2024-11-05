@@ -3,7 +3,7 @@ import sqlite3
 import sys
 
 
-conn = sqlite3.connect('validator.db')
+conn = sqlite3.connect('test.db')
 
 cursor = conn.cursor()
 c = cursor.execute(
@@ -57,7 +57,7 @@ if 'events' in (''.join(sys.argv)):
         md = json.loads(metadata)
         sub_market = md.get('market_type', market)
         if 'events-id' in (''.join(sys.argv)):
-            print(sub_market, event_id)
+            print(event_id)
         else:
             print(market, sub_market, event_id, title[:40], reg_date)
 
