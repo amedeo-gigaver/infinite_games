@@ -330,7 +330,7 @@ class EventAggregator:
                     """,
                     (f'{pe.market_type}-{pe.event_id}',)
                 )
-                bt.logging.info('Removed event {pe}..')
+                bt.logging.info(f'Removed event {pe}..')
                 conn.commit()
                 return True
             except Exception as e:
