@@ -3,7 +3,7 @@ import sqlite3
 import sys
 
 
-conn = sqlite3.connect('test.db')
+conn = sqlite3.connect('validator.db')
 
 cursor = conn.cursor()
 c = cursor.execute(
