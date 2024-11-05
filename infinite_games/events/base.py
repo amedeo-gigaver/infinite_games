@@ -530,19 +530,19 @@ class EventAggregator:
                 # before we rename submissions to ifgames, we have to make sure that
                 # we donot have ifgames version of this event already from backend.
                 # remove any old submission for same window
-                # c.execute(
-                #     """   
-                #     delete from submissions
-                #     where rowid not in (
-                #         select
-                #         min(rowid)
-                #         from predictions
-                #         where submitted >  date('now', '-2 weeks')
-                #         group by substr(unique_event_id, instr(unique_event_id, '-') + 1), interval_start_minutes, minerUid
-                #         having count (*) > 1
-                #     )
-                #     """
-                # )
+                c.execute(
+                    """   
+                    delete from submissions
+                    where rowid not in (
+                        select
+                        min(rowid)
+                        from predictions
+                        where submitted >  date('now', '-2 weeks')
+                        group by substr(unique_event_id, instr(unique_event_id, '-') + 1), interval_start_minutes, minerUid
+                        having count (*) > 1
+                    )
+                    """
+                )
 
                 c.execute(
                     """
