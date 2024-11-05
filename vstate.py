@@ -61,7 +61,7 @@ if 'events' in (''.join(sys.argv)):
         else:
             print(market, sub_market, event_id, title[:40], reg_date)
 
-if 'events-predictions' in (''.join(sys.argv)):
+if 'predictions-set' in (''.join(sys.argv)):
     c = cursor.execute(
         """
             select
