@@ -164,6 +164,6 @@ class IFGamesProviderIntegration(ProviderIntegration):
                     if not self.available_for_submission(pe):
                         continue
                     yield pe
-                start_from = event.get('created_at')
+                start_from = event.get('created_at') if resp['count'] == 250 else None
             else:
                 return
