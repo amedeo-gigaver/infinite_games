@@ -112,7 +112,7 @@ class Validator(BaseValidatorNeuron):
             if metadata:
                 md = json.loads(metadata)
                 market_type = md.get('market_type', market_type)
-            metrics.append([uid, unique_event_id, market_type, interval_minutes, agg_prediction or -99, count ])
+            metrics.append([uid, unique_event_id, market_type, interval_minutes, agg_prediction, count ])
         if not metrics:
             bt.logging.info('no new submission to send skip..')
 
@@ -367,6 +367,8 @@ class Validator(BaseValidatorNeuron):
             while block_start == self.block:
                 bt.logging.debug(f"FORWARD INTERVAL: {float(os.environ.get('VALIDATOR_FORWARD_INTERVAL_SEC', '10'))}")
                 await asyncio.sleep(float(os.environ.get('VALIDATOR_FORWARD_INTERVAL_SEC', '10')))
+        # else:
+            # await asyncio.sleep(float(os.environ.get('VALIDATOR_FORWARD_INTERVAL_SEC', '10')))
 
     def save_state(self):
         super().save_state()

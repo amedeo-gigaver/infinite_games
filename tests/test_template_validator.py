@@ -43,9 +43,8 @@ from tests.utils import after, before, fake_synapse_response
 
 class TestTemplateValidatorNeuronTestCase:
 
-    def next_run(self, v: Validator):
+    async def next_run(self, v: Validator):
         """Imitate Validator.run with 1 step"""
-        # v.sync(False)
 
         bt.logging.info(
             f"Running validator {v.axon} on network: {v.config.subtensor.chain_endpoint} with netuid: {v.config.netuid}"
@@ -53,14 +52,9 @@ class TestTemplateValidatorNeuronTestCase:
 
         bt.logging.info(f"Validator starting at block: {v.block}")
 
-        # This loop maintains the validator's operations until intentionally stopped.
         bt.logging.info(f"step({v.step}) block({v.block})")
 
-        # Run multiple forwards concurrently.
-        v.loop.run_until_complete(v.concurrent_forward())
-
-        # Check if we should exit.
-
+        await v.forward()
         # Sync metagraph and potentially set weights.
         v.sync()
 
@@ -101,8 +95,8 @@ class TestTemplateValidatorNeuronTestCase:
         # await v.forward()
         print('First run')
         initial_date = datetime(year=2024, month=1, day=3)
-        with freeze_time(initial_date):
-            self.next_run(v)
+        with freeze_time(initial_date, tick=True):
+            await self.next_run(v)
             # await restarted_vali.initialize_provider()
             # sleep(4)
             # v.stop_run_thread()
@@ -117,7 +111,7 @@ class TestTemplateValidatorNeuronTestCase:
 
             window_time = initial_date + timedelta(minutes=CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES * window)
             with freeze_time(window_time):
-                self.next_run(v)
+                await self.next_run(v)
 
         # based on providers.py hardcode values
         settle_date = initial_date + timedelta(days=7)
@@ -129,7 +123,7 @@ class TestTemplateValidatorNeuronTestCase:
             test_event.answer = 1
             v.event_provider.register_or_update_event(test_event)
 
-            self.next_run(v)
+            await self.next_run(v)
 
         assert (round(v.scores[3].item(), 4), round(v.scores[4].item(), 4)) == (0.4, 0.4)
 
