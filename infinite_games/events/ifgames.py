@@ -3,7 +3,7 @@ import sys
 from typing import AsyncIterator, Optional
 import aiohttp
 import asyncio
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import bittensor
 
 from infinite_games.events.base import (
@@ -26,8 +26,10 @@ class IFGamesProviderIntegration(ProviderIntegration):
         return 'ifgames'
 
     def latest_submit_date(self, pe: ProviderEvent):
-        cutoff = pe.metadata.get('cutoff')
-        cutoff = datetime.fromtimestamp(cutoff, tz=timezone.utc)
+        cutoff = pe.metadata.get('cutoff') or pe.resolve_date or pe.starts
+        self.log(f"{pe}, {pe.metadata}")
+        if isinstance(cutoff, int):
+            cutoff = datetime.fromtimestamp(cutoff, tz=timezone.utc)
         return cutoff
 
     def available_for_submission(self, pe: ProviderEvent):
