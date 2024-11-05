@@ -507,7 +507,7 @@ class EventAggregator:
         )
         tries = 4
         tried = 0
-        bt.logging.info('Sync miner nodes..')
+        bt.logging.info('Migrate providers to ifgames..')
         while tried < tries:
             try:
                 c.execute(
