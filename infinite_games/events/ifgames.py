@@ -123,6 +123,10 @@ class IFGamesProviderIntegration(ProviderIntegration):
                             await self._handle_429(resp)
                         if resp.status == 410:
                             raise EventRemovedException()
+                        if resp.status == 404:
+                            if self.is_test:
+                                self.log(f'[TEST] Removing not found event from {url}')
+                                raise EventRemovedException()
                         # self.log(f'Retry {url}.. {retried + 1}')
                     else:
 
