@@ -132,6 +132,8 @@ class IFGamesProviderIntegration(ProviderIntegration):
 
                         payload = await resp.json()
                         return payload
+            except EventRemovedException as e:
+                raise e
             except Exception as e:
                 error_response = str(e)
                 if retried >= max_retries:
