@@ -691,7 +691,7 @@ class EventAggregator:
                     RETURNING unique_event_id, registered_date, local_updated_at
                     """,
                     (self.event_key(pe.market_type, event_id=pe.event_id), pe.event_id,  pe.market_type, pe.registered_date,  pe.description, pe.starts, pe.resolve_date , pe.answer,pe.registered_date, pe.status, json.dumps(pe.metadata),
-                    pe.answer, pe.status, datetime.now(tz=timezone.utc), processed, pe.metadata, pe.description),
+                    pe.answer, pe.status, datetime.now(tz=timezone.utc), processed, json.dumps(pe.metadata), pe.description),
                 )
                 result = c.fetchall()
                 # bt.logging.debug(result)
