@@ -27,7 +27,6 @@ class IFGamesProviderIntegration(ProviderIntegration):
 
     def latest_submit_date(self, pe: ProviderEvent):
         cutoff = pe.metadata.get('cutoff') or pe.resolve_date or pe.starts
-        self.log(f"{pe}, {pe.metadata}")
         if isinstance(cutoff, int):
             cutoff = datetime.fromtimestamp(cutoff, tz=timezone.utc)
         return cutoff
