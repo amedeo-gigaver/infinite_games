@@ -519,42 +519,42 @@ class EventAggregator:
                 # if len(result.fetchall()) > 0:
                 #     print('Already migrated to ifgames skip...')
                 #     break
-                # c.execute(
-                #     """
-                #     delete events where market_type='azuro' and status in (2, 3) and processed = false
-                #     """
-                # )
-                # result = c.execute(
-                #     """
-                #     select unique_event_id from events where status in (2, 3) and processed = false
-                #     """
-                # )
+                c.execute(
+                    """
+                    delete events where market_type='azuro' and status in (2, 3) and processed = false
+                    """
+                )
+                result = c.execute(
+                    """
+                    select unique_event_id from events where status in (2, 3) and processed = false
+                    """
+                )
 
-                # unique_event_ids = [event_id[0] for event_id in result.fetchall()]
+                unique_event_ids = [event_id[0] for event_id in result.fetchall()]
 
-                # c.execute(
-                #     """
-                #     update events set market_type = 'ifgames', unique_event_id = 'ifgames-' || substring(unique_event_id, INSTR(unique_event_id, '-') +  1)
-                #     """
-                # )
-                # print('Migrated pending/non-processed events: ', len(unique_event_ids))
+                c.execute(
+                    """
+                    update events set market_type = 'ifgames', unique_event_id = 'ifgames-' || substring(unique_event_id, INSTR(unique_event_id, '-') +  1)
+                    """
+                )
+                print('Migrated pending/non-processed events: ', len(unique_event_ids))
 
-                # count_result = c.execute(
-                #     """
-                #     select count(*) from predictions
-                #     where unique_event_id in ({subs})
-                #     """.format(subs=','.join('?'*len(unique_event_ids))), unique_event_ids
-                # )
-                # print('Total predictions to migrate: ', count_result.fetchall()[0][0])
-                # now = time.perf_counter()
-                # c.execute(
-                #     """
-                #     update predictions set unique_event_id = 'ifgames-' || substring(unique_event_id, INSTR(unique_event_id, '-') +  1)
-                #     where unique_event_id in ({subs})
-                #     """.format(subs=','.join('?'*len(unique_event_ids))), unique_event_ids
-                # )
-                # after_now = time.perf_counter()
-                # print('Predictions migrated. Took: ', after_now - now, ' seconds')
+                count_result = c.execute(
+                    """
+                    select count(*) from predictions
+                    where unique_event_id in ({subs})
+                    """.format(subs=','.join('?'*len(unique_event_ids))), unique_event_ids
+                )
+                print('Total predictions to migrate: ', count_result.fetchall()[0][0])
+                now = time.perf_counter()
+                c.execute(
+                    """
+                    update predictions set unique_event_id = 'ifgames-' || substring(unique_event_id, INSTR(unique_event_id, '-') +  1)
+                    where unique_event_id in ({subs})
+                    """.format(subs=','.join('?'*len(unique_event_ids))), unique_event_ids
+                )
+                after_now = time.perf_counter()
+                print('Predictions migrated. Took: ', after_now - now, ' seconds')
 
                 # c.execute(
                 #     """
@@ -588,7 +588,10 @@ class EventAggregator:
                 else:
                     bt.logging.error(e)
                     bt.logging.error(traceback.format_exc())
+                    self.error('We cannot proceed because of the migration issues.')
+                    exit(1)
                     break
+                    
             tried += 1
 
         conn.commit()
