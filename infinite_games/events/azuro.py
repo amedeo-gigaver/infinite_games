@@ -202,7 +202,7 @@ class AzuroProviderIntegration(ProviderIntegration):
         MAX_DAILY_EVENTS = 20
         now = datetime.now(tz=timezone.utc)
 
-        if not (now.hour > 0 and now.hour < 24):
+        if not (now.hour > 7 and now.hour < 14):
             self.log(f'Skip sync h:{now.hour}')
             return
         if not start_from:

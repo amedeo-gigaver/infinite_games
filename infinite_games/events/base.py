@@ -527,23 +527,6 @@ class EventAggregator:
                     """
                 )
 
-                # before we rename submissions to ifgames, we have to make sure that
-                # we donot have ifgames version of this event already from backend.
-                # remove any old submission for same window
-                c.execute(
-                    """   
-                    delete from submissions
-                    where rowid not in (
-                        select
-                        min(rowid)
-                        from predictions
-                        where submitted >  date('now', '-2 weeks')
-                        group by substr(unique_event_id, instr(unique_event_id, '-') + 1), interval_start_minutes, minerUid
-                        having count (*) > 1
-                    )
-                    """
-                )
-
                 c.execute(
                     """
                     update predictions set unique_event_id = replace(unique_event_id, 'acled-', 'ifgames-') where unique_event_id like 'acled-%'
@@ -561,23 +544,23 @@ class EventAggregator:
                     """
                 )
 
-                c.execute(
-                    """
-                    delete from predictions where rowid in (
-                        select p.rowid from predictions p inner join events e
-                        on e.unique_event_id = p.unique_event_id
-                        where e.status = '3' and e.registered_date <  date('now', '-2 months')
-                    ) and exported = '1'
-                    """
-                )
-                c.execute(
-                    """
-                    delete from events
-                    where status = '3' and registered_date <  date('now', '-2 months')
-                    and exported = '1'
-                    """
-                )
-                bt.logging.info('Cleaned old records..')
+                # c.execute(
+                #     """
+                #     delete from predictions where rowid in (
+                #         select p.rowid from predictions p inner join events e
+                #         on e.unique_event_id = p.unique_event_id
+                #         where e.status = '3' and e.registered_date <  date('now', '-2 months')
+                #     ) and exported = '1'
+                #     """
+                # )
+                # c.execute(
+                #     """
+                #     delete from events
+                #     where status = '3' and registered_date <  date('now', '-2 months')
+                #     and exported = '1'
+                #     """
+                # )
+                # bt.logging.info('Cleaned old records..')
                 break
             except Exception as e:
                 if 'locked' in str(e):
