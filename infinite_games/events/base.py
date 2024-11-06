@@ -510,39 +510,51 @@ class EventAggregator:
         bt.logging.info('Migrate providers to ifgames..')
         while tried < tries:
             try:
-                c.execute(
-                    """
-                    update events set market_type = 'ifgames', unique_event_id = replace(unique_event_id, 'acled-', 'ifgames-') where market_type in ('acled')
-                    """
-                )
-                c.execute(
-                    """
-                    update events set market_type = 'ifgames', unique_event_id = replace(unique_event_id, 'polymarket-', 'ifgames-') where market_type in ('polymarket')
-                    """
-                )
+                # result = c.execute(
+                #     """
+                #     select true from events where market_type='ifgames' limit 1
+                #     """
+                # )
 
-                c.execute(
-                    """
-                    update events set market_type = 'ifgames', unique_event_id = replace(unique_event_id, 'azuro-', 'ifgames-') where market_type in ('azuro')
-                    """
-                )
+                # if len(result.fetchall()) > 0:
+                #     print('Already migrated to ifgames skip...')
+                #     break
+                # c.execute(
+                #     """
+                #     delete events where market_type='azuro' and status in (2, 3) and processed = false
+                #     """
+                # )
+                # result = c.execute(
+                #     """
+                #     select unique_event_id from events where status in (2, 3) and processed = false
+                #     """
+                # )
 
-                c.execute(
-                    """
-                    update predictions set unique_event_id = replace(unique_event_id, 'acled-', 'ifgames-') where unique_event_id like 'acled-%'
-                    """
-                )
-                c.execute(
-                    """
-                    update predictions set unique_event_id = replace(unique_event_id, 'azuro-', 'ifgames-') where unique_event_id like 'azuro-%'
-                    """
-                )
+                # unique_event_ids = [event_id[0] for event_id in result.fetchall()]
 
-                c.execute(
-                    """
-                    update predictions set unique_event_id = replace(unique_event_id, 'polymarket-', 'ifgames-') where unique_event_id like 'polymarket-%'
-                    """
-                )
+                # c.execute(
+                #     """
+                #     update events set market_type = 'ifgames', unique_event_id = 'ifgames-' || substring(unique_event_id, INSTR(unique_event_id, '-') +  1)
+                #     """
+                # )
+                # print('Migrated pending/non-processed events: ', len(unique_event_ids))
+
+                # count_result = c.execute(
+                #     """
+                #     select count(*) from predictions
+                #     where unique_event_id in ({subs})
+                #     """.format(subs=','.join('?'*len(unique_event_ids))), unique_event_ids
+                # )
+                # print('Total predictions to migrate: ', count_result.fetchall()[0][0])
+                # now = time.perf_counter()
+                # c.execute(
+                #     """
+                #     update predictions set unique_event_id = 'ifgames-' || substring(unique_event_id, INSTR(unique_event_id, '-') +  1)
+                #     where unique_event_id in ({subs})
+                #     """.format(subs=','.join('?'*len(unique_event_ids))), unique_event_ids
+                # )
+                # after_now = time.perf_counter()
+                # print('Predictions migrated. Took: ', after_now - now, ' seconds')
 
                 # c.execute(
                 #     """
@@ -568,7 +580,11 @@ class EventAggregator:
                         f"Database locked, retry {tried + 1}.."
                     )
                     time.sleep(1 + (2 * tried))
-
+                elif 'malformed' in str(e):
+                    bt.logging.warning(
+                        f"Database is malformed or locked, retry {tried + 1}.."
+                    )
+                    time.sleep(1 + (2 * tried))
                 else:
                     bt.logging.error(e)
                     bt.logging.error(traceback.format_exc())
