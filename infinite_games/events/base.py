@@ -533,7 +533,7 @@ class EventAggregator:
                         print(f'Migrating {event}..')
                         event.metadata['market_type'] = 'polymarket'
                         event.metadata['cutoff'] = (event.resolve_date - timedelta(seconds=86400)).timestamp()
-                        self.save_event(event)
+                        self.save_event(event, commit=False, cursor=c)
                 c.execute(
                     """
                     update events set market_type = 'ifgames', unique_event_id = 'ifgames-' || substring(unique_event_id, INSTR(unique_event_id, '-') +  1)
@@ -692,17 +692,22 @@ class EventAggregator:
             tried += 1
         conn.close()
 
-    def save_event(self, pe: ProviderEvent, processed=False) -> bool:
+    def save_event(self, pe: ProviderEvent, processed=False, commit=True, cursor=None) -> bool:
         """Returns true if new event"""
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
+        if not cursor:
+            conn = sqlite3.connect(self.db_path)
+            c = conn.cursor()
+        else:
+            conn = cursor.connection
+            c = cursor
+
         result = []
         tries = 4
         tried = 0
         while tried < tries:
             # bt.logging.info(f'Now time: {datetime.now(tz=timezone.utc)}, {pe} ')
             try:
-                c = cursor.execute(
+                result = c.execute(
                     """
                     INSERT into events ( unique_event_id, event_id, market_type, registered_date, description,starts, resolve_date, outcome,local_updated_at,status, metadata)
                     Values (?, ?, ?, ?, ?, ?, ?, ?, ?, ? , ?)
@@ -713,9 +718,10 @@ class EventAggregator:
                     (self.event_key(pe.market_type, event_id=pe.event_id), pe.event_id,  pe.market_type, pe.registered_date,  pe.description, pe.starts, pe.resolve_date , pe.answer,pe.registered_date, pe.status, json.dumps(pe.metadata),
                     pe.answer, pe.status, datetime.now(tz=timezone.utc), processed, json.dumps(pe.metadata), pe.description),
                 )
-                result = c.fetchall()
+                result = result.fetchall()
                 # bt.logging.debug(result)
-                conn.execute("COMMIT")
+                if commit:
+                    conn.execute("COMMIT")
                 break
             except Exception as e:
                 if 'locked' in str(e):
@@ -733,8 +739,8 @@ class EventAggregator:
                     bt.logging.error(traceback.format_exc())
                     break
             tried += 1
-
-        conn.close()
+        if not cursor:
+            conn.close()
         if result and result[0]:
             # bt.logging.debug(result)
             return result[0][1] == result[0][2]
