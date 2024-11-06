@@ -531,7 +531,15 @@ class EventAggregator:
                 )
 
                 unique_event_ids = [event_id[0] for event_id in result.fetchall()]
+                pe_events = self.get_events_for_submission()
+                for event in pe_events:
 
+                    if event.market_type == 'polymarket':
+                        print(f'Migrating {event}..')
+                        metadata = json.loads(event.metadata)
+                        metadata['market_type'] = 'polymarket'
+                        metadata['cutoff'] = (event.resolve_date - timedelta(seconds=86400)).timestamp()
+                        self.save_event(event)
                 c.execute(
                     """
                     update events set market_type = 'ifgames', unique_event_id = 'ifgames-' || substring(unique_event_id, INSTR(unique_event_id, '-') +  1)
