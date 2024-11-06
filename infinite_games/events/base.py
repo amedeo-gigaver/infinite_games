@@ -419,10 +419,6 @@ class EventAggregator:
         for row in result:
             data = dict(row)
             pe: ProviderEvent = self.row_to_pe(data)
-            integration = self.integrations.get(pe.market_type)
-            if not integration:
-                bt.logging.warning(f'No integration found for event {pe}')
-                continue
             events.append(pe)
         return events
 
