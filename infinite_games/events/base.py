@@ -521,7 +521,7 @@ class EventAggregator:
                 #     break
                 c.execute(
                     """
-                    delete events where market_type='azuro' and status in (2, 3) and processed = false
+                    delete from events where market_type='azuro' and status in (2, 3) and processed = false
                     """
                 )
                 result = c.execute(
