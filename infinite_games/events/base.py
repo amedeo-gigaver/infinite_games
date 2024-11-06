@@ -733,7 +733,7 @@ class EventAggregator:
                     UPDATE events set exported = true
                     where unique_event_id = ?
                     """,
-                    (self.event_key(pe.market_type, event_id=pe.event_id)),
+                    (self.event_key(pe.market_type, event_id=pe.event_id), ),
                 )
                 # bt.logging.debug(result)
                 conn.execute("COMMIT")
