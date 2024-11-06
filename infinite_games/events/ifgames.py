@@ -152,11 +152,12 @@ class IFGamesProviderIntegration(ProviderIntegration):
         # resp = await self._request(self.base_url + f'/api/v1/events?limit=200&from_date={start_from}')
         if start_from is None:
             start_from = 1
+        offset = 0
         while start_from is not None:
             await asyncio.sleep(1)
             self.log(f'Sync events after {start_from}..')
-            resp = await self._request(self.base_url + f'/api/v1/events?limit=250&from_date={start_from}')
-            if resp:
+            resp = await self._request(self.base_url + f'/api/v1/events?limit=250&from_date={start_from}&offset={offset}')
+            if resp and resp.get('count', 0) > 0:
                 event = {}
                 for event in resp["items"]:
                     pe = self.construct_provider_event(event['event_id'], event)
@@ -165,6 +166,8 @@ class IFGamesProviderIntegration(ProviderIntegration):
                     if not self.available_for_submission(pe):
                         continue
                     yield pe
-                start_from = event.get('created_at') if resp['count'] == 250 else None
+                offset += resp['count']
+
+                # start_from = event.get('created_at') if resp['count'] == 250 else None
             else:
                 return
