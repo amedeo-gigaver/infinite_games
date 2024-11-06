@@ -262,7 +262,7 @@ class Validator(BaseValidatorNeuron):
             scores = torch.nn.functional.normalize(scores, p=1, dim=0)
             bt.logging.info(f'Normalized {torch.round(scores, decimals=3)}')
             self.update_scores(scores, miner_uids)
-            self.export_scores(p_event=pe, miner_score_data=zip(miner_uids, brier_score, scores))
+            self.export_scores(p_event=pe, miner_score_data=zip(miner_uids, brier_scores, scores))
             return True
         elif pe.status == EventStatus.DISCARDED:
             bt.logging.info(f'Canceled event: {pe} removing from registry!')
