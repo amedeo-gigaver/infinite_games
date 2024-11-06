@@ -23,7 +23,7 @@ class IFGamesProviderIntegration(ProviderIntegration):
         return self
 
     def provider_name(self):
-        return 'acled'
+        return 'ifgames'
 
     def latest_submit_date(self, pe: ProviderEvent):
         cutoff = pe.metadata.get('cutoff') or pe.resolve_date or pe.starts
@@ -97,7 +97,7 @@ class IFGamesProviderIntegration(ProviderIntegration):
         return
 
     async def get_event_by_id(self, event_id) -> Optional[dict]:
-        return await self._request(self.base_url + '/api/v1/events/{}'.format(event_id))
+        return await self._request(self.base_url + '/api/v2/events/{}'.format(event_id))
 
     async def get_single_event(self, event_id) -> Optional[ProviderEvent]:
         payload: Optional[dict] = await self.get_event_by_id(event_id)
@@ -156,7 +156,7 @@ class IFGamesProviderIntegration(ProviderIntegration):
         while start_from is not None:
             await asyncio.sleep(1)
             self.log(f'Sync events after {start_from=} {offset=}..')
-            resp = await self._request(self.base_url + f'/api/v1/events?limit=250&from_date={start_from}&offset={offset}')
+            resp = await self._request(self.base_url + f'/api/v2/events?limit=250&from_date={start_from}&offset={offset}')
             if resp and resp.get('count', 0) > 0:
                 event = {}
                 for event in resp["items"]:
