@@ -510,15 +510,15 @@ class EventAggregator:
         bt.logging.info('Migrate providers to ifgames..')
         while tried < tries:
             try:
-                # result = c.execute(
-                #     """
-                #     select true from events where market_type='ifgames' limit 1
-                #     """
-                # )
+                result = c.execute(
+                    """
+                    select true from events where market_type='ifgames' limit 1
+                    """
+                )
 
-                # if len(result.fetchall()) > 0:
-                #     print('Already migrated to ifgames skip...')
-                #     break
+                if len(result.fetchall()) > 0:
+                    print('Already migrated to ifgames skip...')
+                    break
                 c.execute(
                     """
                     delete from events where market_type='azuro' and status in (2, 3) and processed = false
