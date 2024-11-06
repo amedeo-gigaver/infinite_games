@@ -531,9 +531,8 @@ class EventAggregator:
 
                     if event.market_type == 'polymarket':
                         print(f'Migrating {event}..')
-                        metadata = json.loads(event.metadata)
-                        metadata['market_type'] = 'polymarket'
-                        metadata['cutoff'] = (event.resolve_date - timedelta(seconds=86400)).timestamp()
+                        event.metadata['market_type'] = 'polymarket'
+                        event.metadata['cutoff'] = (event.resolve_date - timedelta(seconds=86400)).timestamp()
                         self.save_event(event)
                 c.execute(
                     """
