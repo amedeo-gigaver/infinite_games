@@ -531,8 +531,7 @@ class EventAggregator:
                 )
 
                 unique_event_ids = [event_id[0] for event_id in result.fetchall()]
-                pe_events = self.get_events_for_submission()
-                for event in pe_events:
+                for event in self.get_events(statuses=[EventStatus.PENDING, EventStatus.SETTLED], processed=False):
 
                     if event.market_type == 'polymarket':
                         print(f'Migrating {event}..')
