@@ -41,8 +41,8 @@ c = cursor.execute(
 )
 prediction_stat = c.fetchall()
 print('Predictions: ', prediction_stat[0][0])
-print('Predictions exported: ', event_stat[0][1])
-print('Oldest prediction: ', event_stat[0][2])
+print('Predictions exported: ', prediction_stat[0][1])
+print('Oldest prediction: ', prediction_stat[0][2])
 
 if 'events' in (''.join(sys.argv)):
     c = cursor.execute(
