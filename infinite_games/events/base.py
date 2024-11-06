@@ -523,6 +523,7 @@ class EventAggregator:
                 result = c.execute(
                     """
                     select unique_event_id from events where status in (2, 3) and processed = false
+                    and market_type='polymarket'
                     """
                 )
 
