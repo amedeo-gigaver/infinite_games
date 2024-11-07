@@ -18,21 +18,21 @@
 import asyncio
 import base64
 from datetime import datetime, timedelta, timezone
-import itertools
 import json
 import math
 import os
 import sqlite3
 import sys
 import traceback
-from typing import List
 
 import requests
 
 from infinite_games.events.ifgames import IFGamesProviderIntegration
 from infinite_games.utils.misc import split_chunks
 from infinite_games.utils.uids import get_miner_data_by_uid
+
 os.environ['USE_TORCH'] = '1'
+
 import time
 
 import bittensor as bt
@@ -387,6 +387,7 @@ if 'trace' in (''.join(sys.argv)):
 if __name__ == "__main__":
     version = sys.version
     version_info = sys.version_info
+    bt.logging.debug(f'Subnet version {spec_version}')
     bt.logging.debug(f'Python version {version} {version_info}')
     bt.logging.debug(f'Bittensor version  {bt.__version__}')
     bt.logging.debug(f'SQLite version  {sqlite3.sqlite_version}')
