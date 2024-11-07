@@ -558,6 +558,7 @@ class EventAggregator:
                 )
                 after_now = time.perf_counter()
                 print('Predictions migrated. Took: ', after_now - now, ' seconds')
+                print('Migration finished ✅')
 
                 # c.execute(
                 #     """
@@ -591,10 +592,10 @@ class EventAggregator:
                 else:
                     bt.logging.error(e)
                     bt.logging.error(traceback.format_exc())
-                    self.error('We cannot proceed because of the migration issues.')
+                    self.error('We cannot proceed because of the migration issues, please reach out to subnet developers ❌')
                     exit(1)
                     break
-                    
+
             tried += 1
 
         conn.commit()
