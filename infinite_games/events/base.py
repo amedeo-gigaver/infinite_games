@@ -776,10 +776,7 @@ class EventAggregator:
 
                 else:
                     bt.logging.error(e)
-                    bt.logging.error(
-                        (self.event_key(pe.market_type, event_id=pe.event_id), pe.event_id,  pe.market_type, pe.registered_date,  pe.description, pe.starts, pe.resolve_date , pe.answer,pe.registered_date, pe.status, json.dumps(pe.metadata),
-                         pe.answer, pe.status, datetime.now(tz=timezone.utc), processed)
-                    )
+                    bt.logging.error(self.event_key(pe.market_type, event_id=pe.event_id))
                     bt.logging.error(traceback.format_exc())
                     break
             tried += 1

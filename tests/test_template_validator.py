@@ -110,12 +110,12 @@ class TestTemplateValidatorNeuronTestCase:
         for window in range(1, 42):
 
             window_time = initial_date + timedelta(minutes=CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES * window)
-            with freeze_time(window_time):
+            with freeze_time(window_time, tick=True):
                 await self.next_run(v)
 
         # based on providers.py hardcode values
         settle_date = initial_date + timedelta(days=7)
-        with freeze_time(settle_date):
+        with freeze_time(settle_date, tick=True):
 
             test_event = await iggames_provider.get_single_event('dbcba93a-fe3b-4092-b918-8231b23f2faa')
 
@@ -142,7 +142,7 @@ class TestTemplateValidatorNeuronTestCase:
         # await v.forward()
         print('First run')
         initial_date = datetime(year=2024, month=1, day=3)
-        with freeze_time(initial_date):
+        with freeze_time(initial_date, tick=True):
             await self.next_run(v)
             # await restarted_vali.initialize_provider()
             # sleep(4)
@@ -176,14 +176,14 @@ class TestTemplateValidatorNeuronTestCase:
             await self.next_run(v)
 
         second_window = initial_date + timedelta(minutes=CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES)
-        with freeze_time(second_window):
+        with freeze_time(second_window, tick=True):
             await self.next_run(v)
         third_window = initial_date + timedelta(minutes=CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES * 2)
-        with freeze_time(third_window):
+        with freeze_time(third_window, tick=True):
             await self.next_run(v)
 
         fourth_window = initial_date + timedelta(minutes=CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES * 3)
-        with freeze_time(fourth_window):
+        with freeze_time(fourth_window, tick=True):
             await self.next_run(v)
 
         test_event.status = EventStatus.SETTLED
@@ -207,7 +207,7 @@ class TestTemplateValidatorNeuronTestCase:
         # await v.forward()
         print('First run')
         initial_date = datetime(year=2024, month=1, day=3)
-        with freeze_time(initial_date):
+        with freeze_time(initial_date, tick=True):
             await self.next_run(v)
             # await restarted_vali.initialize_provider()
             # sleep(4)
@@ -222,12 +222,12 @@ class TestTemplateValidatorNeuronTestCase:
         for window in range(1, 42):
 
             window_time = initial_date + timedelta(minutes=CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES * window)
-            with freeze_time(window_time):
+            with freeze_time(window_time, tick=True):
                 await self.next_run(v)
 
         # based on providers.py hardcode values
         settle_date = initial_date + timedelta(days=7)
-        with freeze_time(settle_date):
+        with freeze_time(settle_date, tick=True):
 
             test_event = await iggames_provider.get_single_event('cbcba93a-fe3b-4092-b918-8231b23f2faa')
 
@@ -253,7 +253,7 @@ class TestTemplateValidatorNeuronTestCase:
         # await v.forward()
         print('First run')
         initial_date = datetime(year=2024, month=1, day=3)
-        with freeze_time(initial_date):
+        with freeze_time(initial_date, tick=True):
             await self.next_run(v)
             # await restarted_vali.initialize_provider()
             # sleep(4)
@@ -283,14 +283,14 @@ class TestTemplateValidatorNeuronTestCase:
             await self.next_run(v)
 
         second_window = initial_date + timedelta(minutes=CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES)
-        with freeze_time(second_window):
+        with freeze_time(second_window, tick=True):
             await self.next_run(v)
         third_window = initial_date + timedelta(minutes=CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES * 2)
-        with freeze_time(third_window):
+        with freeze_time(third_window, tick=True):
             await self.next_run(v)
 
         fourth_window = initial_date + timedelta(minutes=CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES * 3)
-        with freeze_time(fourth_window):
+        with freeze_time(fourth_window, tick=True):
             await self.next_run(v)
 
         test_event.status = EventStatus.SETTLED
@@ -315,7 +315,7 @@ class TestTemplateValidatorNeuronTestCase:
         # await v.forward()
         print('First run')
         initial_date = datetime(year=2024, month=1, day=3)
-        with freeze_time(initial_date):
+        with freeze_time(initial_date, tick=True):
             await self.next_run(v)
             # await restarted_vali.initialize_provider()
             # sleep(4)
@@ -344,14 +344,14 @@ class TestTemplateValidatorNeuronTestCase:
             await self.next_run(v)
 
         second_window = initial_date + timedelta(minutes=CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES)
-        with freeze_time(second_window):
+        with freeze_time(second_window, tick=True):
             await self.next_run(v)
         third_window = initial_date + timedelta(minutes=CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES * 2)
-        with freeze_time(third_window):
+        with freeze_time(third_window, tick=True):
             await self.next_run(v)
 
         fourth_window = initial_date + timedelta(minutes=CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES * 10)
-        with freeze_time(fourth_window):
+        with freeze_time(fourth_window, tick=True):
             await self.next_run(v)
 
         test_event.status = EventStatus.SETTLED
@@ -376,7 +376,7 @@ class TestTemplateValidatorNeuronTestCase:
         # await v.forward()
         print('First run')
         initial_date = datetime(year=2024, month=1, day=3)
-        with freeze_time(initial_date):
+        with freeze_time(initial_date, tick=True):
             await self.next_run(v)
             # await restarted_vali.initialize_provider()
             # sleep(4)
@@ -405,18 +405,18 @@ class TestTemplateValidatorNeuronTestCase:
             await self.next_run(v)
 
         second_window = initial_date + timedelta(minutes=CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES)
-        with freeze_time(second_window):
+        with freeze_time(second_window, tick=True):
             await self.next_run(v)
         third_window = initial_date + timedelta(minutes=CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES * 2)
-        with freeze_time(third_window):
+        with freeze_time(third_window, tick=True):
             await self.next_run(v)
 
         tenth_window = initial_date + timedelta(minutes=CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES * 10)
-        with freeze_time(tenth_window):
+        with freeze_time(tenth_window, tick=True):
             await self.next_run(v)
 
         eleventh_window = initial_date + timedelta(minutes=CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES * 11)
-        with freeze_time(eleventh_window):
+        with freeze_time(eleventh_window, tick=True):
             # await self.next_run(v)
 
             test_event.status = EventStatus.SETTLED
@@ -441,7 +441,7 @@ class TestTemplateValidatorNeuronTestCase:
         # await v.forward()
         print('First run')
         initial_date = datetime(year=2024, month=1, day=3)
-        with freeze_time(initial_date):
+        with freeze_time(initial_date, tick=True):
             await self.next_run(v)
             # await restarted_vali.initialize_provider()
             # sleep(4)
@@ -494,7 +494,7 @@ class TestTemplateValidatorNeuronTestCase:
         # await v.forward()
         print('First run')
         initial_date = datetime(year=2024, month=1, day=3)
-        with freeze_time(initial_date):
+        with freeze_time(initial_date, tick=True):
             await self.next_run(v)
             # await restarted_vali.initialize_provider()
             # sleep(4)
@@ -547,7 +547,7 @@ class TestTemplateValidatorNeuronTestCase:
         # await v.forward()
         print('First run')
         initial_date = datetime(year=2024, month=1, day=3)
-        with freeze_time(initial_date):
+        with freeze_time(initial_date, tick=True):
             await self.next_run(v)
             test_event = ProviderEvent(
                 '0x8f3f3f19c4e4015fd9db2f22e653c766154091ef_100100000000000015927404810000000000000365390949_2000',
@@ -593,13 +593,13 @@ class TestTemplateValidatorNeuronTestCase:
             monkeypatch.setattr('neurons.validator.query_miners', lambda a, b, c: mock_response)
             await self.next_run(v)
         second_window = initial_date + timedelta(minutes=CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES)
-        with freeze_time(second_window):
+        with freeze_time(second_window, tick=True):
             await self.next_run(v)
         third_window = initial_date + timedelta(minutes=CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES * 2)
-        with freeze_time(third_window):
+        with freeze_time(third_window, tick=True):
             await self.next_run(v)
         fourth_window = initial_date + timedelta(minutes=CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES * 3)
-        with freeze_time(fourth_window):
+        with freeze_time(fourth_window, tick=True):
             await self.next_run(v)
         test_event.status = EventStatus.SETTLED
         test_event.answer = 1

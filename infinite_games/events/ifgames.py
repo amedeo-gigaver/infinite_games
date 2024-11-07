@@ -49,6 +49,7 @@ class IFGamesProviderIntegration(ProviderIntegration):
         end_date_ts = event.get('end_date')
         start_date = event.get('start_date')
         # end_date = datetime.fromtimestamp(end_date_ts, tz=timezone.utc)
+        print(event_id, event)
         start_date = datetime.fromtimestamp(start_date, tz=timezone.utc)
         cutoff = event.get('cutoff')
         cutoff = datetime.fromtimestamp(cutoff, tz=timezone.utc)
