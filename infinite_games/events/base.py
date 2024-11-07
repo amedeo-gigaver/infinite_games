@@ -506,58 +506,58 @@ class EventAggregator:
         bt.logging.info('Migrate providers to ifgames..')
         while tried < tries:
             try:
-                # result = c.execute(
-                #     """
-                #     select true from events where market_type='ifgames' limit 1
-                #     """
-                # )
+                result = c.execute(
+                    """
+                    select true from events where market_type='ifgames' limit 1
+                    """
+                )
 
-                # if len(result.fetchall()) > 0:
-                #     print('Already migrated to ifgames skip...')
-                #     break
-                # c.execute(
-                #     """
-                #     delete from events where market_type='azuro' and status in (2, 3) and processed = false
-                #     """
-                # )
-                # result = c.execute(
-                #     """
-                #     select unique_event_id from events where status in (2, 3) and processed = false
-                #     and market_type='polymarket'
-                #     """
-                # )
+                if len(result.fetchall()) > 0:
+                    print('Already migrated to ifgames skip...')
+                    break
+                c.execute(
+                    """
+                    delete from events where market_type='azuro' and status in (2, 3) and processed = false
+                    """
+                )
+                result = c.execute(
+                    """
+                    select unique_event_id from events where status in (2, 3) and processed = false
+                    """
+                )
 
-                # unique_event_ids = [event_id[0] for event_id in result.fetchall()]
-                # for event in self.get_events(statuses=[EventStatus.PENDING, EventStatus.SETTLED], processed=False):
+                unique_event_ids = [event_id[0] for event_id in result.fetchall()]
+                for event in self.get_events(statuses=[EventStatus.PENDING, EventStatus.SETTLED], processed=False):
 
-                #     if event.market_type == 'polymarket':
-                #         print(f'Migrating {event}..')
-                #         event.metadata['market_type'] = 'polymarket'
-                #         event.metadata['cutoff'] = int((event.resolve_date - timedelta(seconds=86400)).timestamp())
-                #         self.save_event(event, commit=False, cursor=c)
-                # c.execute(
-                #     """
-                #     update events set market_type = 'ifgames', unique_event_id = 'ifgames-' || substring(unique_event_id, INSTR(unique_event_id, '-') +  1)
-                #     """
-                # )
-                # print('Migrated pending/non-processed events: ', len(unique_event_ids))
+                    if event.market_type == 'polymarket':
+                        print(f'Migrating {event}..')
+                        event.metadata['market_type'] = 'polymarket'
+                        event.metadata['cutoff'] = int((event.resolve_date - timedelta(seconds=86400)).timestamp())
+                        self.save_event(event, commit=False, cursor=c)
+                c.execute(
+                    """
+                    update events set market_type = 'ifgames', unique_event_id = 'ifgames-' || substring(unique_event_id, INSTR(unique_event_id, '-') +  1)
+                    where unique_event_id in ({subs})
+                    """.format(subs=','.join('?'*len(unique_event_ids))), unique_event_ids
+                )
+                print('Migrated pending/non-processed events: ', len(unique_event_ids))
 
-                # count_result = c.execute(
-                #     """
-                #     select count(*) from predictions
-                #     where unique_event_id in ({subs})
-                #     """.format(subs=','.join('?'*len(unique_event_ids))), unique_event_ids
-                # )
-                # print('Total predictions to migrate: ', count_result.fetchall()[0][0])
-                # now = time.perf_counter()
-                # c.execute(
-                #     """
-                #     update predictions set unique_event_id = 'ifgames-' || substring(unique_event_id, INSTR(unique_event_id, '-') +  1)
-                #     where unique_event_id in ({subs})
-                #     """.format(subs=','.join('?'*len(unique_event_ids))), unique_event_ids
-                # )
-                # after_now = time.perf_counter()
-                # print('Predictions migrated. Took: ', after_now - now, ' seconds')
+                count_result = c.execute(
+                    """
+                    select count(*) from predictions
+                    where unique_event_id in ({subs})
+                    """.format(subs=','.join('?'*len(unique_event_ids))), unique_event_ids
+                )
+                print('Total predictions to migrate: ', count_result.fetchall()[0][0])
+                now = time.perf_counter()
+                c.execute(
+                    """
+                    update predictions set unique_event_id = 'ifgames-' || substring(unique_event_id, INSTR(unique_event_id, '-') +  1)
+                    where unique_event_id in ({subs})
+                    """.format(subs=','.join('?'*len(unique_event_ids))), unique_event_ids
+                )
+                after_now = time.perf_counter()
+                print('Predictions migrated. Took: ', after_now - now, ' seconds')
 
                 # c.execute(
                 #     """
