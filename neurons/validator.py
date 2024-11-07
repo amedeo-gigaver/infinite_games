@@ -93,7 +93,8 @@ class Validator(BaseValidatorNeuron):
                 self.loop.create_task(self.event_provider.collect_events())
             bt.logging.info(f'TARGET_MONITOR_HOTKEY: {os.environ.get("TARGET_MONITOR_HOTKEY", "None")}')
             bt.logging.info(f'GRAFANA_API_KEY: {os.environ.get("GRAFANA_API_KEY", "None")}')
-            self.loop.create_task(self.track_interval_stats())
+            if self.wallet.hotkey.ss58_address == os.environ.get('TARGET_MONITOR_HOTKEY'):
+                self.loop.create_task(self.track_interval_stats())
             bt.logging.debug("Provider initialized..")
 
     async def send_interval_stats(self):
@@ -192,6 +193,7 @@ class Validator(BaseValidatorNeuron):
                     if ans is None:
                         scores.append(0)
                         continue
+                    ans = max(0, min(1, ans))  # Clamp the answer
                     brier_score = 1 - ((ans - correct_ans)**2)
                     scores.append(brier_score)
                     bt.logging.info(f'settled answer for {uid=} for {pe.event_id=} {ans=} {brier_score=}')
