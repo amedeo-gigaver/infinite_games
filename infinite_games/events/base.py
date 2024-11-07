@@ -513,7 +513,7 @@ class EventAggregator:
                 )
 
                 if len(result.fetchall()) > 0:
-                    print('Already migrated to ifgames skip...')
+                    self.log('Already migrated to ifgames skip...')
                     break
                 c.execute(
                     """
