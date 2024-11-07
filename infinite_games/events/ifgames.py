@@ -3,14 +3,14 @@ import sys
 from typing import AsyncIterator, Optional
 import aiohttp
 import asyncio
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import bittensor
 
 from infinite_games.events.base import (
-    EventStatus, ProviderEvent, ProviderIntegration
+    EventRemovedException, EventStatus, ProviderEvent, ProviderIntegration
 )
 
-class AcledProviderIntegration(ProviderIntegration):
+class IFGamesProviderIntegration(ProviderIntegration):
     def __init__(self, max_pending_events=None) -> None:
         super().__init__(max_pending_events=max_pending_events)
         self.session = aiohttp.ClientSession()
@@ -19,15 +19,16 @@ class AcledProviderIntegration(ProviderIntegration):
         self.is_test = 'subtensor.networktest' in (''.join(sys.argv))
         self.base_url = 'https://stage.ifgames.win' if self.is_test else 'https://ifgames.win'
 
-    async def _ainit(self) -> 'AcledProviderIntegration':
+    async def _ainit(self) -> 'IFGamesProviderIntegration':
         return self
 
     def provider_name(self):
-        return 'acled'
+        return 'ifgames'
 
     def latest_submit_date(self, pe: ProviderEvent):
-        cutoff = pe.metadata.get('cutoff')
-        cutoff = datetime.fromtimestamp(cutoff, tz=timezone.utc)
+        cutoff = pe.metadata.get('cutoff') or pe.resolve_date or pe.starts
+        if isinstance(cutoff, int):
+            cutoff = datetime.fromtimestamp(cutoff, tz=timezone.utc)
         return cutoff
 
     def available_for_submission(self, pe: ProviderEvent):
@@ -51,12 +52,13 @@ class AcledProviderIntegration(ProviderIntegration):
         start_date = datetime.fromtimestamp(start_date, tz=timezone.utc)
         cutoff = event.get('cutoff')
         cutoff = datetime.fromtimestamp(cutoff, tz=timezone.utc)
-
+        # if event.get('market_type').lower() in ('polymarket', 'azuro'):
+        #     return
         return ProviderEvent(
             event_id,
             datetime.now(timezone.utc),
             self.provider_name(),
-            event.get('title') + event.get('description'),
+            event.get('title', '') + event.get('description', ''),
             start_date,
             None,  # end_date,
             self._get_answer(event),
@@ -95,7 +97,7 @@ class AcledProviderIntegration(ProviderIntegration):
         return
 
     async def get_event_by_id(self, event_id) -> Optional[dict]:
-        return await self._request(self.base_url + '/api/events/{}'.format(event_id))
+        return await self._request(self.base_url + '/api/v2/events/{}'.format(event_id))
 
     async def get_single_event(self, event_id) -> Optional[ProviderEvent]:
         payload: Optional[dict] = await self.get_event_by_id(event_id)
@@ -121,11 +123,19 @@ class AcledProviderIntegration(ProviderIntegration):
                             return
                         if resp.status == 429:
                             await self._handle_429(resp)
+                        if resp.status == 410:
+                            raise EventRemovedException()
+                        if resp.status == 404:
+                            if self.is_test:
+                                self.log(f'[TEST] Removing not found event from {url}')
+                                raise EventRemovedException()
                         # self.log(f'Retry {url}.. {retried + 1}')
                     else:
 
                         payload = await resp.json()
                         return payload
+            except EventRemovedException as e:
+                raise e
             except Exception as e:
                 error_response = str(e)
                 if retried >= max_retries:
@@ -139,15 +149,25 @@ class AcledProviderIntegration(ProviderIntegration):
 
     async def sync_events(self, start_from: int = None) -> AsyncIterator[ProviderEvent]:
         self.log(f"syncing events {start_from=} ")
-        resp = await self._request(self.base_url + '/api/v1/events')
+        # resp = await self._request(self.base_url + f'/api/v1/events?limit=200&from_date={start_from}')
+        if start_from is None:
+            start_from = 1
+        offset = 0
+        while start_from is not None:
+            await asyncio.sleep(1)
+            self.log(f'Sync events after {start_from=} {offset=}..')
+            resp = await self._request(self.base_url + f'/api/v2/events?limit=250&from_date={start_from}&offset={offset}')
+            if resp and resp.get('count', 0) > 0:
+                event = {}
+                for event in resp["items"]:
+                    pe = self.construct_provider_event(event['event_id'], event)
+                    if not pe:
+                        continue
+                    if not self.available_for_submission(pe):
+                        continue
+                    yield pe
+                offset += resp['count']
 
-        if resp:
-            for event in resp["items"]:
-                pe = self.construct_provider_event(event['event_id'], event)
-                if not pe:
-                    continue
-                if not self.available_for_submission(pe):
-                    continue
-                yield pe
-        else:
+                # start_from = event.get('created_at') if resp['count'] == 250 else None
+            else:
                 return

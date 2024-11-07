@@ -29,7 +29,7 @@ from typing import List
 
 import requests
 
-from infinite_games.events.acled import AcledProviderIntegration
+from infinite_games.events.ifgames import IFGamesProviderIntegration
 from infinite_games.utils.misc import split_chunks
 from infinite_games.utils.uids import get_miner_data_by_uid
 os.environ['USE_TORCH'] = '1'
@@ -84,7 +84,7 @@ class Validator(BaseValidatorNeuron):
                 db_path=self.db_path
             )
             self.event_provider.load_state()
-            self.event_provider.migrate_pickle_to_sql()
+            # self.event_provider.migrate_pickle_to_sql()
             self.event_provider.on_event_updated_hook(self.on_event_update)
             if os.getenv('VALIDATOR_WATCH_EVENTS_DISABLED', "0") == "0":
                 # watch for existing registered events
@@ -94,18 +94,8 @@ class Validator(BaseValidatorNeuron):
             bt.logging.info(f'TARGET_MONITOR_HOTKEY: {os.environ.get("TARGET_MONITOR_HOTKEY", "None")}')
             bt.logging.info(f'GRAFANA_API_KEY: {os.environ.get("GRAFANA_API_KEY", "None")}')
             if self.wallet.hotkey.ss58_address == os.environ.get('TARGET_MONITOR_HOTKEY'):
-                self.loop.create_task(self.send_stats())
-            self.loop.create_task(self.track_interval_stats())
+                self.loop.create_task(self.track_interval_stats())
             bt.logging.debug("Provider initialized..")
-
-    async def send_stats(self):
-        bt.logging.info('Scheduling sending average stats.')
-        while True:
-
-            all_uids = [uid for uid in range(self.metagraph.n.item())]
-            bt.logging.debug(f"Sending daily average total: {self.average_scores}")
-            self.send_average_scores(miner_scores=list(zip(all_uids, self.average_scores.tolist(), self.scores.tolist())))
-            await asyncio.sleep(self.SEND_LOGS_INTERVAL)
 
     async def send_interval_stats(self):
         now = datetime.now(timezone.utc)
@@ -123,7 +113,7 @@ class Validator(BaseValidatorNeuron):
             if metadata:
                 md = json.loads(metadata)
                 market_type = md.get('market_type', market_type)
-            metrics.append([uid, unique_event_id, market_type, interval_minutes, agg_prediction or -99, count ])
+            metrics.append([uid, unique_event_id, market_type, interval_minutes, agg_prediction, count ])
         if not metrics:
             bt.logging.info('no new submission to send skip..')
 
@@ -182,12 +172,13 @@ class Validator(BaseValidatorNeuron):
             first_n_intervals = 1
             bt.logging.info(f'{integration.__class__.__name__} {first_n_intervals=} intervals: {pe.registered_date=} {effective_finish_start_minutes=} {pe.resolve_date=} {cutoff=}  total={total_intervals}')
             scores = []
+            market_type = pe.metadata.get('market_type', pe.market_type)
             for uid in miner_uids:
                 miner_data = get_miner_data_by_uid(self.db_path, int(uid))
                 miner_reg_time = datetime.fromisoformat(miner_data['registered_date']).replace(tzinfo=timezone.utc)
                 bt.logging.info(f'miner {uid=} reg time: {miner_reg_time}')
                 prediction_intervals = predictions.get(uid.item())
-                if pe.market_type == 'azuro':
+                if market_type == 'azuro':
                     # if miner registered after the cutoff.
                     if miner_reg_time >= cutoff:
                         bt.logging.info('new miner assign: 1/2')
@@ -245,7 +236,7 @@ class Validator(BaseValidatorNeuron):
                         range_list = range(start_interval_start_minutes, effective_finish_start_minutes, CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES)
                         bt.logging.error(f'Weight WK is zero for event {uid} {pe}  {range_list}')
                     final_avg_score = sum(mk) / weights_sum if weights_sum > 0 else 0
-                    bt.logging.info(f'final avg answer for {uid=} {final_avg_score=}')
+                    bt.logging.info(f'final avg answer for intervals={len(range(start_interval_start_minutes, effective_finish_start_minutes, CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES))} {uid=} {final_avg_score=}')
 
                     scores.append(final_avg_score)
             brier_scores = torch.FloatTensor(scores)
@@ -312,6 +303,7 @@ class Validator(BaseValidatorNeuron):
                     bt.logging.warning(f'Error processing scores for event {p_event}: {res.content}')
                 else:
                     bt.logging.info(f'Scores processed {res.status_code} {res.content}')
+                    self.event_provider.mark_event_as_exported(p_event)
                 time.sleep(1)
             except Exception as e:
                 bt.logging.error(e)
@@ -329,18 +321,15 @@ class Validator(BaseValidatorNeuron):
         self.print_info()
         block_start = self.block
 
-        # if self.last_log_block - block_start > 20:
-        #     self.export_submissions()
         miner_uids = infinite_games.utils.uids.get_all_uids(self)
         # Create synapse object to send to the miner.
         synapse = infinite_games.protocol.EventPredictionSynapse()
         events_available_for_submission = self.event_provider.get_events_for_submission()
         bt.logging.info(f'Event for submission: {len(events_available_for_submission)}')
         synapse.init(events_available_for_submission)
-        # print("Synapse body hash", synapse.computed_body_hash)
         bt.logging.info(f'Axons: {len(self.metagraph.axons)}')
-        # for axon in self.metagraph.axons:
-        #     bt.logging.info(f'IP: {axon.ip}, hotkey id: {axon.hotkey}')
+        for axon in self.metagraph.axons:
+            bt.logging.trace(f'IP: {axon.ip}, hotkey id: {axon.hotkey}')
         self.event_provider.sync_miners([(uid, self.metagraph.axons[uid]) for uid in range(self.metagraph.n.item())], block_start)
         bt.logging.info("Querying miners..")
         # The dendrite client queries the network.
@@ -351,36 +340,26 @@ class Validator(BaseValidatorNeuron):
 
         any_miner_processed = False
         for (uid, resp) in zip(miner_uids, responses):
-            # print(uid, resp)
-            for (event_id, event_data) in resp.events.items():
-                market_event_id = event_data.get('event_id')
-                provider_name = 'acled' if event_data.get('market_type') in ('polymarket_prices', 'uma', 'fred') else event_data.get('market_type')
+            for (unique_event_id, event_data) in resp.events.items():
                 score = event_data.get('probability')
-
-                provider_event = self.event_provider.get_registered_event(provider_name, market_event_id)
+                provider_event = self.event_provider.get_registered_event(unique_event_id)
                 if not provider_event:
-                    # bt.logging.warning(f'Miner submission for non registered event detected  {uid=} {provider_name=} {market_event_id=}')
+                    bt.logging.trace(f'Miner submission for non registered event detected  {uid=} {unique_event_id=}')
                     continue
-                # if uid != 4:
-                #     continue
                 if score is None:
-                    # bt.logging.debug(f'uid: {uid.item()} no prediction for {event_id} sent, skip..')
+                    bt.logging.trace(f'uid: {uid.item()} no prediction for {unique_event_id} sent, skip..')
                     continue
                 integration = self.event_provider.integrations.get(provider_event.market_type)
                 if not integration:
-                    bt.logging.error(f'No integration found to register miner submission {uid=} {event_id=} {score=}')
+                    bt.logging.error(f'No integration found to register miner submission {uid=} {unique_event_id=} {score=}')
                     continue
                 if integration.available_for_submission(provider_event):
-                    # bt.logging.info(f'Submission {uid=} for {interval_start_minutes} {event_id}')
+                    bt.logging.trace(f'Submission {uid=} for {interval_start_minutes} {unique_event_id}')
                     any_miner_processed = True
                     await self.event_provider.miner_predict(provider_event, uid.item(), score, interval_start_minutes, self.block)
                 else:
-                    # bt.logging.warning(f'Submission received, but this event is not open for submissions miner {uid=} {event_id=} {score=}')
+                    bt.logging.trace(f'Submission received, but this event is not open for submissions miner {uid=} {unique_event_id=} {score=}')
                     continue
-            # if len(miner_submitted) > 0:
-                # bt.logging.info(f'Submission {uid=} for {interval_start_minutes} saved, events: {len(miner_submitted)}')
-
-            # bt.logging.info(f'uid: {uid.item()} got prediction for events: {len(miner_submitted)}')
 
         if any_miner_processed:
             bt.logging.info("Processed miner responses.")
@@ -391,17 +370,18 @@ class Validator(BaseValidatorNeuron):
             while block_start == self.block:
                 bt.logging.debug(f"FORWARD INTERVAL: {float(os.environ.get('VALIDATOR_FORWARD_INTERVAL_SEC', '10'))}")
                 await asyncio.sleep(float(os.environ.get('VALIDATOR_FORWARD_INTERVAL_SEC', '10')))
+        # else:
+            # await asyncio.sleep(float(os.environ.get('VALIDATOR_FORWARD_INTERVAL_SEC', '10')))
 
     def save_state(self):
         super().save_state()
         self.event_provider.save_state()
 
 
-
-
 # The main function parses the configuration and runs the validator.
 bt.debug(True)
-# bt.trace(True)
+if 'trace' in (''.join(sys.argv)):
+    bt.trace(True)
 
 
 if __name__ == "__main__":
@@ -420,9 +400,9 @@ if __name__ == "__main__":
     #     exit(1)
 
     v = Validator(integrations=[
-            AzuroProviderIntegration(),
-            PolymarketProviderIntegration(),
-            AcledProviderIntegration()
+            # AzuroProviderIntegration(),
+            # PolymarketProviderIntegration(),
+            IFGamesProviderIntegration()
         ])
     v.run_in_background_thread()
     time.sleep(2)

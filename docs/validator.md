@@ -171,7 +171,7 @@ Command to run the validator:
 
 `export USE_TORCH=1`
 
-`pm2 start neurons/validator.py --interpreter python3  --name validator -- --wallet.name validator --netuid 6 --wallet.hotkey hotkey --subtensor.network test --logging.debug --logging.trace` 
+`pm2 start neurons/validator.py --interpreter python3  --name validator -- --wallet.name validator --netuid 6 --wallet.hotkey hotkey --subtensor.network test --logging.debug --logging.info` 
 
 
 Explanation of each variable:
