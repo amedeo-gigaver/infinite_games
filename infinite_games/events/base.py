@@ -513,7 +513,7 @@ class EventAggregator:
             self.error('Error checking disk space, continue for migration..')
         else:
             free_gb = free / (1024 ** 3)
-            if free_gb < 20:
+            if os.environ.get('ENV') != 'pytest' and free_gb < 20:
                 self.error(f'Not enough disk space ❌. Only {free_gb:.2f} GB available. Please make sure that you have available space then restart the process.')
                 exit(1)
             self.log(f'Free space: {free_gb:.2f} GB')
