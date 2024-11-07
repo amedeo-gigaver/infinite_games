@@ -3,6 +3,7 @@ import asyncio
 from collections import defaultdict
 import os
 import pickle
+import shutil
 import sqlite3
 import time
 import traceback
@@ -504,6 +505,18 @@ class EventAggregator:
         tries = 4
         tried = 0
         bt.logging.info('Migrate providers to ifgames..')
+        try:
+            current_dir = os.getcwd()
+            total, used, free = shutil.disk_usage(current_dir)
+        except Exception:
+            self.error(traceback.format_exc())
+            self.error('Error checking disk space, continue for migration..')
+        else:
+            free_gb = free / (1024 ** 3)
+            if free_gb < 20:
+                self.error('Not enough disk space ❌. Only {free_gb:.2f} available. Please make sure that you have available space then restart the process.')
+                exit(1)
+            self.log(f'Free space: {free_gb:.2f}')
         while tried < tries:
             try:
                 result = c.execute(
