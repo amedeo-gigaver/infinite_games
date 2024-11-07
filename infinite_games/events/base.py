@@ -541,6 +541,7 @@ class EventAggregator:
                     """.format(subs=','.join('?'*len(unique_event_ids))), unique_event_ids
                 )
                 print('Migrated pending/non-processed events: ', len(unique_event_ids))
+                print('Migration is in progress..')
 
                 count_result = c.execute(
                     """
@@ -549,6 +550,7 @@ class EventAggregator:
                     """.format(subs=','.join('?'*len(unique_event_ids))), unique_event_ids
                 )
                 print('Total predictions to migrate: ', count_result.fetchall()[0][0])
+                print('Migrating predictions.. please wait..')
                 now = time.perf_counter()
                 c.execute(
                     """
@@ -557,7 +559,7 @@ class EventAggregator:
                     """.format(subs=','.join('?'*len(unique_event_ids))), unique_event_ids
                 )
                 after_now = time.perf_counter()
-                print('Predictions migrated. Took: ', after_now - now, ' seconds')
+                print('Predictions migrated. Took: ', int(after_now - now), ' seconds')
                 print('Migration finished ✅')
 
                 # c.execute(
@@ -592,7 +594,7 @@ class EventAggregator:
                 else:
                     bt.logging.error(e)
                     bt.logging.error(traceback.format_exc())
-                    self.error('We cannot proceed because of the migration issues, please reach out to subnet developers ❌')
+                    self.error('We cannot proceed because of the migration issues, please reach out to Infinite Games subnet developers ❌')
                     exit(1)
                     break
 
