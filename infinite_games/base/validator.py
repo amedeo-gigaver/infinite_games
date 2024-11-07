@@ -106,7 +106,7 @@ class BaseValidatorNeuron(BaseNeuron):
                         "hotkey": self.wallet.hotkey.ss58_address,
                     },
                     name=f"validator-{self.uid}-{__version__}",
-                    resume="auto",
+                    resume=None,
                     dir=self.config.neuron.full_path,
                     reinit=True,
             )
