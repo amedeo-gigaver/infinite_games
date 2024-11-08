@@ -49,7 +49,7 @@ class Event(BaseModel):
         if v is None:
             try:
                 if values.data['market_type'] == MarketType.POLYMARKET:
-                    return values.data["resolve_date"] - 86400  # 1 day
+                    return values.data["starts"] - 86400  # 1 day
                 elif values.data['market_type'] == MarketType.AZURO:
                     return values.data["starts"] - 600  # 10 minutes
                 elif values.data['market_type'] == MarketType.ACLED:
