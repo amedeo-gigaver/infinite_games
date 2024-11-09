@@ -435,7 +435,8 @@ class TestTemplateValidatorNeuronTestCase:
         wallet, subtensor = mock_network
         v = Validator(integrations=[
             MockAzuroProviderIntegration(max_pending_events=6),
-            MockPolymarketProviderIntegration()
+            MockPolymarketProviderIntegration(),
+            MockIFGamesProviderIntegration(),
         ], db_path='test.db')
 
         # await v.forward()
@@ -449,10 +450,11 @@ class TestTemplateValidatorNeuronTestCase:
             test_event = ProviderEvent(
                 '0x8f3f3f19c4e4015fd9db2f22e653c766154091ef_100100000000000015927404810000000000000365390949_2000',
                 datetime.now(timezone.utc),
-                'azuro', 'Test event 1', after(hours=12), None,
+                'ifgames', 'Test event 1', after(hours=12), None,
                 None, datetime.now(timezone.utc), EventStatus.PENDING,
                 {},
                 {
+                    'market_type': 'azuro'
                     # 'conditionId': 'conditionid',
                     # 'slug': 'soccer-game-slug',
                     # 'league': 'league'
@@ -484,8 +486,9 @@ class TestTemplateValidatorNeuronTestCase:
     ):
         wallet, subtensor = mock_network
         v = Validator(integrations=[
-            MockAzuroProviderIntegration(max_pending_events=6),
-            MockPolymarketProviderIntegration()
+            # MockAzuroProviderIntegration(max_pending_events=6),
+            # MockPolymarketProviderIntegration(),
+            MockIFGamesProviderIntegration()
         ], db_path='test.db')
 
         reg_time = '2028-12-31 00:00'
@@ -502,10 +505,11 @@ class TestTemplateValidatorNeuronTestCase:
             test_event = ProviderEvent(
                 '0x8f3f3f19c4e4015fd9db2f22e653c766154091ef_100100000000000015927404810000000000000365390949_2000',
                 datetime.now(timezone.utc),
-                'azuro', 'Test event 1', after(hours=12), None,
+                'ifgames', 'Test event 1', after(hours=12), None,
                 None, datetime.now(timezone.utc), EventStatus.PENDING,
                 {},
                 {
+                    'market_type': 'azuro'
                     # 'conditionId': 'conditionid',
                     # 'slug': 'soccer-game-slug',
                     # 'league': 'league'

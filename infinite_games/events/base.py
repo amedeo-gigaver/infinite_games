@@ -908,7 +908,8 @@ class EventAggregator:
     async def miner_predict(self, pe: ProviderEvent, uid: int, answer: float, interval_start_minutes: int, blocktime: int) -> Submission:
         # bt.logging.info(f'{uid=} retrieving submission..')
         submission: Submission = pe.miner_predictions.get(uid)
-        if pe.market_type == 'azuro':
+        market_type = pe.metadata.get('market_type', pe.market_type)
+        if market_type == 'azuro':
             self.update_cluster_prediction(pe, uid, blocktime, 0, answer)
         else:
             # aggregate all previous intervals if not yet

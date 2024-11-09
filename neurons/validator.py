@@ -188,7 +188,12 @@ class Validator(BaseValidatorNeuron):
                         scores.append(0)
                         continue
                     else:
-                        ans = prediction_intervals[0]['interval_agg_prediction']
+                        if 0 in prediction_intervals:
+                            ans = prediction_intervals[0]['interval_agg_prediction']
+                        else:
+                            # fallback if we have intervals assigned for azuro, take last
+                            max_interval = max(prediction_intervals.keys())
+                            ans = prediction_intervals[max_interval]['interval_agg_prediction']
 
                     if ans is None:
                         scores.append(0)
