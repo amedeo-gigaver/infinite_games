@@ -132,6 +132,18 @@ class MockIFGamesProviderIntegration(IFGamesProviderIntegration):
                 "end_date": 1722549599,
                 "answer": None
             }
+        elif url == self.base_url + '/api/v2/events/dbcba93a-fe3b-4092-b918-8231b23f2faa':
+            return {
+                "event_id": "0x8f3f3f19c4e4015fd9db2f22e653c766154091ef_100100000000000015927404810000000000000365390949_2000",
+                "cutoff": 1722462600,
+                "market_type": "azuro",
+                "title": "Match",
+                "description": "Match A B",
+                "start_date": 1722463200,
+                "created_at": 1822462600,
+                "end_date": 1722549599,
+                "answer": None
+            }
         elif self.base_url + '/api/v2/events' in url:
             return {
                 "count": 4,
