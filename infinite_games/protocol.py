@@ -29,12 +29,15 @@ class EventPredictionSynapse(bt.Synapse):
     def init(self, events: List[ProviderEvent]):
         self.events = {}
         for event in events:
+            market_type = (event.metadata.get('market_type', event.market_type) or '').lower()
+            cutoff = event.metadata.get('cutoff')
             self.events[f'{event.market_type}-{event.event_id}'] = {
                 "event_id": event.event_id,
-                "market_type":  (event.metadata.get('market_type', event.market_type) or '').lower(),
+                "market_type": market_type,
                 'probability': None,
                 "description": event.description,
-                "starts": int(event.starts.timestamp()) if event.starts else None,
+                "cutoff": cutoff,
+                "starts": int(cutoff) if (cutoff and market_type == 'azuro') else None,
                 "resolve_date": int(event.resolve_date.timestamp()) if event.resolve_date else None,
                 "end_date": int(event.metadata['end_date']) if event.metadata.get('end_date') else None,
             }

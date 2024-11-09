@@ -454,7 +454,8 @@ class TestTemplateValidatorNeuronTestCase:
                 None, datetime.now(timezone.utc), EventStatus.PENDING,
                 {},
                 {
-                    'market_type': 'azuro'
+                    'market_type': 'azuro',
+                    'cutoff': 1722462600
                     # 'conditionId': 'conditionid',
                     # 'slug': 'soccer-game-slug',
                     # 'league': 'league'
