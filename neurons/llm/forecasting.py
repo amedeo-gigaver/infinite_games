@@ -112,9 +112,9 @@ class Forecaster:
         background_info = ''
         resolution_criteria = ''
 
-        start_time = int(datetime.utcnow().timestamp())
+        start_time = int(datetime.now().timestamp())
         start_date = datetime.fromtimestamp(start_time - 48*60*60).strftime('%Y-%m-%d')
-        end_time = (datetime.fromtimestamp(market.event.starts or market.event.resolve_date))
+        end_time = (datetime.fromtimestamp(market.event.cutoff))
         end_date = end_time.strftime('%Y-%m-%d')
         retrieval_dates = [start_date, end_date]
 
