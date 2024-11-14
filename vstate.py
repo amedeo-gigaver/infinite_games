@@ -44,38 +44,42 @@ print('Predictions: ', prediction_stat[0][0])
 print('Predictions exported: ', prediction_stat[0][1])
 print('Oldest prediction: ', prediction_stat[0][2])
 
-if 'events' in (''.join(sys.argv)):
+
+if '--predictions' in (''.join(sys.argv)):
+    print('All events state with prediction numbers: ')
     c = cursor.execute(
         """
             select
-            market_type, metadata, unique_event_id, description, registered_date
-            from events where status = '2'
+            e.market_type, e.metadata,e.unique_event_id, e.description, e.registered_date, e.exported, e.processed, count(*) as preds
+            from predictions p inner join events e
+            on e.unique_event_id = p.unique_event_id
+            group by e.unique_event_id, e.market_type, e.metadata, e.description, e.registered_date
         """
     )
     result = c.fetchall()
-    for market, metadata, event_id, title, reg_date in result:
+    for market, metadata, event_id, title, reg_date, exported, processed, preds in result:
+        md = json.loads(metadata)
+        sub_market = md.get('market_type', market)
+        print(market, sub_market, event_id, reg_date, f'export:{exported}', f'processed:{processed}', 'predictions:', preds)
+
+else:
+    print('All events state: ')
+    c = cursor.execute(
+        """
+            select
+            status, market_type, metadata, unique_event_id, description, registered_date, exported, processed
+            from events
+            order by status
+        """
+    )
+    result = c.fetchall()
+    for status, market, metadata, event_id, title, reg_date, exported, processed in result:
         md = json.loads(metadata)
         sub_market = md.get('market_type', market)
         if 'events-id' in (''.join(sys.argv)):
             print(event_id)
         else:
-            print(market, sub_market, event_id, title[:40], reg_date)
-
-if 'predictions-set' in (''.join(sys.argv)):
-    c = cursor.execute(
-        """
-            select
-            e.market_type, e.metadata,e.unique_event_id, e.description, e.registered_date, count(*) as preds
-            from predictions p inner join events e
-                        on e.unique_event_id = p.unique_event_id where status = '2'
-            group by e.unique_event_id, e.market_type, e.metadata, e.description, e.registered_date
-        """
-    )
-    result = c.fetchall()
-    for market, metadata, event_id, title, reg_date, preds in result:
-        md = json.loads(metadata)
-        sub_market = md.get('market_type', market)
-        print(market, sub_market, event_id, title[:40], reg_date, ' predictions: ', preds)
+            print(status, market, sub_market, event_id, reg_date, f'export:{exported}', f'processed:{processed}')
 
 
 cursor.close()
