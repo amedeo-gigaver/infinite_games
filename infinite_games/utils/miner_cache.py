@@ -30,6 +30,7 @@ class MarketType(enum.Enum):
     CUSTOM = 5
     UMA = 6
     FRED = 7
+    CRYPTO = 8
 
 
 class Event(BaseModel):
@@ -48,22 +49,7 @@ class Event(BaseModel):
     def calculate_cutoff(cls, v, values):
         if v is None:
             try:
-                if values.data['market_type'] == MarketType.POLYMARKET:
-                    return values.data["starts"] - 86400  # 1 day
-                elif values.data['market_type'] == MarketType.AZURO:
-                    return values.data["starts"] - 600  # 10 minutes
-                elif values.data['market_type'] == MarketType.ACLED:
-                    return values.data["starts"] - 600  # 10 minutes
-                elif values.data['market_type'] == MarketType.POLYMARKET_PRICES:
-                    return values.data["starts"] - 600  # 10 minutes
-                elif values.data['market_type'] == MarketType.CUSTOM:
-                    return values.data["starts"] - 600  # 10 minutes
-                elif values.data['market_type'] == MarketType.UMA:
-                    return values.data["starts"] - 600  # 10 minutes
-                elif values.data['market_type'] == MarketType.FRED:
-                    return values.data["starts"] - 600  # 10 minutes
-
-                return None
+                return values.data['cutoff'] - 60  # 1 min
             except KeyError:
                 raise ValueError(f"Invalid market type: {v}")
         return v
