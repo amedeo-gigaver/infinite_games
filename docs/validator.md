@@ -6,6 +6,8 @@ Your validator will be sending binary outcomes events to miners. In the first ph
 
 The main computational prerequisite is related to storage. Validators are now storing the entire time-series of a miner's predictions for a given event, cf. the [scoring doc](https://hackmd.io/@nielsma/S1sB8xO_C). 
 
+It is essential that validators do not wipe out their local database and persist the data. We automatically implement a discard functionality for data which is more than 1 month old.
+
 There are two auto-update scripts in the repo: [auto_update](/auto_update.sh) and [update_script](/update_script.py).
 
 **IMPORTANT**
