@@ -2,7 +2,7 @@
 
 # Validator
 
-Your validator will be sending binary outcomes events to miners. In the first phase of the subnet the events will come from external APIs. Currently the validator for example fetches events from [Polymarket](https://polymarket.com/) and [Azuro](https://azuro.org/), a prediction market and an exclusive outcomes market respectively. Every time an event settles, your validator will score the miners that submitted a prediction for that event. The core validator logic is contained in the `neurons/validator.py` file. 
+Your validator will be sending binary outcomes events to miners. In the first phase of the subnet the events will come from external APIs. The validator for example fetches events from [Polymarket](https://polymarket.com/) and [Azuro](https://azuro.org/), a prediction market and an exclusive outcomes market respectively. Every time an event settles, your validator will score the miners that submitted a prediction for that event. The core validator logic is contained in the `neurons/validator.py` file. 
 
 The main computational prerequisite is related to storage. Validators are now storing the entire time-series of a miner's predictions for a given event, cf. the [scoring doc](https://hackmd.io/@nielsma/S1sB8xO_C). 
 
