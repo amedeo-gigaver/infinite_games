@@ -124,7 +124,7 @@ class Validator(BaseValidatorNeuron):
                 self.send_interval_data(miner_data=metrics)
                 bt.logging.info(f'chunk submissions processed {len(metrics)}')
                 await asyncio.sleep(4)
-            self.event_provider.mark_submissions_as_exported()
+            self.event_provider.mark_submissions_as_exported(interval_prev_start_minutes)
 
     async def track_interval_stats(self):
         bt.logging.info('Scheduling sending interval stats.')

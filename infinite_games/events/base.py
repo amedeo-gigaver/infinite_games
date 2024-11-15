@@ -756,7 +756,7 @@ class EventAggregator:
         conn.close()
         return False
 
-    def mark_submissions_as_exported(self) -> bool:
+    def mark_submissions_as_exported(self, interval_start_minutes: int) -> bool:
         """Returns true if submitted successfully"""
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
@@ -766,8 +766,9 @@ class EventAggregator:
             try:
                 cursor.execute(
                     """
-                    UPDATE predictions set exported = true
+                    UPDATE predictions set exported = true where interval_start_minutes = ?
                     """,
+                    (interval_start_minutes, )
                 )
                 # bt.logging.debug(result)
                 conn.execute("COMMIT")
