@@ -756,7 +756,7 @@ class EventAggregator:
         conn.close()
         return False
 
-    def mark_submissions_as_exported(self, interval_start_minutes: int) -> bool:
+    def mark_submissions_as_exported(self, interval_start_minutes: int, previous_interval_start_minutes) -> bool:
         """Returns true if submitted successfully"""
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
@@ -766,9 +766,9 @@ class EventAggregator:
             try:
                 cursor.execute(
                     """
-                    UPDATE predictions set exported = true where interval_start_minutes = ?
+                    UPDATE predictions set exported = true where interval_start_minutes >= ? and interval_start_minutes <= ?
                     """,
-                    (interval_start_minutes, )
+                    (interval_start_minutes, previous_interval_start_minutes)
                 )
                 # bt.logging.debug(result)
                 conn.execute("COMMIT")
@@ -882,7 +882,7 @@ class EventAggregator:
                 output[int(interval_prediction['minerUid'])][int(interval_prediction['interval_start_minutes'])] = interval_prediction
         return output
 
-    def get_all_non_exported_event_predictions(self, interval_minutes):
+    def get_all_non_exported_event_predictions(self, interval_minutes, until_interval_minutes):
         conn = sqlite3.connect(self.db_path)
         # conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
@@ -893,9 +893,9 @@ class EventAggregator:
                 select e.metadata, e.unique_event_id, p.minerHotkey, p.minerUid, p.predictedOutcome, p.interval_start_minutes, p.interval_agg_prediction,p.interval_count,p.submitted,p.blocktime
                 from predictions p join events e on p.unique_event_id = e.unique_event_id
                 where
-                p.exported = false and interval_start_minutes >= ?
+                p.exported = false and interval_start_minutes >= ? and interval_start_minutes <= ?
                 """,
-                (interval_minutes,)
+                (interval_minutes, until_interval_minutes)
             )
             result: list = c.fetchall()
         except Exception as e:

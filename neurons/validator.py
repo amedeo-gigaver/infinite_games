@@ -101,12 +101,13 @@ class Validator(BaseValidatorNeuron):
         now = datetime.now(timezone.utc)
         minutes_since_epoch = int((now - CLUSTER_EPOCH_2024).total_seconds()) // 60
         # previous interval from current one filled already, sending it.
+        previous_interval_start_minutes = minutes_since_epoch - (minutes_since_epoch % (CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES)) - (CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES)
         since_interval_start_minutes = minutes_since_epoch - (minutes_since_epoch % (CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES)) - (CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES * 20)
         # all_uids = [uid for uid in range(self.metagraph.n.item())]
         interval_date = CLUSTER_EPOCH_2024 + timedelta(minutes=since_interval_start_minutes)
         bt.logging.debug(f"Sending interval data since: {since_interval_start_minutes} -> now {interval_date}")
         metrics = []
-        predictions_data = self.event_provider.get_all_non_exported_event_predictions(since_interval_start_minutes)
+        predictions_data = self.event_provider.get_all_non_exported_event_predictions(since_interval_start_minutes, previous_interval_start_minutes)
         bt.logging.debug(f'Loaded {len(predictions_data)} submissions..')
         for metadata, unique_event_id, _, uid, _, interval_minutes, agg_prediction, count, _, _ in predictions_data:
             market_type = unique_event_id.split('-')[0]
@@ -128,7 +129,7 @@ class Validator(BaseValidatorNeuron):
                         return
                     bt.logging.info(f'chunk submissions exported {len(metrics)} intervals: {set(intervals)}')
                     await asyncio.sleep(4)
-                self.event_provider.mark_submissions_as_exported(since_interval_start_minutes)
+                self.event_provider.mark_submissions_as_exported(since_interval_start_minutes, previous_interval_start_minutes)
             except Exception as e:
                 bt.logging.error(f'Error processing interval data.. ')
 
