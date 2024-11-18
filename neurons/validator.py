@@ -123,7 +123,9 @@ class Validator(BaseValidatorNeuron):
             try:
                 async for metrics in chunk_metrics:
                     intervals = [metric[3] for metric in metrics]
-                    self.send_interval_data(miner_data=metrics)
+                    if not self.send_interval_data(miner_data=metrics):
+                        bt.logging.error('Interrupting the stream, due to backend error..')
+                        return
                     bt.logging.info(f'chunk submissions exported {len(metrics)} intervals: {set(intervals)}')
                     await asyncio.sleep(4)
                 self.event_provider.mark_submissions_as_exported(since_interval_start_minutes)

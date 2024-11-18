@@ -532,9 +532,9 @@ class BaseValidatorNeuron(BaseNeuron):
                 )
                 if not res.status_code == 200:
                     bt.logging.warning(f'Error processing submission {res.content}')
+                    return False
                 else:
                     return True
-                time.sleep(1)
             except Exception as e:
                 bt.logging.error(e)
                 bt.logging.error(traceback.format_exc())
