@@ -105,7 +105,7 @@ class Validator(BaseValidatorNeuron):
         since_interval_start_minutes = minutes_since_epoch - (minutes_since_epoch % (CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES)) - (CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES * 20)
         # all_uids = [uid for uid in range(self.metagraph.n.item())]
         interval_date = CLUSTER_EPOCH_2024 + timedelta(minutes=since_interval_start_minutes)
-        bt.logging.debug(f"Sending interval data since: {since_interval_start_minutes} -> now {interval_date}")
+        bt.logging.debug(f"Sending interval data since: {since_interval_start_minutes} -> {previous_interval_start_minutes} now {interval_date}")
         metrics = []
         predictions_data = self.event_provider.get_all_non_exported_event_predictions(since_interval_start_minutes, previous_interval_start_minutes)
         bt.logging.debug(f'Loaded {len(predictions_data)} submissions..')
