@@ -19,5 +19,5 @@ jobs:
 
       - name: Tests
         run: |
-          coverage run -m pytest -v
+          coverage run --source=./ -m pytest -v
           coverage report -m
