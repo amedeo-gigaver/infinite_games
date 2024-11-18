@@ -496,7 +496,7 @@ class BaseValidatorNeuron(BaseNeuron):
         else:
             bt.logging.debug('*** Grafana logs sent')
 
-    @backoff.on_exception(backoff.expo, Exception, max_tries=6)
+    # @backoff.on_exception(backoff.expo, Exception, max_tries=6)
     def send_interval_data(self, miner_data):
         if os.environ.get('ENV') != 'pytest':
             try:
@@ -538,6 +538,7 @@ class BaseValidatorNeuron(BaseNeuron):
             except Exception as e:
                 bt.logging.error(e)
                 bt.logging.error(traceback.format_exc())
+                raise e
         else:
             bt.logging.info('Skip export submissions in test')
 
