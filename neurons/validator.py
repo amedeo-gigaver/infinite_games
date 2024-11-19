@@ -351,9 +351,13 @@ class Validator(BaseValidatorNeuron):
         interval_start_minutes = minutes_since_epoch - (minutes_since_epoch % (CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES))
 
         any_miner_processed = False
+        miner_data = []
         for (uid, resp) in zip(miner_uids, responses):
             for (unique_event_id, event_data) in resp.events.items():
                 score = event_data.get('probability')
+                miner_data.append(
+                    (uid, unique_event_id, score, event_data.get('market_type'), interval_start_minutes, score, 1)
+                )
                 provider_event = self.event_provider.get_registered_event(unique_event_id)
                 if not provider_event:
                     bt.logging.trace(f'Miner submission for non registered event detected  {uid=} {unique_event_id=}')
@@ -374,6 +378,8 @@ class Validator(BaseValidatorNeuron):
                     continue
 
         if any_miner_processed:
+            if miner_data:
+                self.send_live_data(miner_data)
             bt.logging.info("Processed miner responses.")
         else:
             bt.logging.info('No miner submissions received')

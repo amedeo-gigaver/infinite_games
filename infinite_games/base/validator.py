@@ -531,7 +531,52 @@ class BaseValidatorNeuron(BaseNeuron):
                     json=body
                 )
                 if not res.status_code == 200:
-                    bt.logging.warning(f'Error processing submission {res.content}')
+                    bt.logging.error(f'Error processing submission {res.content}')
+                    return False
+                else:
+                    return True
+            except Exception as e:
+                bt.logging.error(e)
+                bt.logging.error(traceback.format_exc())
+                raise e
+        else:
+            bt.logging.info('Skip export submissions in test')
+
+    def send_live_data(self, miner_data):
+        if os.environ.get('ENV') != 'pytest':
+            try:
+                v_uid = self.metagraph.hotkeys.index(self.wallet.get_hotkey().ss58_address)
+                body = {
+
+                    "submissions": [{
+                        "unique_event_id": unique_event_id,
+                        "provider_type": market_type,
+                        "title": None,
+                        "prediction": agg_prediction,
+                        "outcome": None,
+                        "interval_start_minutes": interval_minutes,
+                        "interval_agg_prediction": agg_prediction,
+                        "interval_agg_count": count,
+                        "interval_datetime": (CLUSTER_EPOCH_2024 + timedelta(minutes=interval_minutes)).isoformat(),
+                        "miner_hotkey": self.metagraph.hotkeys[int(miner_uid)],
+                        "miner_uid": int(miner_uid),
+                        "validator_hotkey": self.wallet.get_hotkey().ss58_address,
+                        "validator_uid": int(v_uid)
+                    } for miner_uid, unique_event_id, market_type,  interval_minutes, agg_prediction, count in miner_data],
+                    "events": None
+                }
+                hk = self.wallet.get_hotkey()
+                signed = base64.b64encode(hk.sign(json.dumps(body))).decode('utf-8')
+                res = requests.post(
+                    f'{self.base_api_url}/api/v1/validators/live-stream',
+                    headers={
+                        'Authorization': f'Bearer {signed}',
+                        'Validator': self.wallet.get_hotkey().ss58_address,
+                    },
+                    json=body
+                )
+                if not res.status_code == 200:
+                    bt.logging.error(f'Error processing submission {res.content}')
                     return False
                 else:
                     return True

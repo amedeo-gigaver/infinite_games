@@ -81,6 +81,5 @@ else:
         else:
             print(status, market, sub_market, event_id, reg_date, f'export:{exported}', f'processed:{processed}')
 
-
 cursor.close()
 conn.close()
