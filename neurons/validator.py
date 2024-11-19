@@ -377,9 +377,9 @@ class Validator(BaseValidatorNeuron):
                     bt.logging.trace(f'Submission received, but this event is not open for submissions miner {uid=} {unique_event_id=} {score=}')
                     continue
 
+        if miner_data and len(miner_data) > 0:
+            self.send_live_data(miner_data)
         if any_miner_processed:
-            if miner_data:
-                self.send_live_data(miner_data)
             bt.logging.info("Processed miner responses.")
         else:
             bt.logging.info('No miner submissions received')
