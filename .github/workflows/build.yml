@@ -21,4 +21,6 @@ jobs:
         run: black --check .
 
       - name: Tests
-        run: pytest
+        run: |
+          coverage run --source=./ -m pytest -v
+          coverage report -m
