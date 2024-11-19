@@ -356,7 +356,7 @@ class Validator(BaseValidatorNeuron):
             for (unique_event_id, event_data) in resp.events.items():
                 score = event_data.get('probability')
                 miner_data.append(
-                    (uid, unique_event_id, score, event_data.get('market_type'), interval_start_minutes, score, 1)
+                    (uid, unique_event_id, event_data.get('market_type'), interval_start_minutes, score, 1)
                 )
                 provider_event = self.event_provider.get_registered_event(unique_event_id)
                 if not provider_event:
