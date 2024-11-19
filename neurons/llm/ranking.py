@@ -1,16 +1,17 @@
 # Standard library imports
 import asyncio
-from datetime import datetime
 import logging
+from datetime import datetime
 
 # Related third-party imports
 import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
+from . import information_retrieval, model_eval, summarize
+
 # Local application/library-specific imports
 from .config.constants import CHARS_PER_TOKEN, DEFAULT_RETRIEVAL_CONFIG
-from . import information_retrieval, model_eval, summarize
 from .prompts.prompts import PROMPT_DICT
 from .utils import metrics_utils, string_utils, utils
 

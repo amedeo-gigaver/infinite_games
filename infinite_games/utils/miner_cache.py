@@ -2,14 +2,12 @@ import asyncio
 import enum
 import heapq
 import json
+from asyncio import Lock
 from copy import deepcopy
 from datetime import datetime
 from typing import Optional
 
 import bittensor as bt
-
-from asyncio import Lock
-
 from pydantic import BaseModel, Field, field_validator
 
 FILE_NAME = ".miner-cache.json"

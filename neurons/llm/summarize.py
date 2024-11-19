@@ -3,9 +3,10 @@ import asyncio
 import logging
 import time
 
+from . import model_eval
+
 # Local application/library-specific imports
 from .config.constants import MODEL_TOKEN_LIMITS
-from . import model_eval
 from .prompts.prompts import PROMPT_DICT
 from .utils import model_utils
 

@@ -4,8 +4,8 @@ import logging
 # Local application/library-specific imports
 import model_eval
 import ranking
-from utils import string_utils
 from prompts.prompts import PROMPT_DICT
+from utils import string_utils
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)

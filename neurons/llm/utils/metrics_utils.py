@@ -3,8 +3,8 @@ import logging
 
 # Related third-party imports
 import numpy as np
-from numpy.linalg import norm
 import torch
+from numpy.linalg import norm
 
 # Local application/library-specific imports
 from ..utils import time_utils

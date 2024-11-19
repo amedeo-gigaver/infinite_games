@@ -16,17 +16,15 @@
 # DEALINGS IN THE SOFTWARE.
 
 import copy
+from abc import ABC, abstractmethod
 
 import bittensor as bt
 
-from abc import ABC, abstractmethod
-
-
-# Sync calls set weights and also resyncs the metagraph.
-from infinite_games.utils.config import check_config, add_args, config
-from infinite_games.utils.misc import ttl_get_block
 from infinite_games import __spec_version__ as spec_version
 
+# Sync calls set weights and also resyncs the metagraph.
+from infinite_games.utils.config import add_args, check_config, config
+from infinite_games.utils.misc import ttl_get_block
 
 bt.logging.info(f"Subnet weight version:  {spec_version}")
 

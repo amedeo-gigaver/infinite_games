@@ -1,8 +1,9 @@
-import sys
-from typing import AsyncIterator, Optional
-import aiohttp
 import asyncio
+import sys
 from datetime import datetime, timedelta, timezone
+from typing import AsyncIterator, Optional
+
+import aiohttp
 import bittensor
 
 from infinite_games.events.base import (

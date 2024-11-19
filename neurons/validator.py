@@ -17,13 +17,13 @@
 
 import asyncio
 import base64
-from datetime import datetime, timedelta, timezone
 import json
 import math
 import os
 import sqlite3
 import sys
 import traceback
+from datetime import datetime, timedelta, timezone
 
 import requests
 
@@ -37,11 +37,13 @@ import time
 
 import bittensor as bt
 import torch
+
 import infinite_games
 
 # import base validator class which takes care of most of the boilerplate
 from infinite_games import __spec_version__ as spec_version
 from infinite_games.base.validator import BaseValidatorNeuron
+from infinite_games.events.azuro import AzuroProviderIntegration
 from infinite_games.events.base import (
     CLUSTER_EPOCH_2024,
     CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES,
@@ -51,9 +53,8 @@ from infinite_games.events.base import (
     ProviderIntegration,
     Submission,
 )
-from infinite_games.utils.query import query_miners
-from infinite_games.events.azuro import AzuroProviderIntegration
 from infinite_games.events.polymarket import PolymarketProviderIntegration
+from infinite_games.utils.query import query_miners
 
 
 class Validator(BaseValidatorNeuron):

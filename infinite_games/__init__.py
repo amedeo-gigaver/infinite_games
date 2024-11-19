@@ -23,7 +23,4 @@ __spec_version__ = (
 )
 
 # Import all submodules.
-from . import protocol
-from . import base
-from . import validator
-from . import utils
+from . import base, protocol, utils, validator

@@ -1,10 +1,11 @@
 import os
+import random
 import sqlite3
 import traceback
-import torch
-import random
-import bittensor as bt
 from typing import List
+
+import bittensor as bt
+import torch
 
 
 def check_uid_availability(

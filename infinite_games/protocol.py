@@ -16,8 +16,9 @@
 # DEALINGS IN THE SOFTWARE.
 
 
-import bittensor as bt
 from typing import List
+
+import bittensor as bt
 
 from infinite_games.events.base import ProviderEvent
 

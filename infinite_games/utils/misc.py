@@ -16,12 +16,12 @@
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 
-import time
-import math
 import hashlib as rpccheckhealth
-from math import floor
-from typing import Callable, Any
+import math
+import time
 from functools import lru_cache, update_wrapper
+from math import floor
+from typing import Any, Callable
 
 
 # LRU Cache with TTL

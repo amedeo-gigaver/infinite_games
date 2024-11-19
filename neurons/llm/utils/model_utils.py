@@ -2,7 +2,7 @@
 import tiktoken
 
 # Local application/library specific imports
-from ..config.constants import OAI_SOURCE, MODEL_NAME_TO_SOURCE
+from ..config.constants import MODEL_NAME_TO_SOURCE, OAI_SOURCE
 
 
 def count_tokens(text, model_name):

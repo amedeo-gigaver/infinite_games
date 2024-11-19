@@ -1,16 +1,14 @@
+import json
+from datetime import datetime, timedelta, timezone
 from typing import AsyncIterator
 
 import backoff
 import bittensor as bt
-
-from datetime import datetime, timedelta, timezone
-import json
-from gql import gql, Client
-from gql.transport.aiohttp import AIOHTTPTransport
 import websockets
+from gql import Client, gql
+from gql.transport.aiohttp import AIOHTTPTransport
 
 from infinite_games.azurodictionaries.outcomes import OUTCOMES
-
 from infinite_games.events.base import (
     EventAggregator,
     EventStatus,

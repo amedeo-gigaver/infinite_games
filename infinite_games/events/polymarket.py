@@ -1,11 +1,12 @@
+import asyncio
 import os
 import traceback
+from datetime import datetime, timedelta, timezone
 from typing import AsyncIterator, Optional
+
 import aiohttp
 import backoff
 import bittensor as bt
-import asyncio
-from datetime import datetime, timedelta, timezone
 import requests
 
 from infinite_games.events.base import EventStatus, ProviderEvent, ProviderIntegration

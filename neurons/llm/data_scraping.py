@@ -1,15 +1,14 @@
 import datetime
-import requests
 import logging
 
+import requests
+from config.constants import S3, S3_BUCKET_NAME
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
-
-from config.constants import S3, S3_BUCKET_NAME
 from utils import db_utils
 
 logger = logging.getLogger(__name__)

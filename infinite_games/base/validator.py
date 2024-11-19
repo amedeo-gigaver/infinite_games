@@ -16,29 +16,27 @@
 # DEALINGS IN THE SOFTWARE.
 
 
+import asyncio
 import base64
 import copy
-from datetime import datetime, timedelta, timezone
 import json
 import os
 import pathlib
+import threading
 import time
 import traceback
+from datetime import datetime, timedelta, timezone
+from traceback import print_exception
+from typing import List
+
 import backoff
+import bittensor as bt
 import requests
 import torch
-import asyncio
-import threading
-import bittensor as bt
-
-from typing import List
-from traceback import print_exception
-
 import wandb
 
-
-from infinite_games.base.neuron import BaseNeuron
 from infinite_games import __version__
+from infinite_games.base.neuron import BaseNeuron
 from infinite_games.events.base import CLUSTER_EPOCH_2024
 
 

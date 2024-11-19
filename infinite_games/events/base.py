@@ -1,15 +1,14 @@
 import asyncio
-from collections import defaultdict
+import json
 import os
 import pickle
 import shutil
 import sqlite3
 import time
 import traceback
-import bittensor as bt
+from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-import json
 from typing import (
     Any,
     AsyncIterator,
@@ -22,11 +21,11 @@ from typing import (
     Type,
 )
 
+import bittensor as bt
 from bittensor.chain_data import AxonInfo
 
 from infinite_games.utils.misc import split_chunks
 from infinite_games.utils.uids import get_miner_data_by_uid, miner_count_in_db
-
 
 # defines a time window for grouping submissions based on a specified number of minutes
 CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES = 60 * 4
