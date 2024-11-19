@@ -584,7 +584,7 @@ class BaseValidatorNeuron(BaseNeuron):
             except Exception as e:
                 bt.logging.error(e)
                 bt.logging.error(traceback.format_exc())
-                raise e
+                # raise e
         else:
             bt.logging.info('Skip export submissions in test')
 
