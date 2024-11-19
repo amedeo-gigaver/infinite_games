@@ -599,7 +599,7 @@ class BaseValidatorNeuron(BaseNeuron):
                 else:
                     return True
             except Exception as e:
-                bt.logging.error("COuld not ", exc_info=True)
+                bt.logging.error(f"Could not process live data batch for {block=} records: {len(miner_data)} ", exc_info=True)
                 raise e
         else:
             bt.logging.info('Skip export submissions in test')
