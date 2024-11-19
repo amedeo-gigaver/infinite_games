@@ -18,7 +18,12 @@ jobs:
         run: pip install -r requirements_dev.txt
 
       - name: Lint
-        run: black --check .
+        run: |
+          # Imports order
+          isort --check-only --diff .
+
+          # Code format
+          black --check .
 
       - name: Tests
         run: |
