@@ -1,0 +1,46 @@
+{
+    "name": "infinite_games Dev Environment",
+    "build": {
+        "dockerfile": "Dockerfile",
+        "context": ".."
+    },
+    // "image": "mcr.microsoft.com/devcontainers/python:3.10",
+    "workspaceFolder": "/workspace",
+    "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind",
+    "features": {
+        "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+    },
+    "customizations": {
+        "vscode": {
+            "settings": {
+                "files.trimTrailingWhitespace": true,
+                "python.terminal.activateEnvironment": false,
+                "[python]": {
+                    "editor.defaultFormatter": "ms-python.black-formatter",
+                    "editor.formatOnSave": true,
+                    "editor.codeActionsOnSave": {
+                        "source.organizeImports": true
+                    }
+                },
+                "python.pythonPath": "/usr/local/bin/python3.10",
+                "python.formatting.blackArgs": ["-l", "100"],
+                "isort.args": ["--profile", "black"]
+            },
+            "extensions": [
+                "streetsidesoftware.code-spell-checker",
+                "ms-python.python",
+                "mechatroner.rainbow-csv",
+                "sleistner.vscode-fileutils",
+                "ms-toolsai.jupyter",
+                "GitHub.copilot",
+                "GitHub.copilot-chat",
+                "ms-azuretools.vscode-docker",
+                "timonwong.shellcheck",
+                "EditorConfig.EditorConfig",
+                "ms-python.black-formatter",
+                "ms-python.isort"
+            ]
+        }
+    },
+    "postCreateCommand": "/workspace/.devcontainer/codespaces_init.sh"
+}
