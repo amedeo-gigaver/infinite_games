@@ -183,9 +183,7 @@ class BaseMinerNeuron(BaseNeuron):
         """
         try:
             # --- query the chain for the most current number of peers on the network
-            chain_weights = torch.zeros(
-                self.subtensor.subnetwork_n(netuid=self.metagraph.netuid)
-            )
+            chain_weights = torch.zeros(self.subtensor.subnetwork_n(netuid=self.metagraph.netuid))
             chain_weights[self.uid] = 1
 
             # --- Set weights.

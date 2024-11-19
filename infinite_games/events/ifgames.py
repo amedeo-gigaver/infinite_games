@@ -20,9 +20,7 @@ class IFGamesProviderIntegration(ProviderIntegration):
         self.lock = asyncio.Lock()
         self.loop = asyncio.get_event_loop()
         self.is_test = "subtensor.networktest" in ("".join(sys.argv))
-        self.base_url = (
-            "https://stage.ifgames.win" if self.is_test else "https://ifgames.win"
-        )
+        self.base_url = "https://stage.ifgames.win" if self.is_test else "https://ifgames.win"
 
     async def _ainit(self) -> "IFGamesProviderIntegration":
         return self
@@ -82,9 +80,7 @@ class IFGamesProviderIntegration(ProviderIntegration):
 
     async def _lock(self, seconds, error_resp):
         if not self.lock.locked():
-            self.log(
-                f"Hit limit for {error_resp.url} polymarket waiting for {seconds} seconds.."
-            )
+            self.log(f"Hit limit for {error_resp.url} polymarket waiting for {seconds} seconds..")
             return await self.lock.acquire()
 
     async def _wait_for_retry(self, retry_seconds, resp):
@@ -166,8 +162,7 @@ class IFGamesProviderIntegration(ProviderIntegration):
             await asyncio.sleep(1)
             self.log(f"Sync events after {start_from=} {offset=}..")
             resp = await self._request(
-                self.base_url
-                + f"/api/v2/events?limit=250&from_date={start_from}&offset={offset}"
+                self.base_url + f"/api/v2/events?limit=250&from_date={start_from}&offset={offset}"
             )
             if resp and resp.get("count", 0) > 0:
                 event = {}

@@ -130,9 +130,7 @@ class BaseValidatorNeuron(BaseNeuron):
             pass
 
     async def concurrent_forward(self):
-        coroutines = [
-            self.forward() for _ in range(self.config.neuron.num_concurrent_forwards)
-        ]
+        coroutines = [self.forward() for _ in range(self.config.neuron.num_concurrent_forwards)]
         await asyncio.gather(*coroutines)
 
     def run(self):
@@ -324,9 +322,7 @@ class BaseValidatorNeuron(BaseNeuron):
         if previous_metagraph.axons == self.metagraph.axons:
             return
 
-        bt.logging.info(
-            "Metagraph updated, re-syncing hotkeys, dendrite pool and moving averages"
-        )
+        bt.logging.info("Metagraph updated, re-syncing hotkeys, dendrite pool and moving averages")
         # Zero out all hotkeys that have been replaced.
         for uid, hotkey in enumerate(self.hotkeys):
             if hotkey != self.metagraph.hotkeys[uid]:
@@ -358,9 +354,7 @@ class BaseValidatorNeuron(BaseNeuron):
             if datetime.now(timezone.utc).hour > 10:
                 bt.logging.info(f"Resetting daily scores: {datetime.now(timezone.utc)}")
                 if self.average_scores is None:
-                    bt.logging.error(
-                        "Do not have average scores to set for previous day!"
-                    )
+                    bt.logging.error("Do not have average scores to set for previous day!")
                 else:
                     all_uids = [uid for uid in range(self.metagraph.n.item())]
                     bt.logging.debug(f"Daily average total: {self.average_scores}")
@@ -406,34 +400,26 @@ class BaseValidatorNeuron(BaseNeuron):
 
         if len(self.average_scores) < total_neurons:
             # extend score shape in case we have new miners
-            self.average_scores = torch.cat([self.average_scores, all_zeros])[
-                :total_neurons
-            ]
+            self.average_scores = torch.cat([self.average_scores, all_zeros])[:total_neurons]
 
         if len(self.previous_average_scores) < total_neurons:
             # extend score shape in case we have new miners
-            self.previous_average_scores = torch.cat(
-                [self.previous_average_scores, all_zeros]
-            )[:total_neurons]
+            self.previous_average_scores = torch.cat([self.previous_average_scores, all_zeros])[
+                :total_neurons
+            ]
 
         zero_scattered_rewards = torch.zeros(total_neurons).scatter(
             0, uids.clone().detach(), rewards
         )
 
-        bt.logging.debug(
-            f"Scattered rewards: {torch.round(zero_scattered_rewards, decimals=3)}"
-        )
-        bt.logging.debug(
-            f"Average total: {torch.round(self.average_scores, decimals=3)}"
-        )
+        bt.logging.debug(f"Scattered rewards: {torch.round(zero_scattered_rewards, decimals=3)}")
+        bt.logging.debug(f"Average total: {torch.round(self.average_scores, decimals=3)}")
         bt.logging.debug(f"Daily iteration: {self.scoring_iterations + 1}")
 
         self.average_scores = (
             self.average_scores * self.scoring_iterations + zero_scattered_rewards
         ) / (self.scoring_iterations + 1)
-        bt.logging.debug(
-            f"New Average total: {torch.round(self.average_scores, decimals=3)}"
-        )
+        bt.logging.debug(f"New Average total: {torch.round(self.average_scores, decimals=3)}")
 
         alpha = 0.8
         if (
@@ -445,9 +431,7 @@ class BaseValidatorNeuron(BaseNeuron):
                 1 - alpha
             ) * self.previous_average_scores.to(self.device)
         else:
-            bt.logging.info(
-                "No daily average available yet, prefer scores for moving average"
-            )
+            bt.logging.info("No daily average available yet, prefer scores for moving average")
             self.scores: torch.FloatTensor = alpha * scattered_scores + (
                 1 - alpha
             ) * self.scores.to(self.device)
@@ -460,9 +444,7 @@ class BaseValidatorNeuron(BaseNeuron):
         if not self.GRAFANA_API_KEY:
             return
         miner_logs = ""
-        measurement = os.environ.get(
-            "AVERAGE_MEASUREMENT_NAME", "miners_average_scores"
-        )
+        measurement = os.environ.get("AVERAGE_MEASUREMENT_NAME", "miners_average_scores")
         if miner_scores:
             for miner_id, score, total_weight in miner_scores:
                 # bt.logging.debug(f'Miner {miner_id} {score} {old_weight} -> {total_weight}')
@@ -483,9 +465,7 @@ class BaseValidatorNeuron(BaseNeuron):
 
         status_code = response.status_code
         if status_code != 204:
-            bt.logging.error(
-                f'*** Error sending logs! {response.content.decode("utf8")}'
-            )
+            bt.logging.error(f'*** Error sending logs! {response.content.decode("utf8")}')
         else:
             bt.logging.debug("*** Grafana logs sent")
 
@@ -521,9 +501,7 @@ class BaseValidatorNeuron(BaseNeuron):
         )
         status_code = response.status_code
         if status_code != 204:
-            bt.logging.error(
-                f'*** Error sending logs! {response.content.decode("utf8")}'
-            )
+            bt.logging.error(f'*** Error sending logs! {response.content.decode("utf8")}')
         else:
             bt.logging.debug("*** Grafana logs sent")
 
@@ -531,9 +509,7 @@ class BaseValidatorNeuron(BaseNeuron):
     def send_interval_data(self, miner_data):
         if os.environ.get("ENV") != "pytest":
             try:
-                v_uid = self.metagraph.hotkeys.index(
-                    self.wallet.get_hotkey().ss58_address
-                )
+                v_uid = self.metagraph.hotkeys.index(self.wallet.get_hotkey().ss58_address)
                 body = {
                     "submissions": [
                         {

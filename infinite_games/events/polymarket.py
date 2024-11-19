@@ -108,9 +108,7 @@ class PolymarketProviderIntegration(ProviderIntegration):
 
     async def _lock(self, seconds, error_resp):
         if not self.lock.locked():
-            self.log(
-                f"Hit limit for {error_resp.url} polymarket waiting for {seconds} seconds.."
-            )
+            self.log(f"Hit limit for {error_resp.url} polymarket waiting for {seconds} seconds..")
             return await self.lock.acquire()
 
     async def _wait_for_retry(self, retry_seconds, resp):
@@ -187,9 +185,7 @@ class PolymarketProviderIntegration(ProviderIntegration):
             resp = None
             if first:
                 try:
-                    resp = await self._request(
-                        "https://clob.polymarket.com/sampling-markets"
-                    )
+                    resp = await self._request("https://clob.polymarket.com/sampling-markets")
                     nxt = resp
                     first = False
                 except Exception as e:
@@ -197,9 +193,7 @@ class PolymarketProviderIntegration(ProviderIntegration):
             else:
                 try:
                     resp = await self._request(
-                        "https://clob.polymarket.com/sampling-markets?next_cursor={}".format(
-                            cursor
-                        )
+                        "https://clob.polymarket.com/sampling-markets?next_cursor={}".format(cursor)
                     )
                     nxt = resp
                 except Exception as e:
@@ -215,9 +209,7 @@ class PolymarketProviderIntegration(ProviderIntegration):
                         self.error("No market id provided for event {market}")
                         continue
                     try:
-                        pe = self.construct_provider_event(
-                            market.get("condition_id"), market
-                        )
+                        pe = self.construct_provider_event(market.get("condition_id"), market)
                         if not pe:
                             continue
                         if not self.available_for_submission(pe):
@@ -232,9 +224,7 @@ class PolymarketProviderIntegration(ProviderIntegration):
                             continue
                         yield pe
                     except Exception as e:
-                        self.error(
-                            f"Error parse market {market.get('market_slug')} {e} {market}"
-                        )
+                        self.error(f"Error parse market {market.get('market_slug')} {e} {market}")
                         self.error(traceback.format_exc())
             else:
                 return

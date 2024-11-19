@@ -134,8 +134,7 @@ class EventAggregator:
     ):
         self = cls(state_path, db_path=db_path)
         self.integrations = {
-            integration.provider_name(): await integration._ainit()
-            for integration in integrations
+            integration.provider_name(): await integration._ainit() for integration in integrations
         }
 
         return self
@@ -161,8 +160,7 @@ class EventAggregator:
             self.log(f"Pulling events from providers. Current: {len(pending_events)}")
             try:
                 tasks = [
-                    self._sync_provider(integration)
-                    for _, integration in self.integrations.items()
+                    self._sync_provider(integration) for _, integration in self.integrations.items()
                 ]
                 await asyncio.gather(*tasks)
             except Exception as e:
@@ -285,9 +283,7 @@ class EventAggregator:
         key = self.event_key(pe.market_type, event_id=pe.event_id)
         integration = self.integrations.get(pe.market_type)
         if not integration:
-            bt.logging.error(
-                f"No integration found for event {pe.market_type} - {pe.event_id}"
-            )
+            bt.logging.error(f"No integration found for event {pe.market_type} - {pe.event_id}")
             return
         is_new = self.save_event(pe)
         if not is_new:
@@ -296,9 +292,7 @@ class EventAggregator:
                 try:
                     event: ProviderEvent = self.get_event(key)
                     if not event:
-                        bt.logging.error(
-                            f"Could not get updated event from database {pe}"
-                        )
+                        bt.logging.error(f"Could not get updated event from database {pe}")
                         return
                     if (
                         event.metadata.get("processed", False) is False
@@ -307,9 +301,7 @@ class EventAggregator:
                         self.save_event(pe, True)
                         pass
                     elif event.metadata.get("processed", False) is True:
-                        bt.logging.warning(
-                            f"Tried to process already processed {event} event!"
-                        )
+                        bt.logging.warning(f"Tried to process already processed {event} event!")
                 except Exception as e:
                     bt.logging.error(f"Failed to call update hook for event {key}")
                     bt.logging.error(e)
@@ -320,9 +312,7 @@ class EventAggregator:
 
         return is_new
 
-    def on_event_updated_hook(
-        self, event_update_hook_fn: Callable[[ProviderEvent], None]
-    ):
+    def on_event_updated_hook(self, event_update_hook_fn: Callable[[ProviderEvent], None]):
         """Depending on provider, hook that will be called when we have updates for registered events"""
         self.event_update_hook_fn = event_update_hook_fn
 
@@ -361,9 +351,7 @@ class EventAggregator:
     def get_integration(self, pe: ProviderEvent) -> ProviderIntegration:
         integration = self.integrations.get(pe.market_type)
         if not integration:
-            bt.logging.error(
-                f"No integration found for event {pe.market_type} - {pe.event_id}"
-            )
+            bt.logging.error(f"No integration found for event {pe.market_type} - {pe.event_id}")
             return
         return integration
 
@@ -422,9 +410,7 @@ class EventAggregator:
             row.get("market_type"),
             row.get("description"),
             datetime.fromisoformat(row.get("starts")) if row.get("starts") else None,
-            datetime.fromisoformat(row.get("resolve_date"))
-            if row.get("resolve_date")
-            else None,
+            datetime.fromisoformat(row.get("resolve_date")) if row.get("resolve_date") else None,
             float(row.get("outcome")) if row.get("outcome") else None,
             datetime.fromisoformat(row.get("local_updated_at"))
             if row.get("local_updated_at")
@@ -437,9 +423,7 @@ class EventAggregator:
             },
         )
 
-    def get_events(
-        self, statuses: List[int] = None, processed=None
-    ) -> Iterator[ProviderEvent]:
+    def get_events(self, statuses: List[int] = None, processed=None) -> Iterator[ProviderEvent]:
         """Get all events"""
         if not statuses:
             statuses = (
@@ -687,9 +671,7 @@ class EventAggregator:
                     bt.logging.warning(f"Database locked, retry {tried + 1}..")
                     time.sleep(1 + (2 * tried))
                 elif "malformed" in str(e):
-                    bt.logging.warning(
-                        f"Database is malformed or locked, retry {tried + 1}.."
-                    )
+                    bt.logging.warning(f"Database is malformed or locked, retry {tried + 1}..")
                     time.sleep(1 + (2 * tried))
                 else:
                     bt.logging.error(e)
@@ -757,9 +739,7 @@ class EventAggregator:
             tried += 1
         conn.close()
 
-    def save_event(
-        self, pe: ProviderEvent, processed=False, commit=True, cursor=None
-    ) -> bool:
+    def save_event(self, pe: ProviderEvent, processed=False, commit=True, cursor=None) -> bool:
         """Returns true if new event"""
         if not cursor:
             conn = sqlite3.connect(self.db_path)
@@ -870,9 +850,7 @@ class EventAggregator:
 
                 else:
                     bt.logging.error(e)
-                    bt.logging.error(
-                        self.event_key(pe.market_type, event_id=pe.event_id)
-                    )
+                    bt.logging.error(self.event_key(pe.market_type, event_id=pe.event_id))
                     bt.logging.error(traceback.format_exc())
                     break
             tried += 1
@@ -953,9 +931,7 @@ class EventAggregator:
                     # tried += 1
                 else:
                     bt.logging.error(traceback.format_exc())
-                    bt.logging.error(
-                        f"Error setting miner predictions {uid=} {pe} {e} "
-                    )
+                    bt.logging.error(f"Error setting miner predictions {uid=} {pe} {e} ")
                     break
             except Exception as e:
                 bt.logging.info(e)
@@ -1067,8 +1043,6 @@ class EventAggregator:
             # aggregate all previous intervals if not yet
             # self._resolve_previous_intervals(pe, uid, interval_start_minutes)
             # bt.logging.info(f"{uid=} identifying interval for {interval_start_minutes=} {pe}")
-            self.update_cluster_prediction(
-                pe, uid, blocktime, interval_start_minutes, answer
-            )
+            self.update_cluster_prediction(pe, uid, blocktime, interval_start_minutes, answer)
 
         return submission

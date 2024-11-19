@@ -58,9 +58,7 @@ def get_alignment_scores(
                     max_tokens=2000,
                     temperature=temperature,
                 )
-                alignment_score = ranking.extract_rating_from_response(
-                    alignment_response
-                )
+                alignment_score = ranking.extract_rating_from_response(alignment_response)
                 alignment_scores_.append(alignment_score)
             except Exception as e:
                 logger.error(f"Error message: {e}")

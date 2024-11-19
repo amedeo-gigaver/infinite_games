@@ -122,10 +122,7 @@ class MinerCache:
         async with self._lock:
             keys_for_deletion: list[str] = []
             for key, market in self.cache.items():
-                if (
-                    market.status == MinerCacheStatus.COMPLETED
-                    and market.event.retries == 0
-                ):
+                if market.status == MinerCacheStatus.COMPLETED and market.event.retries == 0:
                     expired = market.event.cutoff + 2 * 86400
                     if expired < int(datetime.utcnow().timestamp()):
                         keys_for_deletion.append(key)

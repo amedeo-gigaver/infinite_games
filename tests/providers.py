@@ -13,10 +13,7 @@ class MockAzuroProviderIntegration(AzuroProviderIntegration):
 
     def available_for_submission(self, pe: ProviderEvent) -> bool:
         # self.log(f'Can submit? {pe} {pe.starts} > {datetime.now()} {pe.starts > datetime.now()}')
-        return (
-            pe.starts > datetime.now(timezone.utc)
-            and pe.status != EventStatus.DISCARDED
-        )
+        return pe.starts > datetime.now(timezone.utc) and pe.status != EventStatus.DISCARDED
 
     def convert_status(self, azuro_status):
         return {
@@ -107,9 +104,7 @@ class MockIFGamesProviderIntegration(IFGamesProviderIntegration):
                 "end_date": 1722549599,
                 "answer": None,
             }
-        elif (
-            url == self.base_url + "/api/v2/events/cbcba93a-fe3b-4092-b918-8231b23f2faa"
-        ):
+        elif url == self.base_url + "/api/v2/events/cbcba93a-fe3b-4092-b918-8231b23f2faa":
             return {
                 "event_id": "cbcba93a-fe3b-4092-b918-8231b23f2faa",
                 "cutoff": 1722462600,
@@ -121,9 +116,7 @@ class MockIFGamesProviderIntegration(IFGamesProviderIntegration):
                 "end_date": 1722549599,
                 "answer": None,
             }
-        elif (
-            url == self.base_url + "/api/v2/events/dbcba93a-fe3b-4092-b918-8231b23f2faa"
-        ):
+        elif url == self.base_url + "/api/v2/events/dbcba93a-fe3b-4092-b918-8231b23f2faa":
             return {
                 "event_id": "dbcba93a-fe3b-4092-b918-8231b23f2faa",
                 "cutoff": 1722462600,
@@ -135,9 +128,7 @@ class MockIFGamesProviderIntegration(IFGamesProviderIntegration):
                 "end_date": 1722549599,
                 "answer": None,
             }
-        elif (
-            url == self.base_url + "/api/v2/events/dbcba93a-fe3b-4092-b918-8231b23f2faa"
-        ):
+        elif url == self.base_url + "/api/v2/events/dbcba93a-fe3b-4092-b918-8231b23f2faa":
             return {
                 "event_id": "0x8f3f3f19c4e4015fd9db2f22e653c766154091ef_100100000000000015927404810000000000000365390949_2000",
                 "cutoff": 1722462600,

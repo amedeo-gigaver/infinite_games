@@ -84,25 +84,18 @@ class Miner(BaseMinerNeuron):
         try:
             llm_prediction = None
             # Polymarket
-            if (
-                market.event.market_type == MarketType.POLYMARKET
-                and self.polymarket is not None
-            ):
+            if market.event.market_type == MarketType.POLYMARKET and self.polymarket is not None:
                 x = await self.polymarket.get_event_by_id(market.event.event_id)
                 market.event.probability = x["tokens"][0]["price"]
 
             # Azuro
-            elif (
-                market.event.market_type == MarketType.AZURO and self.azuro is not None
-            ):
+            elif market.event.market_type == MarketType.AZURO and self.azuro is not None:
                 x = await self.azuro.get_event_by_id(market.event.event_id)
                 market.event.probability = 1.0 / float(x["outcome"]["currentOdds"])
 
             else:
                 # LLM
-                llm_prediction = (
-                    (await self.llm.get_prediction(market)) if self.llm else None
-                )
+                llm_prediction = (await self.llm.get_prediction(market)) if self.llm else None
                 if llm_prediction is not None:
                     market.event.probability = llm_prediction
                 else:
@@ -131,18 +124,15 @@ class Miner(BaseMinerNeuron):
             await self.initialize_providers()
 
         today = datetime.now()
-        bt.logging.info(
-            "[{}] Incoming Events {}".format(today, len(synapse.events.items()))
-        )
+        bt.logging.info("[{}] Incoming Events {}".format(today, len(synapse.events.items())))
 
         for cid, market in synapse.events.items():
             cached_market: typing.Optional[MinerCacheObject] = await self.cache.get(cid)
             if cached_market is not None:
                 if cached_market.status == MinerCacheStatus.COMPLETED:
                     # Check IF it is time for a re-calculation of the probability.
-                    if (
-                        cached_market.event.retries > 0
-                        and cached_market.event.next_try <= int(today.timestamp())
+                    if cached_market.event.retries > 0 and cached_market.event.next_try <= int(
+                        today.timestamp()
                     ):
                         # Set the stored object in a rerun state.
                         cached_market.set_for_rerun()
@@ -153,9 +143,7 @@ class Miner(BaseMinerNeuron):
                             cached_market.event.next_try,
                         ) = await _calculate_next_try(cached_market)
 
-                        await self.cache.add(
-                            cid, self._generate_prediction, cached_market
-                        )
+                        await self.cache.add(cid, self._generate_prediction, cached_market)
                     else:
                         market["probability"] = cached_market.event.probability
                         bt.logging.info(
@@ -210,19 +198,13 @@ class Miner(BaseMinerNeuron):
         # TODO(developer): Define how miners should blacklist requests.
         if synapse.dendrite.hotkey not in self.metagraph.hotkeys:
             # Ignore requests from unrecognized entities.
-            bt.logging.debug(
-                f"Blacklisting unrecognized hotkey {synapse.dendrite.hotkey}"
-            )
+            bt.logging.debug(f"Blacklisting unrecognized hotkey {synapse.dendrite.hotkey}")
             return True, "Unrecognized hotkey"
 
-        bt.logging.debug(
-            f"Not Blacklisting recognized hotkey {synapse.dendrite.hotkey}"
-        )
+        bt.logging.debug(f"Not Blacklisting recognized hotkey {synapse.dendrite.hotkey}")
         return False, "Hotkey recognized!"
 
-    async def priority(
-        self, synapse: infinite_games.protocol.EventPredictionSynapse
-    ) -> float:
+    async def priority(self, synapse: infinite_games.protocol.EventPredictionSynapse) -> float:
         """
         The priority function determines the order in which requests are handled. More valuable or higher-priority
         requests are processed before others. You should design your own priority mechanism with care.
@@ -243,15 +225,9 @@ class Miner(BaseMinerNeuron):
         - A higher stake results in a higher priority value.
         """
         # TODO(developer): Define how miners should prioritize requests.
-        caller_uid = self.metagraph.hotkeys.index(
-            synapse.dendrite.hotkey
-        )  # Get the caller index.
-        prirority = float(
-            self.metagraph.S[caller_uid]
-        )  # Return the stake as the priority.
-        bt.logging.debug(
-            f"Prioritizing {synapse.dendrite.hotkey} with value: ", prirority
-        )
+        caller_uid = self.metagraph.hotkeys.index(synapse.dendrite.hotkey)  # Get the caller index.
+        prirority = float(self.metagraph.S[caller_uid])  # Return the stake as the priority.
+        bt.logging.debug(f"Prioritizing {synapse.dendrite.hotkey} with value: ", prirority)
         return prirority
 
     def save_state(self):

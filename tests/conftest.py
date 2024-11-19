@@ -46,16 +46,12 @@ def test_network(netuid):
     w = get_mock_wallet()
     s = MockSubtensor()
     s.create_subnet(netuid)
-    uid = s.force_register_neuron(
-        netuid, w.hotkey.ss58_address, w.coldkey.ss58_address, 20, 20
-    )
+    uid = s.force_register_neuron(netuid, w.hotkey.ss58_address, w.coldkey.ss58_address, 20, 20)
     print(f"Main neuron {w.hotkey.ss58_address} registered")
     assert uid is not None, f"Failed to register {w} in {netuid}"
     remaining_wallets = [get_mock_wallet() for uid in range(1, 256)]
     for w in remaining_wallets:
-        uid = s.force_register_neuron(
-            netuid, w.hotkey.ss58_address, w.coldkey.ss58_address, 20, 20
-        )
+        uid = s.force_register_neuron(netuid, w.hotkey.ss58_address, w.coldkey.ss58_address, 20, 20)
     print("All subnet neurons registered")
 
     yield w, s

@@ -101,9 +101,12 @@ class Forecaster:
     }
 
     async def get_prediction(self, market, models_setup_option: int = 0):
-        if (
-            OPENAI_KEY is None and GOOGLE_AI_KEY is None
-        ) or models_setup_option not in [0, 1, 2, 3]:
+        if (OPENAI_KEY is None and GOOGLE_AI_KEY is None) or models_setup_option not in [
+            0,
+            1,
+            2,
+            3,
+        ]:
             return None
 
         retrieval_config = _get_retrieval_config(self.model_setups[models_setup_option])
@@ -114,9 +117,7 @@ class Forecaster:
         resolution_criteria = ""
 
         start_time = int(datetime.now().timestamp())
-        start_date = datetime.fromtimestamp(start_time - 48 * 60 * 60).strftime(
-            "%Y-%m-%d"
-        )
+        start_date = datetime.fromtimestamp(start_time - 48 * 60 * 60).strftime("%Y-%m-%d")
         end_time = datetime.fromtimestamp(market.event.cutoff)
         end_date = end_time.strftime("%Y-%m-%d")
         retrieval_dates = [start_date, end_date]
@@ -152,9 +153,7 @@ class Forecaster:
             resolution_criteria=resolution_criteria,
             today_to_close_date_range=today_to_close_date,
             retrieved_info=all_summaries,
-            reasoning_prompt_templates=reasoning_config[
-                "BASE_REASONING_PROMPT_TEMPLATES"
-            ],
+            reasoning_prompt_templates=reasoning_config["BASE_REASONING_PROMPT_TEMPLATES"],
             base_model_names=reasoning_config["BASE_REASONING_MODEL_NAMES"],
             base_temperature=reasoning_config["BASE_REASONING_TEMPERATURE"],
             aggregation_method=reasoning_config["AGGREGATION_METHOD"],

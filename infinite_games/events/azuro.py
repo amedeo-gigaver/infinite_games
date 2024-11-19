@@ -84,9 +84,7 @@ class AzuroProviderIntegration(ProviderIntegration):
             else:
                 bt.logging.warning("Azuro: Empty CID passed for ws subscribe")
         else:
-            bt.logging.error(
-                "Azuro: Could not subscribe to event no WS connection found!"
-            )
+            bt.logging.error("Azuro: Could not subscribe to event no WS connection found!")
 
     # async def listen_for_updates(self):
     #     async for websocket in websockets.connect(
@@ -213,9 +211,7 @@ class AzuroProviderIntegration(ProviderIntegration):
             DAILY_EVENT_START_HOURS_UTC = 8
             # if we started this day already register events for tomorrow
             now = now + timedelta(days=1)
-            now = now.replace(
-                hour=DAILY_EVENT_START_HOURS_UTC, minute=0, second=0, microsecond=0
-            )
+            now = now.replace(hour=DAILY_EVENT_START_HOURS_UTC, minute=0, second=0, microsecond=0)
             self.log(f"Syncing events from {now}")
             start_from = int(now.timestamp())
         else:
@@ -322,9 +318,7 @@ class AzuroProviderIntegration(ProviderIntegration):
                         outcome.get("id"),
                         datetime.now(timezone.utc),
                         self.provider_name(),
-                        game.get("title")
-                        + " ,"
-                        + OUTCOMES[outcome["outcomeId"]].get("_comment"),
+                        game.get("title") + " ," + OUTCOMES[outcome["outcomeId"]].get("_comment"),
                         start_date,
                         resolve_date=None,
                         answer=None,

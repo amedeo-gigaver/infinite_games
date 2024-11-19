@@ -80,13 +80,9 @@ class Validator(BaseValidatorNeuron):
         self.db_path = db_path
         self.last_log_block = 0
         self.is_test = "subtensor.networktest" in ("".join(sys.argv))
-        self.base_api_url = (
-            "https://stage.ifgames.win" if self.is_test else "https://ifgames.win"
-        )
+        self.base_api_url = "https://stage.ifgames.win" if self.is_test else "https://ifgames.win"
         if self.is_test:
-            bt.logging.info(
-                f"Using provider in test mode with base url: {self.base_api_url}"
-            )
+            bt.logging.info(f"Using provider in test mode with base url: {self.base_api_url}")
 
     async def initialize_provider(self):
         if not self.event_provider:
@@ -106,9 +102,7 @@ class Validator(BaseValidatorNeuron):
             bt.logging.info(
                 f'TARGET_MONITOR_HOTKEY: {os.environ.get("TARGET_MONITOR_HOTKEY", "None")}'
             )
-            bt.logging.info(
-                f'GRAFANA_API_KEY: {os.environ.get("GRAFANA_API_KEY", "None")}'
-            )
+            bt.logging.info(f'GRAFANA_API_KEY: {os.environ.get("GRAFANA_API_KEY", "None")}')
             # if self.wallet.hotkey.ss58_address == os.environ.get('TARGET_MONITOR_HOTKEY'):
             self.loop.create_task(self.track_interval_stats())
             bt.logging.debug("Provider initialized..")
@@ -123,12 +117,8 @@ class Validator(BaseValidatorNeuron):
             - CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES
         )
         # all_uids = [uid for uid in range(self.metagraph.n.item())]
-        interval_date = CLUSTER_EPOCH_2024 + timedelta(
-            minutes=interval_prev_start_minutes
-        )
-        bt.logging.debug(
-            f"Sending interval data: {interval_prev_start_minutes} -> {interval_date}"
-        )
+        interval_date = CLUSTER_EPOCH_2024 + timedelta(minutes=interval_prev_start_minutes)
+        bt.logging.debug(f"Sending interval data: {interval_prev_start_minutes} -> {interval_date}")
         metrics = []
         predictions_data = self.event_provider.get_all_non_exported_event_predictions(
             interval_prev_start_minutes
@@ -213,16 +203,12 @@ class Validator(BaseValidatorNeuron):
             )
 
             # we take either now or cutoff time (event can be settled earlier)
-            cutoff_minutes_since_epoch = (
-                int((cutoff - CLUSTER_EPOCH_2024).total_seconds()) // 60
-            )
+            cutoff_minutes_since_epoch = int((cutoff - CLUSTER_EPOCH_2024).total_seconds()) // 60
             cutoff_interval_start_minutes = cutoff_minutes_since_epoch - (
                 cutoff_minutes_since_epoch % CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES
             )
             now = datetime.now(timezone.utc)
-            now_minutes_since_epoch = (
-                int((now - CLUSTER_EPOCH_2024).total_seconds()) // 60
-            )
+            now_minutes_since_epoch = int((now - CLUSTER_EPOCH_2024).total_seconds()) // 60
             now_interval_start_minutes = now_minutes_since_epoch - (
                 now_minutes_since_epoch % CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES
             )
@@ -249,9 +235,9 @@ class Validator(BaseValidatorNeuron):
             market_type = pe.metadata.get("market_type", pe.market_type)
             for uid in miner_uids:
                 miner_data = get_miner_data_by_uid(self.db_path, int(uid))
-                miner_reg_time = datetime.fromisoformat(
-                    miner_data["registered_date"]
-                ).replace(tzinfo=timezone.utc)
+                miner_reg_time = datetime.fromisoformat(miner_data["registered_date"]).replace(
+                    tzinfo=timezone.utc
+                )
                 bt.logging.info(f"miner {uid=} reg time: {miner_reg_time}")
                 prediction_intervals = predictions.get(uid.item())
                 if market_type == "azuro":
@@ -269,9 +255,7 @@ class Validator(BaseValidatorNeuron):
                         else:
                             # fallback if we have intervals assigned for azuro, take last
                             max_interval = max(prediction_intervals.keys())
-                            ans = prediction_intervals[max_interval][
-                                "interval_agg_prediction"
-                            ]
+                            ans = prediction_intervals[max_interval]["interval_agg_prediction"]
 
                     if ans is None:
                         scores.append(0)
@@ -304,8 +288,7 @@ class Validator(BaseValidatorNeuron):
                             minutes=interval_start_minutes
                         )
                         interval_end_date = CLUSTER_EPOCH_2024 + timedelta(
-                            minutes=interval_start_minutes
-                            + CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES
+                            minutes=interval_start_minutes + CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES
                         )
                         if miner_reg_time > interval_end_date:
                             ans = 1 / 2
@@ -317,11 +300,7 @@ class Validator(BaseValidatorNeuron):
                             wk = 1
                         else:
                             wk = math.exp(
-                                -(
-                                    total_intervals
-                                    / (total_intervals - current_interval_no)
-                                )
-                                + 1
+                                -(total_intervals / (total_intervals - current_interval_no)) + 1
                             )
                         weights_sum += wk
                         # bt.logging.info(f'answer for {uid=} {interval_start_minutes=} {ans=} total={total_intervals} curr={current_interval_no} {wk=} ')
@@ -341,9 +320,7 @@ class Validator(BaseValidatorNeuron):
                             effective_finish_start_minutes,
                             CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES,
                         )
-                        bt.logging.error(
-                            f"Weight WK is zero for event {uid} {pe}  {range_list}"
-                        )
+                        bt.logging.error(f"Weight WK is zero for event {uid} {pe}  {range_list}")
                     final_avg_score = sum(mk) / weights_sum if weights_sum > 0 else 0
                     bt.logging.info(
                         f"final avg answer for intervals={len(range(start_interval_start_minutes, effective_finish_start_minutes, CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES))} {uid=} {final_avg_score=}"
@@ -367,9 +344,7 @@ class Validator(BaseValidatorNeuron):
             scores = torch.nn.functional.normalize(scores, p=1, dim=0)
             bt.logging.info(f"Normalized {torch.round(scores, decimals=3)}")
             self.update_scores(scores, miner_uids)
-            self.export_scores(
-                p_event=pe, miner_score_data=zip(miner_uids, brier_scores, scores)
-            )
+            self.export_scores(p_event=pe, miner_score_data=zip(miner_uids, brier_scores, scores))
             return True
         elif pe.status == EventStatus.DISCARDED:
             bt.logging.info(f"Canceled event: {pe} removing from registry!")
@@ -381,9 +356,7 @@ class Validator(BaseValidatorNeuron):
         """Export all events data"""
         if os.environ.get("ENV") != "pytest":
             try:
-                v_uid = self.metagraph.hotkeys.index(
-                    self.wallet.get_hotkey().ss58_address
-                )
+                v_uid = self.metagraph.hotkeys.index(self.wallet.get_hotkey().ss58_address)
                 body = {
                     "results": [
                         {
@@ -392,9 +365,7 @@ class Validator(BaseValidatorNeuron):
                             "title": p_event.description[:50],
                             "description": p_event.description,
                             "category": "event",
-                            "start_date": p_event.starts.isoformat()
-                            if p_event.starts
-                            else None,
+                            "start_date": p_event.starts.isoformat() if p_event.starts else None,
                             "end_date": p_event.resolve_date.isoformat()
                             if p_event.resolve_date
                             else None,
@@ -453,19 +424,14 @@ class Validator(BaseValidatorNeuron):
         miner_uids = infinite_games.utils.uids.get_all_uids(self)
         # Create synapse object to send to the miner.
         synapse = infinite_games.protocol.EventPredictionSynapse()
-        events_available_for_submission = (
-            self.event_provider.get_events_for_submission()
-        )
+        events_available_for_submission = self.event_provider.get_events_for_submission()
         bt.logging.info(f"Event for submission: {len(events_available_for_submission)}")
         synapse.init(events_available_for_submission)
         bt.logging.info(f"Axons: {len(self.metagraph.axons)}")
         for axon in self.metagraph.axons:
             bt.logging.trace(f"IP: {axon.ip}, hotkey id: {axon.hotkey}")
         self.event_provider.sync_miners(
-            [
-                (uid, self.metagraph.axons[uid])
-                for uid in range(self.metagraph.n.item())
-            ],
+            [(uid, self.metagraph.axons[uid]) for uid in range(self.metagraph.n.item())],
             block_start,
         )
         bt.logging.info("Querying miners..")
@@ -483,9 +449,7 @@ class Validator(BaseValidatorNeuron):
         for uid, resp in zip(miner_uids, responses):
             for unique_event_id, event_data in resp.events.items():
                 score = event_data.get("probability")
-                provider_event = self.event_provider.get_registered_event(
-                    unique_event_id
-                )
+                provider_event = self.event_provider.get_registered_event(unique_event_id)
                 if not provider_event:
                     bt.logging.trace(
                         f"Miner submission for non registered event detected  {uid=} {unique_event_id=}"
@@ -496,9 +460,7 @@ class Validator(BaseValidatorNeuron):
                         f"uid: {uid.item()} no prediction for {unique_event_id} sent, skip.."
                     )
                     continue
-                integration = self.event_provider.integrations.get(
-                    provider_event.market_type
-                )
+                integration = self.event_provider.integrations.get(provider_event.market_type)
                 if not integration:
                     bt.logging.error(
                         f"No integration found to register miner submission {uid=} {unique_event_id=} {score=}"
@@ -532,9 +494,7 @@ class Validator(BaseValidatorNeuron):
                 bt.logging.debug(
                     f"FORWARD INTERVAL: {float(os.environ.get('VALIDATOR_FORWARD_INTERVAL_SEC', '10'))}"
                 )
-                await asyncio.sleep(
-                    float(os.environ.get("VALIDATOR_FORWARD_INTERVAL_SEC", "10"))
-                )
+                await asyncio.sleep(float(os.environ.get("VALIDATOR_FORWARD_INTERVAL_SEC", "10")))
         # else:
         # await asyncio.sleep(float(os.environ.get('VALIDATOR_FORWARD_INTERVAL_SEC', '10')))
 

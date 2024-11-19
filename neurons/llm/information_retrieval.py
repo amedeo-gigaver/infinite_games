@@ -36,11 +36,7 @@ def get_base64_str(source_url):
     try:
         url = urlparse(source_url)
         path = url.path.split("/")
-        if (
-            url.hostname == "news.google.com"
-            and len(path) > 1
-            and path[-2] in ["articles", "read"]
-        ):
+        if url.hostname == "news.google.com" and len(path) > 1 and path[-2] in ["articles", "read"]:
             base64_str = path[-1]
             return {"status": True, "base64_str": base64_str}
         else:
@@ -87,12 +83,8 @@ class NewscatcherArticle:
         self.author = article_dict.get("author")
         self.published_date = article_dict.get("published_date", "")  # string
         self.published_date_precision = article_dict.get("published_date_precision")
-        self.link = article_dict.get(
-            "link", ""
-        )  # Full url to the article page (not the domain)
-        self.clean_url = article_dict.get(
-            "clean_url"
-        )  # Domain of the article (such as cnn.com)
+        self.link = article_dict.get("link", "")  # Full url to the article page (not the domain)
+        self.clean_url = article_dict.get("clean_url")  # Domain of the article (such as cnn.com)
         self.excerpt = article_dict.get("excerpt")
         if article_dict.get("summary") is None:  # wikipedia case
             self.text = article_dict.get("text", "")
@@ -118,9 +110,7 @@ class NewscatcherArticle:
                     self.published_date, "%Y-%m-%d %H:%M:%S"
                 )
             except ValueError:  # wikipedia
-                self.publish_date = datetime.fromisoformat(
-                    self.published_date.rstrip("Z")
-                )
+                self.publish_date = datetime.fromisoformat(self.published_date.rstrip("Z"))
         if self.published_date is None:
             logger.error(
                 f"Published date is None for {self.link} (should be parsed from {self.published_date})."
@@ -243,9 +233,7 @@ def extract_search_queries(model_response):
     else:
         # Flatten everything after the "Search Queries:" part
         search_queries_part = model_response.split("Search Queries:", 1)[1]
-        flattened_string = " ".join(
-            line.strip() for line in search_queries_part.splitlines()
-        )
+        flattened_string = " ".join(line.strip() for line in search_queries_part.splitlines())
         return extract_search_queries_from_line(flattened_string)
 
 
@@ -272,9 +260,7 @@ def deduplicate_articles(articles):
     unique_urls = set()
     unique_titles = set()
     for article in articles:
-        if not isinstance(article.title, str) or not isinstance(
-            article.canonical_link, str
-        ):
+        if not isinstance(article.title, str) or not isinstance(article.canonical_link, str):
             continue
         if (
             article.canonical_link.lower() not in unique_urls
@@ -363,12 +349,8 @@ def get_newscatcher_articles(
             ]
             # Collect the results into an object. Update each article with the
             # search term that retrieved it.
-            articles = [
-                NewscatcherArticle(article, search_terms[i]) for article in articles
-            ]
-        logger.info(
-            f"Retrieved {len(articles)} articles for {search_terms[i]} via Newscatcher."
-        )
+            articles = [NewscatcherArticle(article, search_terms[i]) for article in articles]
+        logger.info(f"Retrieved {len(articles)} articles for {search_terms[i]} via Newscatcher.")
         # Add the articles to the list of retrieved articles
         retrieved_articles.extend(articles)
 
@@ -425,17 +407,13 @@ def get_gnews_articles(search_terms, retrieval_dates, max_results=20):
         # Update each article with the search term that retrieved it
         for article in articles:
             article["search_term"] = search_terms[i]
-        logger.info(
-            f"Retrieved {len(articles)} articles for {search_terms[i]} via GNews."
-        )
+        logger.info(f"Retrieved {len(articles)} articles for {search_terms[i]} via GNews.")
         # Collect all articles into a single list
         retrieved_articles.append(articles)
     return retrieved_articles
 
 
-def retrieve_gnews_articles_fulldata(
-    retrieved_articles, num_articles=5, length_threshold=200
-):
+def retrieve_gnews_articles_fulldata(retrieved_articles, num_articles=5, length_threshold=200):
     """
     Retrieve a specified number of full articles from a list of article groups.
     We remove duplicates and short articles.
@@ -575,9 +553,7 @@ def get_wikipedia_article_on_date(title, date, api_endpoint=WIKIPEDIA_API_ENDPOI
         redirected_to = data["query"]["redirects"][0]["to"]
         return get_wikipedia_article_on_date(redirected_to, date)
     else:
-        logger.warning(
-            f"No revision {title} found earlier than the specified date {date}."
-        )
+        logger.warning(f"No revision {title} found earlier than the specified date {date}.")
         return {}
 
 
@@ -606,9 +582,7 @@ def retrieve_webpage_text(url, end_date):
         return NewscatcherArticle(page_dict, "")
     elif not is_irretrievable_site(url) and is_whitelisted(url):
         try:
-            article = newspaper.article(
-                url, fetch_images=False, keep_article_html=False
-            )
+            article = newspaper.article(url, fetch_images=False, keep_article_html=False)
             if article.publish_date is None:
                 logger.warning(f"Cannot retrieve publish date for {url}.")
                 return None
@@ -623,9 +597,7 @@ def retrieve_webpage_text(url, end_date):
             logger.error(e)
 
 
-def retrieve_webpage_from_background(
-    background_info, closing_date_timestamp, length_threshold=200
-):
+def retrieve_webpage_from_background(background_info, closing_date_timestamp, length_threshold=200):
     """
     Retrieve webpage texts from background info.
     Remove short articles (less than length_threshold characters).
@@ -643,11 +615,7 @@ def retrieve_webpage_from_background(
     articles = []
     for url in urls:
         article = retrieve_webpage_text(url, closing_date_timestamp)
-        if (
-            article
-            and article.text_cleaned
-            and len(article.text_cleaned) > length_threshold
-        ):
+        if article and article.text_cleaned and len(article.text_cleaned) > length_threshold:
             articles.append(article)
     return articles
 
@@ -720,15 +688,11 @@ async def async_get_search_queries(
     """
     # Query LLM's API for the subject keywords in batch
     search_query_tasks = [
-        model_eval.get_async_response(
-            prompt, model_name=model_name, temperature=temperature
-        )
+        model_eval.get_async_response(prompt, model_name=model_name, temperature=temperature)
         for prompt in prompts
     ]
     search_query_responses = await asyncio.gather(*search_query_tasks)
-    keywords_list = [
-        extract_search_queries(response) for response in search_query_responses
-    ]
+    keywords_list = [extract_search_queries(response) for response in search_query_responses]
     if any(
         keywords is None or len(keywords) == 0 or len(keywords) > num_keywords
         for keywords in keywords_list
@@ -819,9 +783,7 @@ async def get_search_queries_for_all_sources(
         model_name=model,
     )
     # Split the search queries into two lists, one for Newscatcher and one for GNews
-    search_queries_list_gnews = search_queries_list[
-        : len(search_query_prompts_list_gnews)
-    ]
+    search_queries_list_gnews = search_queries_list[: len(search_query_prompts_list_gnews)]
     search_queries_list_nc = search_queries_list[len(search_query_prompts_list_gnews) :]
     search_query_responses_list_gnews = search_query_responses_list[
         : len(search_query_prompts_list_gnews)
@@ -831,12 +793,8 @@ async def get_search_queries_for_all_sources(
     ]
 
     # probably better way to handle this
-    search_queries_list_gnews = [
-        queries + [question] for queries in search_queries_list_gnews
-    ]
-    search_queries_list_nc = [
-        queries + [question] for queries in search_queries_list_nc
-    ]
+    search_queries_list_gnews = [queries + [question] for queries in search_queries_list_gnews]
+    search_queries_list_nc = [queries + [question] for queries in search_queries_list_nc]
 
     return (
         search_queries_list_nc,
