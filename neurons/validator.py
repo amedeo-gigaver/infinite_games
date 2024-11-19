@@ -379,7 +379,7 @@ class Validator(BaseValidatorNeuron):
 
         if miner_data and len(miner_data) > 0:
             try:
-                self.submit_event_probabilities(miner_data)
+                asyncio.create_task(self.submit_event_probabilities(miner_data))
             except Exception as e:
                 bt.logging.error(f'Error processing miner data.', exc_info=True)
         if any_miner_processed:
