@@ -552,7 +552,7 @@ class BaseValidatorNeuron(BaseNeuron):
         try:
             async for metrics in chunk_metrics:
                 intervals = [metric[3] for metric in metrics]
-                self.send_live_data(miner_data=metrics)
+                self.send_live_data(block, metrics)
                 bt.logging.info(f'chunk submissions exported {len(metrics)} intervals: {set(intervals)}')
                 await asyncio.sleep(3)
         except Exception:
