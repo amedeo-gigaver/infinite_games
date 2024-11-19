@@ -20,4 +20,4 @@ RUN pip install --upgrade pip \
 
 ENV PYTHONPATH="/workspace:${PYTHONPATH}"
 
-WORKDIR /workspace
+WORKDIR /workspace/infinite_games

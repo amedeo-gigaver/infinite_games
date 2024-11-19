@@ -1,9 +1,12 @@
 {
     "name": "infinite_games Dev Environment",
     "build": {
-        "dockerfile": "./.devcontainer/Dockerfile"
+        "dockerfile": "Dockerfile",
+        "context": ".."
     },
+    // "image": "mcr.microsoft.com/devcontainers/python:3.10",
     "workspaceFolder": "/workspace",
+    "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind",
     "features": {
         "ghcr.io/devcontainers/features/docker-in-docker:2": {}
     },
@@ -39,5 +42,5 @@
             ]
         }
     },
-    "postCreateCommand": "./.devcontainer/codespaces_init.sh"
+    "postCreateCommand": "/workspace/.devcontainer/codespaces_init.sh"
 }
