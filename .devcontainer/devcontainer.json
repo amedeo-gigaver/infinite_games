@@ -1,7 +1,7 @@
 {
     "name": "infinite_games Dev Environment",
     "build": {
-        "dockerfile": "./devcontainer/Dockerfile"
+        "dockerfile": "./.devcontainer/Dockerfile"
     },
     "workspaceFolder": "/workspace",
     "features": {
