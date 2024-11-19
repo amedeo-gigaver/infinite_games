@@ -40,6 +40,7 @@ import wandb
 from infinite_games.base.neuron import BaseNeuron
 from infinite_games import __version__
 from infinite_games.events.base import CLUSTER_EPOCH_2024
+from infinite_games.utils.misc import split_chunks
 
 
 class BaseValidatorNeuron(BaseNeuron):
@@ -542,11 +543,27 @@ class BaseValidatorNeuron(BaseNeuron):
         else:
             bt.logging.info('Skip export submissions in test')
 
-    def send_live_data(self, miner_data):
+    @backoff.on_exception(backoff.expo, Exception, max_tries=6)
+    async def submit_event_probabilities(self, block, miner_scores):
+        unique_miners = set([miner_uid for miner_uid, _, _, _, _, _ in miner_data])
+        miner_data = (miner_data or []) * 4
+        bt.logging.info(f"Submitting event probabilities for block {block}, {len(miner_data)} records for {len(unique_miners)} miners")
+        chunk_metrics = split_chunks(list(miner_scores), 8000)
+        try:
+            async for metrics in chunk_metrics:
+                intervals = [metric[3] for metric in metrics]
+                self.send_live_data(miner_data=metrics)
+                bt.logging.info(f'chunk submissions exported {len(metrics)} intervals: {set(intervals)}')
+                await asyncio.sleep(3)
+        except Exception:
+            bt.logging.error('Error processing live submissins data.', exc_info=True)
+
+    @backoff.on_exception(backoff.expo, Exception, max_tries=3)
+    def send_live_data(self, block, miner_data):
         if os.environ.get('ENV') != 'pytest':
             unique_miners = set([miner_uid for miner_uid, _, _, _, _, _ in miner_data])
             miner_data = (miner_data or []) * 4
-            bt.logging.info(f'Sending live data:  {len(miner_data)} records for {len(unique_miners)} miners')
+            bt.logging.info(f'Sending live data block:  {len(miner_data)} records for {len(unique_miners)} miners')
             try:
                 v_uid = self.metagraph.hotkeys.index(self.wallet.get_hotkey().ss58_address)
                 body = {
@@ -556,7 +573,7 @@ class BaseValidatorNeuron(BaseNeuron):
                         "provider_type": market_type,
                         "title": None,
                         "prediction": agg_prediction,
-                        "outcome": None,
+                        "outcome": block,
                         "interval_start_minutes": interval_minutes,
                         "interval_agg_prediction": agg_prediction,
                         "interval_agg_count": count,
@@ -584,9 +601,8 @@ class BaseValidatorNeuron(BaseNeuron):
                 else:
                     return True
             except Exception as e:
-                bt.logging.error(e)
-                bt.logging.error(traceback.format_exc())
-                # raise e
+                bt.logging.error("COuld not ", exc_info=True)
+                raise e
         else:
             bt.logging.info('Skip export submissions in test')
 

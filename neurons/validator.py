@@ -378,7 +378,10 @@ class Validator(BaseValidatorNeuron):
                     continue
 
         if miner_data and len(miner_data) > 0:
-            self.send_live_data(miner_data)
+            try:
+                self.submit_event_probabilities(miner_data)
+            except Exception as e:
+                bt.logging.error(f'Error processing miner data.', exc_info=True)
         if any_miner_processed:
             bt.logging.info("Processed miner responses.")
         else:
