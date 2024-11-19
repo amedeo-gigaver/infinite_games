@@ -307,8 +307,7 @@ def visualize_all(
     )
     html += "<h2>3. Summaries </h2>" + all_summaries.replace("\n", "<br>")
     html += (
-        "<h2>4. Forecasts (Models, Prompts, Reasonings, Predictions)  </h2>"
-        + vis_forecasts.data
+        "<h2>4. Forecasts (Models, Prompts, Reasonings, Predictions)  </h2>" + vis_forecasts.data
     )
     return html
 

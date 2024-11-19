@@ -52,12 +52,8 @@ with open(path.join(here, "README.md"), encoding="utf-8") as f:
     long_description = f.read()
 
 # loading version from setup.py
-with codecs.open(
-    os.path.join(here, "ocr_subnet/__init__.py"), encoding="utf-8"
-) as init_file:
-    version_match = re.search(
-        r"^__version__ = ['\"]([^'\"]*)['\"]", init_file.read(), re.M
-    )
+with codecs.open(os.path.join(here, "ocr_subnet/__init__.py"), encoding="utf-8") as init_file:
+    version_match = re.search(r"^__version__ = ['\"]([^'\"]*)['\"]", init_file.read(), re.M)
     version_string = version_match.group(1)
 
 setup(
@@ -67,10 +63,10 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/amedeo-gigaver/infinite_games",
-    author="amedeo-gigaver",  
+    author="amedeo-gigaver",
     packages=find_packages(),
     include_package_data=True,
-    author_email="", 
+    author_email="",
     license="MIT",
     python_requires=">=3.8",
     install_requires=requirements,

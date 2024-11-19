@@ -17,6 +17,9 @@ jobs:
       - name: Install packages
         run: pip install -r requirements_dev.txt
 
+      - name: Lint
+        run: black --check .
+
       - name: Tests
         run: |
           coverage run --source=./ -m pytest -v

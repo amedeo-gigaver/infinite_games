@@ -47,9 +47,7 @@ def concat_summaries(articles, return_summaries_list=False):
         f"[{index}] {article.title} (published on {(article.publish_date.date() if article.publish_date else 'unknown date')})\nSummary: {article.summary}\n"
         for index, article in enumerate(articles, start=1)
     ]
-    concatenated_summaries_str = (
-        "---\nARTICLES\n" + "\n".join(article_summaries) + "----"
-    )
+    concatenated_summaries_str = "---\nARTICLES\n" + "\n".join(article_summaries) + "----"
     if return_summaries_list:
         return concatenated_summaries_str, article_summaries
     return concatenated_summaries_str
@@ -118,9 +116,7 @@ def recursive_summarize(
 
     if total_tokens <= MODEL_TOKEN_LIMITS[model_name]:
         if output_token_length:
-            prompt += (
-                f"\n\nAlso, ensure the summary is under {output_token_length} words.\n"
-            )
+            prompt += f"\n\nAlso, ensure the summary is under {output_token_length} words.\n"
 
         output = model_eval.get_response_from_model(
             model_name=model_name,
@@ -266,9 +262,7 @@ async def async_summarize(
         prompts = [prompt.format(article=article.text_cleaned) for article in articles]
 
     summarization_tasks = [
-        model_eval.get_async_response(
-            prompt, model_name=model_name, temperature=temperature
-        )
+        model_eval.get_async_response(prompt, model_name=model_name, temperature=temperature)
         for prompt in prompts
     ]
     all_summaries = await asyncio.gather(*summarization_tasks)

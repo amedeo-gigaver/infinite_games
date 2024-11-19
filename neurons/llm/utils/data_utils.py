@@ -28,7 +28,7 @@ def get_formatted_data(
     This function reads data from S3, processes it, and structures it for training purposes.
     It calculates retrieval dates and filters out data based on these dates. The function can
     optionally return raw question data.
-    
+
     Also, the function can optionally take in the |data| directly.
 
     Parameters:
@@ -134,9 +134,7 @@ def format_single_question(data_dict, index):
         "retrieval_dates": data_dict["retrieval_dates_list"][index],
         "data_source": data_dict["data_source_list"][index],
         "resolve_date": data_dict["resolve_dates_list"][index],
-        "community_pred_at_retrieval": data_dict["community_pred_at_retrieval_list"][
-            index
-        ],
+        "community_pred_at_retrieval": data_dict["community_pred_at_retrieval_list"][index],
         "urls_in_background": data_dict["urls_in_background_list"][index],
         "category": data_dict["category_list"][index],
     }
@@ -157,9 +155,7 @@ def is_question_ill_defined(question, model_name):
     )
 
     if "Classification:" not in response:
-        logger.error(
-            f"'Classification:' is not in the response for question: {question}"
-        )
+        logger.error(f"'Classification:' is not in the response for question: {question}")
         return None
 
     end_resp = response.split("Classification:")[1]
@@ -180,9 +176,7 @@ def assign_ill_defined_questions(data_list, model_name="gpt-3.5-turbo-1106"):
     """
     number_of_workers = 50
 
-    with concurrent.futures.ThreadPoolExecutor(
-        max_workers=number_of_workers
-    ) as executor:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=number_of_workers) as executor:
         future_to_question = {
             executor.submit(is_question_ill_defined, item["question"], model_name): item
             for item in data_list
@@ -200,9 +194,7 @@ def assign_ill_defined_questions(data_list, model_name="gpt-3.5-turbo-1106"):
                     f"Could not determine if question is ill-defined: {question_item['question']}"
                 )
         except Exception as exc:
-            logger.error(
-                f"Error processing question {question_item['question']}: {exc}"
-            )
+            logger.error(f"Error processing question {question_item['question']}: {exc}")
     return None
 
 
@@ -227,13 +219,9 @@ def assign_categories(data_list, model_name="gpt-3.5-turbo-1106"):
     number_of_workers = 100
     updated_items = []
 
-    with concurrent.futures.ThreadPoolExecutor(
-        max_workers=number_of_workers
-    ) as executor:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=number_of_workers) as executor:
         future_to_question = {
-            executor.submit(
-                assign_category, item["question"], item["background"], model_name
-            ): item
+            executor.submit(assign_category, item["question"], item["background"], model_name): item
             for item in data_list
             if "gpt_3p5_category" not in item
         }
@@ -245,14 +233,10 @@ def assign_categories(data_list, model_name="gpt-3.5-turbo-1106"):
                 if result is not None:
                     question_item["gpt_3p5_category"] = result
                 else:
-                    logger.warning(
-                        f"Could not assign category: {question_item['question']}"
-                    )
+                    logger.warning(f"Could not assign category: {question_item['question']}")
                 updated_items.append(question_item)
             except Exception as exc:
-                logger.error(
-                    f"Error processing question {question_item['question']}: {exc}"
-                )
+                logger.error(f"Error processing question {question_item['question']}: {exc}")
 
     return None
 
@@ -296,9 +280,7 @@ def reformat_metaculus_questions(
                 prompt[1],
                 question=d["title"],
             )
-            response = model_eval.get_response_from_model(
-                model_name=model_name, prompt=prompt
-            )
+            response = model_eval.get_response_from_model(model_name=model_name, prompt=prompt)
             transformed_title = find_text_between_stars(response)
             if transformed_title:
                 d["title"] = transformed_title

@@ -10,9 +10,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-def request_with_retries(
-    method, url, headers, params=None, data=None, max_retries=5, delay=30
-):
+def request_with_retries(method, url, headers, params=None, data=None, max_retries=5, delay=30):
     """
     Make an API request (GET or POST) with retries in case of rate-limiting
     (HTTP 429) or other defined conditions and return the JSON content or log
@@ -72,19 +70,11 @@ def post_request_with_retries(endpoint, headers, payload, retries=5):
     Create a wrapper function that makes a POST API request using the generic
     retry mechanism.
     """
-    response = request_with_retries(
-        "POST", endpoint, headers, data=payload, max_retries=retries
-    )
-    if (
-        response
-        and "detail" in response
-        and "Expected available in" in response["detail"]
-    ):
+    response = request_with_retries("POST", endpoint, headers, data=payload, max_retries=retries)
+    if response and "detail" in response and "Expected available in" in response["detail"]:
         wait_seconds = int(response["detail"].split(" ")[-2]) + 1
         time.sleep(wait_seconds)
-        return request_with_retries(
-            "POST", endpoint, headers, data=payload, max_retries=retries
-        )
+        return request_with_retries("POST", endpoint, headers, data=payload, max_retries=retries)
     return response
 
 

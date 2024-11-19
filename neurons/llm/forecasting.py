@@ -62,7 +62,6 @@ def _get_reasoning_config(model_setup: dict):
 
 
 class Forecaster:
-
     model_setups = {
         # Budget version of OPENAI models
         0: {
@@ -102,20 +101,25 @@ class Forecaster:
     }
 
     async def get_prediction(self, market, models_setup_option: int = 0):
-        if (OPENAI_KEY is None and GOOGLE_AI_KEY is None) or models_setup_option not in [0, 1, 2, 3]:
+        if (OPENAI_KEY is None and GOOGLE_AI_KEY is None) or models_setup_option not in [
+            0,
+            1,
+            2,
+            3,
+        ]:
             return None
 
         retrieval_config = _get_retrieval_config(self.model_setups[models_setup_option])
         reasoning_config = _get_reasoning_config(self.model_setups[models_setup_option])
 
         question = market.event.description
-        background_info = ''
-        resolution_criteria = ''
+        background_info = ""
+        resolution_criteria = ""
 
         start_time = int(datetime.now().timestamp())
-        start_date = datetime.fromtimestamp(start_time - 48*60*60).strftime('%Y-%m-%d')
-        end_time = (datetime.fromtimestamp(market.event.cutoff))
-        end_date = end_time.strftime('%Y-%m-%d')
+        start_date = datetime.fromtimestamp(start_time - 48 * 60 * 60).strftime("%Y-%m-%d")
+        end_time = datetime.fromtimestamp(market.event.cutoff)
+        end_date = end_time.strftime("%Y-%m-%d")
         retrieval_dates = [start_date, end_date]
 
         urls_in_background = []
@@ -140,8 +144,8 @@ class Forecaster:
         )
 
         today_to_close_date = [
-            datetime.utcnow().strftime('%Y-%m-%d'),
-            retrieval_dates[1]
+            datetime.utcnow().strftime("%Y-%m-%d"),
+            retrieval_dates[1],
         ]
         ensemble_dict = await ensemble.meta_reason(
             question=question,
