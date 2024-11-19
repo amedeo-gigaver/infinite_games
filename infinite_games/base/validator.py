@@ -94,21 +94,19 @@ class BaseValidatorNeuron(BaseNeuron):
         bt.logging.info("~/.netrc exists:", netrc_path.exists())
 
         if wandb_api_key is None and not netrc_path.exists():
-            bt.logging.warning(
-                "WANDB_API_KEY not found in environment variables."
-            )
+            bt.logging.warning("WANDB_API_KEY not found in environment variables.")
 
         if wandb_api_key:
             wandb.init(
-                    project=f"ig-{self.config.netuid}-validators",
-                    # entity="infinitegames",
-                    config={
-                        "hotkey": self.wallet.hotkey.ss58_address,
-                    },
-                    name=f"validator-{self.uid}-{__version__}",
-                    resume=None,
-                    dir=self.config.neuron.full_path,
-                    reinit=True,
+                project=f"ig-{self.config.netuid}-validators",
+                # entity="infinitegames",
+                config={
+                    "hotkey": self.wallet.hotkey.ss58_address,
+                },
+                name=f"validator-{self.uid}-{__version__}",
+                resume=None,
+                dir=self.config.neuron.full_path,
+                reinit=True,
             )
 
     def serve_axon(self):
@@ -128,15 +126,12 @@ class BaseValidatorNeuron(BaseNeuron):
                 pass
 
         except Exception as e:
-            bt.logging.error(
-                f"Failed to create Axon initialize with exception: {e}"
-            )
+            bt.logging.error(f"Failed to create Axon initialize with exception: {e}")
             pass
 
     async def concurrent_forward(self):
         coroutines = [
-            self.forward()
-            for _ in range(self.config.neuron.num_concurrent_forwards)
+            self.forward() for _ in range(self.config.neuron.num_concurrent_forwards)
         ]
         await asyncio.gather(*coroutines)
 
@@ -199,9 +194,7 @@ class BaseValidatorNeuron(BaseNeuron):
         # In case of unforeseen errors, the validator will log the error and continue operations.
         except Exception as err:
             bt.logging.error("Error during validation", str(err))
-            bt.logging.debug(
-                print_exception(type(err), err, err.__traceback__)
-            )
+            bt.logging.debug(print_exception(type(err), err, err.__traceback__))
 
     def run_in_background_thread(self):
         """
@@ -283,7 +276,7 @@ class BaseValidatorNeuron(BaseNeuron):
         )
         bt.logging.trace("processed_weights", processed_weights)
         bt.logging.trace("processed_weight_uids", processed_weight_uids)
-        bt.logging.info(f'current weight version {self.spec_version}')
+        bt.logging.info(f"current weight version {self.spec_version}")
 
         # Set the weights on chain via our subtensor connection.
         set_weight = False
@@ -320,7 +313,6 @@ class BaseValidatorNeuron(BaseNeuron):
         # Sync the metagraph.
         while not synced:
             try:
-
                 self.metagraph.sync(subtensor=self.subtensor)
                 synced = True
             except Exception as e:
@@ -344,9 +336,7 @@ class BaseValidatorNeuron(BaseNeuron):
         # If so, we need to add new hotkeys and moving averages.
         if len(self.hotkeys) < len(self.metagraph.hotkeys):
             # Update the size of the moving average scores.
-            new_moving_average = torch.zeros((self.metagraph.n)).to(
-                self.device
-            )
+            new_moving_average = torch.zeros((self.metagraph.n)).to(self.device)
             min_len = min(len(self.hotkeys), len(self.scores))
             new_moving_average[:min_len] = self.scores[:min_len]
             self.scores = new_moving_average
@@ -358,23 +348,35 @@ class BaseValidatorNeuron(BaseNeuron):
         """Current daily average scores are fixed and saved as previous day results for further moving average calculation"""
         RESET_INTERVAL_SECONDS = 60 * 60 * 24
         # if we dont have reset date, make sure it resets
-        latest_reset_date = self.latest_reset_date or (datetime.now(timezone.utc) - timedelta(seconds=RESET_INTERVAL_SECONDS + 1))
+        latest_reset_date = self.latest_reset_date or (
+            datetime.now(timezone.utc) - timedelta(seconds=RESET_INTERVAL_SECONDS + 1)
+        )
         latest_reset_ts = latest_reset_date.timestamp()
         now_ts = datetime.now().timestamp()
         # bt.logging.info(f'{now_ts} - {latest_reset_ts}, {now_ts - latest_reset_ts} > {RESET_HOURS}')
         if now_ts - latest_reset_ts > RESET_INTERVAL_SECONDS:
             if datetime.now(timezone.utc).hour > 10:
-                bt.logging.info(f'Resetting daily scores: {datetime.now(timezone.utc)}')
+                bt.logging.info(f"Resetting daily scores: {datetime.now(timezone.utc)}")
                 if self.average_scores is None:
-                    bt.logging.error("Do not have average scores to set for previous day!")
+                    bt.logging.error(
+                        "Do not have average scores to set for previous day!"
+                    )
                 else:
                     all_uids = [uid for uid in range(self.metagraph.n.item())]
                     bt.logging.debug(f"Daily average total: {self.average_scores}")
-                    self.send_average_scores(miner_scores=list(zip(all_uids, self.average_scores.tolist(), self.scores.tolist())))
+                    self.send_average_scores(
+                        miner_scores=list(
+                            zip(
+                                all_uids,
+                                self.average_scores.tolist(),
+                                self.scores.tolist(),
+                            )
+                        )
+                    )
                     self.previous_average_scores = self.average_scores.clone().detach()
                     self.scoring_iterations = 0
                     self.average_scores = torch.zeros(self.metagraph.n.item())
-                    bt.logging.info('Daily scores reset, previous day scores saved.')
+                    bt.logging.info("Daily scores reset, previous day scores saved.")
                 self.latest_reset_date = datetime.now()
 
     def update_scores(self, rewards: torch.FloatTensor, uids: torch.LongTensor):
@@ -386,7 +388,7 @@ class BaseValidatorNeuron(BaseNeuron):
             rewards = torch.nan_to_num(rewards, 0)
         total_neurons = self.metagraph.n.item()
         all_zeros = torch.zeros(total_neurons)
-        bt.logging.info(f'Total neurons: {total_neurons}')
+        bt.logging.info(f"Total neurons: {total_neurons}")
 
         if len(self.scores) < total_neurons:
             # extend score shape in case we have new miners
@@ -396,37 +398,56 @@ class BaseValidatorNeuron(BaseNeuron):
         scattered_scores: torch.FloatTensor = self.scores.scatter(
             0, uids.clone().detach(), rewards
         ).to(self.device)
-        bt.logging.debug(f"Scattered scores: {torch.round(scattered_scores, decimals=3)} {len(scattered_scores)}")
+        bt.logging.debug(
+            f"Scattered scores: {torch.round(scattered_scores, decimals=3)} {len(scattered_scores)}"
+        )
 
         alpha: float = self.config.neuron.moving_average_alpha
 
         if len(self.average_scores) < total_neurons:
             # extend score shape in case we have new miners
-            self.average_scores = torch.cat([self.average_scores, all_zeros])[:total_neurons]
+            self.average_scores = torch.cat([self.average_scores, all_zeros])[
+                :total_neurons
+            ]
 
         if len(self.previous_average_scores) < total_neurons:
             # extend score shape in case we have new miners
-            self.previous_average_scores = torch.cat([self.previous_average_scores, all_zeros])[:total_neurons]
+            self.previous_average_scores = torch.cat(
+                [self.previous_average_scores, all_zeros]
+            )[:total_neurons]
 
         zero_scattered_rewards = torch.zeros(total_neurons).scatter(
             0, uids.clone().detach(), rewards
         )
 
-        bt.logging.debug(f"Scattered rewards: {torch.round(zero_scattered_rewards, decimals=3)}")
-        bt.logging.debug(f"Average total: {torch.round(self.average_scores, decimals=3)}")
+        bt.logging.debug(
+            f"Scattered rewards: {torch.round(zero_scattered_rewards, decimals=3)}"
+        )
+        bt.logging.debug(
+            f"Average total: {torch.round(self.average_scores, decimals=3)}"
+        )
         bt.logging.debug(f"Daily iteration: {self.scoring_iterations + 1}")
 
-        self.average_scores = (self.average_scores * self.scoring_iterations + zero_scattered_rewards) / (self.scoring_iterations + 1)
-        bt.logging.debug(f"New Average total: {torch.round(self.average_scores, decimals=3)}")
+        self.average_scores = (
+            self.average_scores * self.scoring_iterations + zero_scattered_rewards
+        ) / (self.scoring_iterations + 1)
+        bt.logging.debug(
+            f"New Average total: {torch.round(self.average_scores, decimals=3)}"
+        )
 
         alpha = 0.8
-        if self.previous_average_scores is not None and torch.count_nonzero(self.previous_average_scores).item() != 0:
-            bt.logging.info('Recalculate moving average based on previous day')
+        if (
+            self.previous_average_scores is not None
+            and torch.count_nonzero(self.previous_average_scores).item() != 0
+        ):
+            bt.logging.info("Recalculate moving average based on previous day")
             self.scores: torch.FloatTensor = alpha * self.average_scores + (
                 1 - alpha
             ) * self.previous_average_scores.to(self.device)
         else:
-            bt.logging.info('No daily average available yet, prefer scores for moving average')
+            bt.logging.info(
+                "No daily average available yet, prefer scores for moving average"
+            )
             self.scores: torch.FloatTensor = alpha * scattered_scores + (
                 1 - alpha
             ) * self.scores.to(self.device)
@@ -438,100 +459,116 @@ class BaseValidatorNeuron(BaseNeuron):
     def send_average_scores(self, miner_scores=None):
         if not self.GRAFANA_API_KEY:
             return
-        miner_logs = ''
-        measurement = os.environ.get('AVERAGE_MEASUREMENT_NAME', 'miners_average_scores')
+        miner_logs = ""
+        measurement = os.environ.get(
+            "AVERAGE_MEASUREMENT_NAME", "miners_average_scores"
+        )
         if miner_scores:
-
             for miner_id, score, total_weight in miner_scores:
                 # bt.logging.debug(f'Miner {miner_id} {score} {old_weight} -> {total_weight}')
-                miner_logs += f'{measurement},source={miner_id},vali={self.wallet.hotkey.ss58_address} metric={score},weight={total_weight}\n'
+                miner_logs += f"{measurement},source={miner_id},vali={self.wallet.hotkey.ss58_address} metric={score},weight={total_weight}\n"
 
-        body = f'''
+        body = f"""
         {miner_logs}
-        '''
+        """
 
         response = requests.post(
-            'https://influx-prod-24-prod-eu-west-2.grafana.net/api/v1/push/influx/write',
+            "https://influx-prod-24-prod-eu-west-2.grafana.net/api/v1/push/influx/write",
             headers={
-                'Content-Type': 'text/plain',
+                "Content-Type": "text/plain",
             },
             data=str(body),
-            auth=(self.USER_ID, self.GRAFANA_API_KEY)
+            auth=(self.USER_ID, self.GRAFANA_API_KEY),
         )
 
         status_code = response.status_code
         if status_code != 204:
-            bt.logging.error(f'*** Error sending logs! {response.content.decode("utf8")}')
+            bt.logging.error(
+                f'*** Error sending logs! {response.content.decode("utf8")}'
+            )
         else:
-            bt.logging.debug('*** Grafana logs sent')
+            bt.logging.debug("*** Grafana logs sent")
 
     @backoff.on_exception(backoff.expo, Exception, max_tries=6)
     def send_event_scores(self, miner_scores=None):
         if not self.GRAFANA_API_KEY:
             return
-        miner_logs = ''
-        measurement = os.environ.get('EVENT_MEASUREMENT_NAME', 'miners_event_scores')
+        miner_logs = ""
+        measurement = os.environ.get("EVENT_MEASUREMENT_NAME", "miners_event_scores")
         if miner_scores:
-
-            for miner_id, market_type, event_id, brier_score, effective_score in miner_scores:
+            for (
+                miner_id,
+                market_type,
+                event_id,
+                brier_score,
+                effective_score,
+            ) in miner_scores:
                 # bt.logging.debug(f'Miner {miner_id} {brier_score}')
-                miner_logs += f'{measurement},source={miner_id},vali={self.wallet.hotkey.ss58_address} score={brier_score},effective_score={effective_score}\n'
-                miner_logs += f'{measurement}_event,source={miner_id},vali={self.wallet.hotkey.ss58_address},market_type={market_type},event_id={event_id} score={brier_score},effective_score={effective_score}\n'
+                miner_logs += f"{measurement},source={miner_id},vali={self.wallet.hotkey.ss58_address} score={brier_score},effective_score={effective_score}\n"
+                miner_logs += f"{measurement}_event,source={miner_id},vali={self.wallet.hotkey.ss58_address},market_type={market_type},event_id={event_id} score={brier_score},effective_score={effective_score}\n"
 
-        body = f'''
+        body = f"""
         {miner_logs}
-        '''
+        """
 
         response = requests.post(
-            'https://influx-prod-24-prod-eu-west-2.grafana.net/api/v1/push/influx/write',
+            "https://influx-prod-24-prod-eu-west-2.grafana.net/api/v1/push/influx/write",
             headers={
-                'Content-Type': 'text/plain',
+                "Content-Type": "text/plain",
             },
             data=str(body),
-            auth=(self.USER_ID, self.GRAFANA_API_KEY)
+            auth=(self.USER_ID, self.GRAFANA_API_KEY),
         )
         status_code = response.status_code
         if status_code != 204:
-            bt.logging.error(f'*** Error sending logs! {response.content.decode("utf8")}')
+            bt.logging.error(
+                f'*** Error sending logs! {response.content.decode("utf8")}'
+            )
         else:
-            bt.logging.debug('*** Grafana logs sent')
+            bt.logging.debug("*** Grafana logs sent")
 
     @backoff.on_exception(backoff.expo, Exception, max_tries=6)
     def send_interval_data(self, miner_data):
-        if os.environ.get('ENV') != 'pytest':
+        if os.environ.get("ENV") != "pytest":
             try:
-                v_uid = self.metagraph.hotkeys.index(self.wallet.get_hotkey().ss58_address)
+                v_uid = self.metagraph.hotkeys.index(
+                    self.wallet.get_hotkey().ss58_address
+                )
                 body = {
-
-                    "submissions": [{
-                        "unique_event_id": unique_event_id,
-                        "provider_type": market_type,
-                        "title": None,
-                        "prediction": agg_prediction,
-                        "outcome": None,
-                        "interval_start_minutes": interval_minutes,
-                        "interval_agg_prediction": agg_prediction,
-                        "interval_agg_count": count,
-                        "interval_datetime": (CLUSTER_EPOCH_2024 + timedelta(minutes=interval_minutes)).isoformat(),
-                        "miner_hotkey": self.metagraph.hotkeys[int(miner_uid)],
-                        "miner_uid": int(miner_uid),
-                        "validator_hotkey": self.wallet.get_hotkey().ss58_address,
-                        "validator_uid": int(v_uid)
-                    } for miner_uid, unique_event_id, market_type,  interval_minutes, agg_prediction, count in miner_data],
-                    "events": None
+                    "submissions": [
+                        {
+                            "unique_event_id": unique_event_id,
+                            "provider_type": market_type,
+                            "title": None,
+                            "prediction": agg_prediction,
+                            "outcome": None,
+                            "interval_start_minutes": interval_minutes,
+                            "interval_agg_prediction": agg_prediction,
+                            "interval_agg_count": count,
+                            "interval_datetime": (
+                                CLUSTER_EPOCH_2024 + timedelta(minutes=interval_minutes)
+                            ).isoformat(),
+                            "miner_hotkey": self.metagraph.hotkeys[int(miner_uid)],
+                            "miner_uid": int(miner_uid),
+                            "validator_hotkey": self.wallet.get_hotkey().ss58_address,
+                            "validator_uid": int(v_uid),
+                        }
+                        for miner_uid, unique_event_id, market_type, interval_minutes, agg_prediction, count in miner_data
+                    ],
+                    "events": None,
                 }
                 hk = self.wallet.get_hotkey()
-                signed = base64.b64encode(hk.sign(json.dumps(body))).decode('utf-8')
+                signed = base64.b64encode(hk.sign(json.dumps(body))).decode("utf-8")
                 res = requests.post(
-                    f'{self.base_api_url}/api/v1/validators/data',
+                    f"{self.base_api_url}/api/v1/validators/data",
                     headers={
-                        'Authorization': f'Bearer {signed}',
-                        'Validator': self.wallet.get_hotkey().ss58_address,
+                        "Authorization": f"Bearer {signed}",
+                        "Validator": self.wallet.get_hotkey().ss58_address,
                     },
-                    json=body
+                    json=body,
                 )
                 if not res.status_code == 200:
-                    bt.logging.warning(f'Error processing submission {res.content}')
+                    bt.logging.warning(f"Error processing submission {res.content}")
                 else:
                     return True
                 time.sleep(1)
@@ -539,7 +576,7 @@ class BaseValidatorNeuron(BaseNeuron):
                 bt.logging.error(e)
                 bt.logging.error(traceback.format_exc())
         else:
-            bt.logging.info('Skip export submissions in test')
+            bt.logging.info("Skip export submissions in test")
 
     def save_state(self):
         """Saves the state of the validator to a file."""
@@ -567,7 +604,9 @@ class BaseValidatorNeuron(BaseNeuron):
         try:
             state = torch.load(self.config.neuron.full_path + "/state.pt")
         except FileNotFoundError:
-            bt.logging.info(f"Neuron state not found in {self.config.neuron.full_path + '/state.pt'}, skip..")
+            bt.logging.info(
+                f"Neuron state not found in {self.config.neuron.full_path + '/state.pt'}, skip.."
+            )
             return
         self.step = state["step"]
         self.scores = state["scores"]
@@ -580,4 +619,4 @@ class BaseValidatorNeuron(BaseNeuron):
             self.scoring_iterations = state["scoring_iterations"]
         if state.get("latest_reset_date"):
             self.latest_reset_date = state["latest_reset_date"]
-            bt.logging.info(f'Latest score reset date: {self.latest_reset_date}')
+            bt.logging.info(f"Latest score reset date: {self.latest_reset_date}")

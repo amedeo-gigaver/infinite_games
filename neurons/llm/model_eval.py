@@ -12,12 +12,14 @@ import google.generativeai as google_ai
 from .config.constants import (
     OAI_SOURCE,
     ANTHROPIC_SOURCE,
-    TOGETHER_AI_SOURCE, GOOGLE_SOURCE
+    TOGETHER_AI_SOURCE,
+    GOOGLE_SOURCE,
 )
 from .config.keys import (
     ANTHROPIC_KEY,
     OPENAI_KEY,
-    TOGETHER_KEY, GOOGLE_AI_KEY,
+    TOGETHER_KEY,
+    GOOGLE_AI_KEY,
 )
 from .utils import model_utils, string_utils
 
@@ -36,7 +38,7 @@ if OPENAI_KEY:
 #         api_key=TOGETHER_KEY,
 #         base_url="https://api.together.xyz/v1",
 #     )
-    
+
 if GOOGLE_AI_KEY:
     google_ai.configure(api_key=GOOGLE_AI_KEY)
 

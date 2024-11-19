@@ -385,7 +385,7 @@ async def retrieve_summarize_and_rank_articles(
         question,
         background_info=background_info,
         resolution_criteria=resolution_criteria,
-        model=config["SEARCH_QUERY_MODEL_NAME"]
+        model=config["SEARCH_QUERY_MODEL_NAME"],
     )
     # Flatten and deduplicate the search queries
     search_queries_list_nc = utils.flatten_list(search_queries_list_nc)
@@ -533,15 +533,15 @@ async def all_retrieve_summarize_rank_articles(
     """
     articles_by_question = {}
     for index in range(len(questions)):
-        articles_by_question[questions[index]] = (
-            await retrieve_summarize_and_rank_articles(
-                questions[index],
-                background_infos[index],
-                date_ranges[index],
-                num_articles,
-                use_newscatcher,
-                return_intermediates,
-                config,
-            )
+        articles_by_question[
+            questions[index]
+        ] = await retrieve_summarize_and_rank_articles(
+            questions[index],
+            background_infos[index],
+            date_ranges[index],
+            num_articles,
+            use_newscatcher,
+            return_intermediates,
+            config,
         )
     return articles_by_question

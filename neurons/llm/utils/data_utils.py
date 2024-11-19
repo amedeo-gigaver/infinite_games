@@ -28,7 +28,7 @@ def get_formatted_data(
     This function reads data from S3, processes it, and structures it for training purposes.
     It calculates retrieval dates and filters out data based on these dates. The function can
     optionally return raw question data.
-    
+
     Also, the function can optionally take in the |data| directly.
 
     Parameters:

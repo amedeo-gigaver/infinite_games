@@ -72,7 +72,7 @@ def decode_url(signature, timestamp, base64_str):
         return {"status": True, "decoded_url": decoded_url}
     except Exception as e:
         logger.error(f"GNews url decode failed, {e}")
-        return {"status": False, "decoded_url": ''}
+        return {"status": False, "decoded_url": ""}
 
 
 class NewscatcherArticle:
@@ -470,7 +470,9 @@ def retrieve_gnews_articles_fulldata(
                 if not base64_decode["status"]:
                     continue
 
-                _res = requests.get(f"https://news.google.com/rss/articles/{base64_decode['base64_str']}")
+                _res = requests.get(
+                    f"https://news.google.com/rss/articles/{base64_decode['base64_str']}"
+                )
                 _res.raise_for_status()
 
                 parser = HTMLParser(_res.text)
@@ -481,12 +483,12 @@ def retrieve_gnews_articles_fulldata(
                 final = decode_url(
                     obj.attributes.get("data-n-a-sg"),
                     obj.attributes.get("data-n-a-ts"),
-                    base64_decode["base64_str"]
+                    base64_decode["base64_str"],
                 )
                 if not final["status"]:
                     continue
 
-                final_url = final['decoded_url']
+                final_url = final["decoded_url"]
                 unique_urls.add(article["url"])
 
             full_article = google_news.get_full_article(final_url)
@@ -750,7 +752,7 @@ async def get_search_queries_for_all_sources(
     resolution_criteria="",
     max_words_newscatcher=5,
     max_words_gnews=8,
-    model="gpt-4-1106-preview"
+    model="gpt-4-1106-preview",
 ):
     """
     Get search queries for a single question. For both Newscatcher and GNews.

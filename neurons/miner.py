@@ -1,6 +1,7 @@
 # The MIT License (MIT)
 # Copyright © 2023 Yuma Rao
 import os
+
 # Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
 # documentation files (the “Software”), to deal in the Software without restriction, including without limitation
 # the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
@@ -27,7 +28,12 @@ import infinite_games
 from infinite_games.base.miner import BaseMinerNeuron
 from infinite_games.events.azuro import AzuroProviderIntegration
 from infinite_games.events.polymarket import PolymarketProviderIntegration
-from infinite_games.utils.miner_cache import MinerCache, MinerCacheStatus, MinerCacheObject, MarketType
+from infinite_games.utils.miner_cache import (
+    MinerCache,
+    MinerCacheStatus,
+    MinerCacheObject,
+    MarketType,
+)
 
 if os.getenv("OPENAI_KEY"):
     from llm.forecasting import Forecaster
@@ -78,18 +84,25 @@ class Miner(BaseMinerNeuron):
         try:
             llm_prediction = None
             # Polymarket
-            if market.event.market_type == MarketType.POLYMARKET and self.polymarket is not None:
+            if (
+                market.event.market_type == MarketType.POLYMARKET
+                and self.polymarket is not None
+            ):
                 x = await self.polymarket.get_event_by_id(market.event.event_id)
                 market.event.probability = x["tokens"][0]["price"]
 
             # Azuro
-            elif market.event.market_type == MarketType.AZURO and self.azuro is not None:
+            elif (
+                market.event.market_type == MarketType.AZURO and self.azuro is not None
+            ):
                 x = await self.azuro.get_event_by_id(market.event.event_id)
                 market.event.probability = 1.0 / float(x["outcome"]["currentOdds"])
 
             else:
                 # LLM
-                llm_prediction = (await self.llm.get_prediction(market)) if self.llm else None
+                llm_prediction = (
+                    (await self.llm.get_prediction(market)) if self.llm else None
+                )
                 if llm_prediction is not None:
                     market.event.probability = llm_prediction
                 else:
@@ -101,14 +114,14 @@ class Miner(BaseMinerNeuron):
                     market.event.probability,
                     market.event.market_type.name,
                     market.event.event_id,
-                    market.event.retries
+                    market.event.retries,
                 )
             )
         except Exception as e:
             bt.logging.error("Failed to assign, probability, {}".format(e))
 
     async def forward(
-            self, synapse: infinite_games.protocol.EventPredictionSynapse
+        self, synapse: infinite_games.protocol.EventPredictionSynapse
     ) -> infinite_games.protocol.EventPredictionSynapse:
         """
         Processes the incoming synapse and attaches the response to the synapse.
@@ -118,34 +131,46 @@ class Miner(BaseMinerNeuron):
             await self.initialize_providers()
 
         today = datetime.now()
-        bt.logging.info("[{}] Incoming Events {}".format(today, len(synapse.events.items())))
+        bt.logging.info(
+            "[{}] Incoming Events {}".format(today, len(synapse.events.items()))
+        )
 
         for cid, market in synapse.events.items():
             cached_market: typing.Optional[MinerCacheObject] = await self.cache.get(cid)
             if cached_market is not None:
                 if cached_market.status == MinerCacheStatus.COMPLETED:
                     # Check IF it is time for a re-calculation of the probability.
-                    if cached_market.event.retries > 0 and cached_market.event.next_try <= int(today.timestamp()):
-
+                    if (
+                        cached_market.event.retries > 0
+                        and cached_market.event.next_try <= int(today.timestamp())
+                    ):
                         # Set the stored object in a rerun state.
                         cached_market.set_for_rerun()
 
                         # After this re-run, set the next.
-                        cached_market.event.retries, cached_market.event.next_try = await _calculate_next_try(cached_market)
+                        (
+                            cached_market.event.retries,
+                            cached_market.event.next_try,
+                        ) = await _calculate_next_try(cached_market)
 
-                        await self.cache.add(cid, self._generate_prediction, cached_market)
+                        await self.cache.add(
+                            cid, self._generate_prediction, cached_market
+                        )
                     else:
                         market["probability"] = cached_market.event.probability
                         bt.logging.info(
                             "Assign cache {} prob to {} event {}".format(
                                 cached_market.event.probability,
                                 cached_market.event.market_type.name,
-                                cached_market.event.event_id
+                                cached_market.event.event_id,
                             )
                         )
             else:
                 new_market = MinerCacheObject.init_from_market(market)
-                new_market.event.retries, new_market.event.next_try = await _calculate_next_try(new_market)
+                (
+                    new_market.event.retries,
+                    new_market.event.next_try,
+                ) = await _calculate_next_try(new_market)
                 await self.cache.add(cid, self._generate_prediction, new_market)
 
         return synapse
@@ -195,7 +220,9 @@ class Miner(BaseMinerNeuron):
         )
         return False, "Hotkey recognized!"
 
-    async def priority(self, synapse: infinite_games.protocol.EventPredictionSynapse) -> float:
+    async def priority(
+        self, synapse: infinite_games.protocol.EventPredictionSynapse
+    ) -> float:
         """
         The priority function determines the order in which requests are handled. More valuable or higher-priority
         requests are processed before others. You should design your own priority mechanism with care.
