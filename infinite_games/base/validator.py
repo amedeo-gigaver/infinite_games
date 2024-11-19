@@ -544,7 +544,7 @@ class BaseValidatorNeuron(BaseNeuron):
 
     def send_live_data(self, miner_data):
         if os.environ.get('ENV') != 'pytest':
-            bt.logging.info('Sending live data')
+            bt.logging.info(f'Sending live data:  {len(miner_data)} records')
             try:
                 v_uid = self.metagraph.hotkeys.index(self.wallet.get_hotkey().ss58_address)
                 body = {
