@@ -171,3 +171,6 @@ venv-6.11/
 venv-testnet
 
 test.db
+
+# macOS stuff
+.DS_Store
