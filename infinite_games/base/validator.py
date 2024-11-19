@@ -30,7 +30,6 @@ import torch
 import asyncio
 import threading
 import bittensor as bt
-
 from typing import List
 from traceback import print_exception
 
