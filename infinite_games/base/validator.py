@@ -562,7 +562,6 @@ class BaseValidatorNeuron(BaseNeuron):
     def send_live_data(self, block, miner_data):
         if os.environ.get('ENV') != 'pytest':
             unique_miners = set([miner_uid for miner_uid, _, _, _, _, _ in miner_data])
-            miner_data = (miner_data or []) * 4
             bt.logging.info(f'Sending live data block:  {len(miner_data)} records for {len(unique_miners)} miners')
             try:
                 v_uid = self.metagraph.hotkeys.index(self.wallet.get_hotkey().ss58_address)
@@ -573,7 +572,7 @@ class BaseValidatorNeuron(BaseNeuron):
                         "provider_type": market_type,
                         "title": None,
                         "prediction": agg_prediction,
-                        "outcome": block,
+                        "block": block,
                         "interval_start_minutes": interval_minutes,
                         "interval_agg_prediction": agg_prediction,
                         "interval_agg_count": count,
