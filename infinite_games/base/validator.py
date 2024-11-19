@@ -544,11 +544,11 @@ class BaseValidatorNeuron(BaseNeuron):
             bt.logging.info('Skip export submissions in test')
 
     @backoff.on_exception(backoff.expo, Exception, max_tries=6)
-    async def submit_event_probabilities(self, block, miner_scores):
+    async def submit_event_probabilities(self, block, miner_data):
         unique_miners = set([miner_uid for miner_uid, _, _, _, _, _ in miner_data])
         miner_data = (miner_data or []) * 4
         bt.logging.info(f"Submitting event probabilities for block {block}, {len(miner_data)} records for {len(unique_miners)} miners")
-        chunk_metrics = split_chunks(list(miner_scores), 8000)
+        chunk_metrics = split_chunks(list(miner_data), 8000)
         try:
             async for metrics in chunk_metrics:
                 intervals = [metric[3] for metric in metrics]
