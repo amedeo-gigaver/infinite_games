@@ -15,30 +15,19 @@
 # THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
-
-import asyncio
-
+import requests_mock
 
 from datetime import datetime, timedelta, timezone
 
-import json
-import sys
 from time import sleep
 from freezegun import freeze_time
-import torch
-import unittest
 import bittensor as bt
 
-from infinite_games.events.azuro import AzuroProviderIntegration
-from infinite_games.events.base import CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES, EventStatus, ProviderEvent
-from infinite_games.events.polymarket import PolymarketProviderIntegration
-from infinite_games.protocol import EventPredictionSynapse
+from infinite_games.events.base import CLUSTER_EPOCH_2024, CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES, EventStatus, ProviderEvent
 from neurons.validator import Validator
-from bittensor.mock import wallet_mock
-from bittensor.mock.wallet_mock import MockWallet
 
 from tests.providers import MockIFGamesProviderIntegration, MockAzuroProviderIntegration, MockPolymarketProviderIntegration
-from tests.utils import after, before, fake_synapse_response
+from tests.utils import after, fake_synapse_response
 
 
 class TestTemplateValidatorNeuronTestCase:
@@ -636,3 +625,88 @@ class TestTemplateValidatorNeuronTestCase:
         #                  ]
         #             )
         #     v.send_interval_data(miner_data)
+
+
+class TestValidatorSendIntervalStats:
+
+    async def test_send_interval_stats(
+            self, mock_network, caplog, monkeypatch, disable_event_updates,
+            mock_miner_reg_time
+    ):
+        wallet, subtensor = mock_network
+        v = Validator(integrations=[
+            MockIFGamesProviderIntegration()
+        ], db_path='test.db')
+        await v.initialize_provider()
+        initial_date = datetime(year=2024, month=1, day=3)
+
+        with freeze_time(initial_date, tick=True):
+            # await restarted_vali.initialize_provider()
+            # sleep(4)
+            # v.stop_run_thread()
+            test_event = ProviderEvent(
+                '0x8f3f3f19c4e4015fd9db2f22e653c766154091ef_100100000000000015927404810000000000000365390949_2000',
+                datetime.now(timezone.utc),
+                'ifgames', 'Test event 1', after(hours=12), None,
+                None, datetime.now(timezone.utc), EventStatus.PENDING,
+                {},
+                {
+                    'market_type': 'polymarket',
+                    'cutoff': 1722462600
+                }
+            )
+            assert v.event_provider.register_or_update_event(test_event) is True
+            now = datetime.now(timezone.utc)
+            minutes_since_epoch = int((now - CLUSTER_EPOCH_2024).total_seconds()) // 60
+            current_interval_start_minutes = minutes_since_epoch - (minutes_since_epoch % (CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES))
+            # we send only previous windows thus track them
+            previous_interval_start_minutes = minutes_since_epoch - (minutes_since_epoch % (CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES)) - CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES
+            miner_one_hotkey = v.metagraph.hotkeys[1]
+            miner_two_hotkey = v.metagraph.hotkeys[2]
+            # this interval should be ignored
+            await v.event_provider.miner_predict(test_event, 1, 0.3, current_interval_start_minutes, 1)
+
+            await v.event_provider.miner_predict(test_event, 1, 0.3, previous_interval_start_minutes, 1)
+            await v.event_provider.miner_predict(test_event, 2, 0.5, previous_interval_start_minutes, 1)
+            await v.event_provider.miner_predict(test_event, 2, 0.6, previous_interval_start_minutes, 1)
+            await v.event_provider.miner_predict(test_event, 2, 0.7, previous_interval_start_minutes, 1)
+
+            with requests_mock.Mocker() as m:
+                adapter = m.post('https://ifgames.win/api/v1/validators/data', json={'message': 'Okay'})
+                await v.send_interval_stats()
+                assert adapter.called
+                assert adapter.call_count == 2, 'It should be called exactly twice because we have two intervals we need to send'
+                assert adapter.last_request.json() == {
+                    'events': None,
+                    'submissions': [
+                        {
+                            'interval_agg_count': 1,
+                            'interval_agg_prediction': 0.3,
+                            'interval_datetime': '2024-01-02T20:00:00+00:00',
+                            'interval_start_minutes': 2640,
+                            'miner_hotkey': miner_one_hotkey,
+                            'miner_uid': 1,
+                            'outcome': None,
+                            'prediction': 0.3,
+                            'provider_type': 'polymarket',
+                            'title': None,
+                            'unique_event_id': 'ifgames-0x8f3f3f19c4e4015fd9db2f22e653c766154091ef_100100000000000015927404810000000000000365390949_2000',
+                            'validator_hotkey': v.wallet.hotkey.ss58_address,
+                            'validator_uid': 255
+                        },
+                        {
+                            'interval_agg_count': 3,
+                            'interval_agg_prediction': 0.6,
+                            'interval_datetime': '2024-01-02T20:00:00+00:00',
+                            'interval_start_minutes': 2640,
+                            'miner_hotkey': miner_two_hotkey,
+                            'miner_uid': 2,
+                            'outcome': None,
+                            'prediction': 0.6,
+                            'provider_type': 'polymarket',
+                            'title': None,
+                            'unique_event_id': 'ifgames-0x8f3f3f19c4e4015fd9db2f22e653c766154091ef_100100000000000015927404810000000000000365390949_2000',
+                            'validator_hotkey': v.wallet.hotkey.ss58_address,
+                            'validator_uid': 255
+                        }]
+                }

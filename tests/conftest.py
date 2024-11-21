@@ -1,8 +1,6 @@
-import asyncio
-from datetime import datetime
 import os
 
-from bittensor.mock.wallet_mock import MockWallet, get_mock_wallet
+from bittensor.mock.wallet_mock import get_mock_wallet
 from bittensor.mock import MockSubtensor
 from pytest import fixture
 import shutil

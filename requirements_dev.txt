@@ -1,6 +1,7 @@
 -r requirements.txt
 pytest
 pytest-mock
+requests-mock
 pytest-env
 pytest-asyncio
 freezegun==1.5.1
