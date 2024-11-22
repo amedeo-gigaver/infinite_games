@@ -1,3 +1,4 @@
+pydantic==2.9.2
 bittensor==7.0.2
 torch==2.3.0
 pandas==2.2.2
