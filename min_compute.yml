@@ -73,7 +73,7 @@ compute_spec:
     storage:
       min_space:            # Minimum free storage space (GB)
       recommended_space:   # Recommended free storage space (GB)
-      type:             # Preferred storage type (e.g., SSD, HDD)
+      type:              # Preferred storage type (e.g., SSD, HDD)
       min_iops:          # Minimum I/O operations per second (if applicable)
       recommended_iops:   # Recommended I/O operations per second
 
