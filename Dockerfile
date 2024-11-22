@@ -30,4 +30,5 @@ RUN pip install -r requirements.txt
 COPY . /root/infinite_games
 
 
-CMD ["python", "/root/infinite_games/neurons/validator.py", "--netuid", "155", "--subtensor.network", "test", "--wallet.name", "testkey", "--wallet.hotkey", "hkey1"]
+CMD ["python", "neurons/validator.py", "--netuid", "155", "--subtensor.network", "test", "--wallet.name", "${WALLET_NAME}", "--wallet.hotkey", "${WALLET_HOTKEY}"]
+
