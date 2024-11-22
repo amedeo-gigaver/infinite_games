@@ -656,7 +656,7 @@ class TestTemplateValidatorNeuronTestCase:
                 }
             )
             assert v.event_provider.register_or_update_event(test_event) is True
-        
+
             # assert v.event_provider.registered_events.get(f'{test_event.market_type}-{test_event.event_id}')
             # assert len(v.event_provider.registered_events) == 1
             mock_response = fake_synapse_response(v.event_provider.get_events_for_submission())
@@ -676,12 +676,15 @@ class TestTemplateValidatorNeuronTestCase:
 
             payload_body = mock_live_submission_request.last_request.json()
             assert len(payload_body.get('submissions')) == 1024
-            third_miner_data = payload_body.get('submissions')[3]
-            assert third_miner_data['prediction'] == 0.7
-            fourth_miner_data = payload_body.get('submissions')[4]
-            assert fourth_miner_data['prediction'] == 0.9
-            fifth_miner_data = payload_body.get('submissions')[5]
-            assert fifth_miner_data['prediction'] == 0.0
+            fourth_miner_data = payload_body.get('submissions')[3]
+            assert fourth_miner_data['prediction'] == 0.7
+            assert fourth_miner_data['interval_start_minutes'] == 2640
+            fifth_miner_data = payload_body.get('submissions')[4]
+            assert fifth_miner_data['prediction'] == 0.9
+            assert fifth_miner_data['interval_start_minutes'] == 2640
+            sixth_miner_data = payload_body.get('submissions')[5]
+            assert sixth_miner_data['prediction'] == 0.0
+            assert sixth_miner_data['interval_start_minutes'] == 2640
 
 
 class TestValidatorSendIntervalStats:

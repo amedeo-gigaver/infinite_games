@@ -512,6 +512,8 @@ class BaseValidatorNeuron(BaseNeuron):
                     "interval_agg_prediction": agg_prediction,
                     "interval_agg_count": count,
                     "interval_datetime": (CLUSTER_EPOCH_2024 + timedelta(minutes=interval_minutes)).isoformat(),
+                    # we cannot rely on that anymore specially since we send multiple past windows,
+                    # miners can change
                     "miner_hotkey": self.metagraph.hotkeys[int(miner_uid)],
                     "miner_uid": int(miner_uid),
                     "validator_hotkey": self.wallet.get_hotkey().ss58_address,
