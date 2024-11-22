@@ -15,6 +15,8 @@
 # THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
+import asyncio
+import pytest
 import requests_mock
 
 from datetime import datetime, timedelta, timezone
@@ -30,6 +32,7 @@ from tests.providers import MockIFGamesProviderIntegration, MockAzuroProviderInt
 from tests.utils import after, fake_synapse_response
 
 
+pytest.mark.usefixtures('mock_live_submission_request', 'mock_interval_submission_request')
 class TestTemplateValidatorNeuronTestCase:
 
     async def next_run(self, v: Validator):
@@ -626,12 +629,66 @@ class TestTemplateValidatorNeuronTestCase:
         #             )
         #     v.send_interval_data(miner_data)
 
+    async def test_submit_event_probabilities(
+            self, mock_network, caplog, monkeypatch, disable_event_updates,
+            mock_miner_reg_time, mock_live_submission_request
+    ):
+        wallet, subtensor = mock_network
+        v = Validator(integrations=[
+            MockIFGamesProviderIntegration()
+        ], db_path='test.db')
+        await v.initialize_provider()
+        initial_date = datetime(year=2024, month=1, day=3)
+
+        with freeze_time(initial_date, tick=True):
+            # await restarted_vali.initialize_provider()
+            # sleep(4)
+            # v.stop_run_thread()
+            test_event = ProviderEvent(
+                '0x8f3f3f19c4e4015fd9db2f22e653c766154091ef_100100000000000015927404810000000000000365390949_2000',
+                datetime.now(timezone.utc),
+                'ifgames', 'Test event 1', after(hours=12), None,
+                None, datetime.now(timezone.utc), EventStatus.PENDING,
+                {},
+                {
+                    'market_type': 'polymarket',
+                    'cutoff': 1722462600
+                }
+            )
+            assert v.event_provider.register_or_update_event(test_event) is True
+        
+            # assert v.event_provider.registered_events.get(f'{test_event.market_type}-{test_event.event_id}')
+            # assert len(v.event_provider.registered_events) == 1
+            mock_response = fake_synapse_response(v.event_provider.get_events_for_submission())
+            mock_response[3].events[f'{test_event.market_type}-{test_event.event_id}']['probability'] = 0.7
+            mock_response[4].events[f'{test_event.market_type}-{test_event.event_id}']['probability'] = 0.9
+            mock_response[5].events[f'{test_event.market_type}-{test_event.event_id}']['probability'] = 0.0
+            monkeypatch.setattr('neurons.validator.query_miners', lambda a, b, c: mock_response)
+            print('Forward run')
+            await self.next_run(v)
+            live_exporter_task = None
+            for t in asyncio.all_tasks():
+                if t.get_name() == 'submit_event_probabilities':
+                    live_exporter_task = t
+            assert live_exporter_task, 'The task should be running, please make sure that its called'
+            v.loop.run_until_complete(live_exporter_task)
+            assert mock_live_submission_request.call_count == 1, 'It should be called exactly once because we have small chunk to send'
+
+            payload_body = mock_live_submission_request.last_request.json()
+            assert len(payload_body.get('submissions')) == 1024
+            third_miner_data = payload_body.get('submissions')[3]
+            assert third_miner_data['prediction'] == 0.7
+            fourth_miner_data = payload_body.get('submissions')[4]
+            assert fourth_miner_data['prediction'] == 0.9
+            fifth_miner_data = payload_body.get('submissions')[5]
+            assert fifth_miner_data['prediction'] == 0.0
+
 
 class TestValidatorSendIntervalStats:
 
     async def test_send_interval_stats(
             self, mock_network, caplog, monkeypatch, disable_event_updates,
-            mock_miner_reg_time
+            mock_miner_reg_time, mock_interval_submission_request
     ):
         wallet, subtensor = mock_network
         v = Validator(integrations=[
@@ -671,42 +728,41 @@ class TestValidatorSendIntervalStats:
             await v.event_provider.miner_predict(test_event, 2, 0.6, previous_interval_start_minutes, 1)
             await v.event_provider.miner_predict(test_event, 2, 0.7, previous_interval_start_minutes, 1)
 
-            with requests_mock.Mocker() as m:
-                adapter = m.post('https://ifgames.win/api/v1/validators/data', json={'message': 'Okay'})
-                await v.send_interval_stats()
-                assert adapter.called
-                assert adapter.call_count == 2, 'It should be called exactly twice because we have two intervals we need to send'
-                assert adapter.last_request.json() == {
-                    'events': None,
-                    'submissions': [
-                        {
-                            'interval_agg_count': 1,
-                            'interval_agg_prediction': 0.3,
-                            'interval_datetime': '2024-01-02T20:00:00+00:00',
-                            'interval_start_minutes': 2640,
-                            'miner_hotkey': miner_one_hotkey,
-                            'miner_uid': 1,
-                            'outcome': None,
-                            'prediction': 0.3,
-                            'provider_type': 'polymarket',
-                            'title': None,
-                            'unique_event_id': 'ifgames-0x8f3f3f19c4e4015fd9db2f22e653c766154091ef_100100000000000015927404810000000000000365390949_2000',
-                            'validator_hotkey': v.wallet.hotkey.ss58_address,
-                            'validator_uid': 255
-                        },
-                        {
-                            'interval_agg_count': 3,
-                            'interval_agg_prediction': 0.6,
-                            'interval_datetime': '2024-01-02T20:00:00+00:00',
-                            'interval_start_minutes': 2640,
-                            'miner_hotkey': miner_two_hotkey,
-                            'miner_uid': 2,
-                            'outcome': None,
-                            'prediction': 0.6,
-                            'provider_type': 'polymarket',
-                            'title': None,
-                            'unique_event_id': 'ifgames-0x8f3f3f19c4e4015fd9db2f22e653c766154091ef_100100000000000015927404810000000000000365390949_2000',
-                            'validator_hotkey': v.wallet.hotkey.ss58_address,
-                            'validator_uid': 255
-                        }]
-                }
+            mock_interval_submission_request
+            await v.send_interval_stats()
+            assert mock_interval_submission_request.called
+            assert mock_interval_submission_request.call_count == 2, 'It should be called exactly twice because we have two intervals we need to send'
+            assert mock_interval_submission_request.last_request.json() == {
+                'events': None,
+                'submissions': [
+                    {
+                        'interval_agg_count': 1,
+                        'interval_agg_prediction': 0.3,
+                        'interval_datetime': '2024-01-02T20:00:00+00:00',
+                        'interval_start_minutes': 2640,
+                        'miner_hotkey': miner_one_hotkey,
+                        'miner_uid': 1,
+                        'outcome': None,
+                        'prediction': 0.3,
+                        'provider_type': 'polymarket',
+                        'title': None,
+                        'unique_event_id': 'ifgames-0x8f3f3f19c4e4015fd9db2f22e653c766154091ef_100100000000000015927404810000000000000365390949_2000',
+                        'validator_hotkey': v.wallet.hotkey.ss58_address,
+                        'validator_uid': 255
+                    },
+                    {
+                        'interval_agg_count': 3,
+                        'interval_agg_prediction': 0.6,
+                        'interval_datetime': '2024-01-02T20:00:00+00:00',
+                        'interval_start_minutes': 2640,
+                        'miner_hotkey': miner_two_hotkey,
+                        'miner_uid': 2,
+                        'outcome': None,
+                        'prediction': 0.6,
+                        'provider_type': 'polymarket',
+                        'title': None,
+                        'unique_event_id': 'ifgames-0x8f3f3f19c4e4015fd9db2f22e653c766154091ef_100100000000000015927404810000000000000365390949_2000',
+                        'validator_hotkey': v.wallet.hotkey.ss58_address,
+                        'validator_uid': 255
+                    }]
+            }
