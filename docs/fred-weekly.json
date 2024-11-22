@@ -1,0 +1,42 @@
+[
+	{
+		"title": "Will the value of `South Korean Won to U.S. Dollar Spot Exchange Rate` be strictly greater than 1398.41 South Korean Won to  1 U.S. $ at 2024-11-15 ?",
+		"description": "Resolves to YES if the price at 2024-11-15 is above the price: 1398.41 South Korean Won to  1 U.S. $. For resolution we will use the data provided by FRED (https://api.stlouisfed.org/fred/series?series_id=DEXKOUS) as soon as they are published. "
+	},
+	{
+		"title": "Will the value of `Nominal Advanced Foreign Economies U.S. Dollar Index` be strictly greater than 117.26 Index Jan 2006=100 at 2024-11-15 ?",
+		"description": "Resolves to YES if the price at 2024-11-15 is above the price: 117.26 Index Jan 2006=100. For resolution we will use the data provided by FRED (https://api.stlouisfed.org/fred/series?series_id=DTWEXAFEGS) as soon as they are published. "
+	},
+	{
+		"title": "Will the value of `Chinese Yuan Renminbi to U.S. Dollar Spot Exchange Rate` be strictly greater than 7.18 Chinese Yuan Renminbi to  1 U.S. $ at 2024-11-15 ?",
+		"description": "Resolves to YES if the price at 2024-11-15 is above the price: 7.18 Chinese Yuan Renminbi to  1 U.S. $. For resolution we will use the data provided by FRED (https://api.stlouisfed.org/fred/series?series_id=DEXCHUS) as soon as they are published. "
+	},
+	{
+		"title": "Will the value of `Canadian Dollars to U.S. Dollar Spot Exchange Rate` be strictly greater than 1.39 Canadian $ to  1 U.S. $ at 2024-11-15 ?",
+		"description": "Resolves to YES if the price at 2024-11-15 is above the price: 1.39 Canadian $ to  1 U.S. $. For resolution we will use the data provided by FRED (https://api.stlouisfed.org/fred/series?series_id=DEXCAUS) as soon as they are published. "
+	},
+	{
+		"title": "Will the value of `U.S. Dollars to U.K. Pound Sterling Spot Exchange Rate` be strictly greater than 1.30 U.S. $ to  1 U.K. Pound Sterling at 2024-11-15 ?",
+		"description": "Resolves to YES if the price at 2024-11-15 is above the price: 1.30 U.S. $ to  1 U.K. Pound Sterling. For resolution we will use the data provided by FRED (https://api.stlouisfed.org/fred/series?series_id=DEXUSUK) as soon as they are published. "
+	},
+	{
+		"title": "Will the value of `Mexican Pesos to U.S. Dollar Spot Exchange Rate` be strictly greater than 20.17 Mexican Pesos to  1 U.S. $ at 2024-11-15 ?",
+		"description": "Resolves to YES if the price at 2024-11-15 is above the price: 20.17 Mexican Pesos to  1 U.S. $. For resolution we will use the data provided by FRED (https://api.stlouisfed.org/fred/series?series_id=DEXMXUS) as soon as they are published. "
+	},
+	{
+		"title": "Will the value of `Nominal Broad U.S. Dollar Index` be strictly greater than 125.69 Index Jan 2006=100 at 2024-11-15 ?",
+		"description": "Resolves to YES if the price at 2024-11-15 is above the price: 125.69 Index Jan 2006=100. For resolution we will use the data provided by FRED (https://api.stlouisfed.org/fred/series?series_id=DTWEXBGS) as soon as they are published. "
+	},
+	{
+		"title": "Will the value of `U.S. Dollars to Euro Spot Exchange Rate` be strictly greater than 1.07 U.S. $ to  1 Euro at 2024-11-15 ?",
+		"description": "Resolves to YES if the price at 2024-11-15 is above the price: 1.07 U.S. $ to  1 Euro. For resolution we will use the data provided by FRED (https://api.stlouisfed.org/fred/series?series_id=DEXUSEU) as soon as they are published. "
+	},
+	{
+		"title": "Will the value of `Japanese Yen to U.S. Dollar Spot Exchange Rate` be strictly greater than 153.31 Japanese Yen to  1 U.S. $ at 2024-11-15 ?",
+		"description": "Resolves to YES if the price at 2024-11-15 is above the price: 153.31 Japanese Yen to  1 U.S. $. For resolution we will use the data provided by FRED (https://api.stlouisfed.org/fred/series?series_id=DEXJPUS) as soon as they are published. "
+	},
+	{
+		"title": "Will the value of `Indian Rupees to U.S. Dollar Spot Exchange Rate` be strictly greater than 84.43 Indian Rupees to  1 U.S. $ at 2024-11-15 ?",
+		"description": "Resolves to YES if the price at 2024-11-15 is above the price: 84.43 Indian Rupees to  1 U.S. $. For resolution we will use the data provided by FRED (https://api.stlouisfed.org/fred/series?series_id=DEXINUS) as soon as they are published. "
+	}
+]
