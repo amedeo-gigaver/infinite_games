@@ -72,6 +72,13 @@ class ProviderEvent:
     def __str__(self) -> str:
         return f'{self.market_type} {self.event_id}'
 
+    def __repr__(self) -> str:
+        return (
+            f"{self.market_type=} {self.event_id=} {self.registered_date=} "
+            f"{self.description=} {self.starts=} {self.resolve_date=} "
+            f"{self.answer=} {self.local_updated_at=} {self.status=} "
+            f"{json.dumps(self.metadata)}"
+        )
 
 class ProviderIntegration:
 
@@ -261,7 +268,7 @@ class EventAggregator:
                 try:
                     event: ProviderEvent = self.get_event(key)
                     if not event:
-                        bt.logging.error(f'Could not get updated event from database {pe}')
+                        bt.logging.error(f'Could not get updated event from database {repr(pe)}')
                         return
                     if event.metadata.get('processed', False) is False and self.event_update_hook_fn(event) is True:
                         self.save_event(pe, True)
@@ -307,7 +314,7 @@ class EventAggregator:
             pe: ProviderEvent = self.row_to_pe(data)
             integration = self.integrations.get(pe.market_type)
             if not integration:
-                bt.logging.warning(f'No integration found for event in database {pe}')
+                bt.logging.warning(f'No integration found for event in database {repr(pe)}')
                 return None
             return pe
         else:
@@ -335,7 +342,7 @@ class EventAggregator:
                     """,
                     (f'{pe.market_type}-{pe.event_id}',)
                 )
-                bt.logging.info(f'Removed event {pe}..')
+                bt.logging.info(f'Removed event {repr(pe)}..')
                 conn.commit()
                 return True
             except Exception as e:
@@ -346,7 +353,7 @@ class EventAggregator:
                     time.sleep(1 + (2 * tried))
 
                 else:
-                    bt.logging.error(f"Error removing event {pe}: {repr(e)}")
+                    bt.logging.error(f"Error removing event {repr(pe)}: {repr(e)}")
                     bt.logging.error(traceback.format_exc())
                     break
 
@@ -364,7 +371,7 @@ class EventAggregator:
         for pe in self.get_events(statuses=[EventStatus.PENDING], processed=False):
             integration = self.integrations.get(pe.market_type)
             if not integration:
-                bt.logging.warning(f'No integration found for event {pe}')
+                bt.logging.warning(f'No integration found for event {repr(pe)}')
                 continue
             if integration.available_for_submission(pe):
                 events.append(pe)
@@ -681,7 +688,7 @@ class EventAggregator:
         tries = 4
         tried = 0
         while tried < tries:
-            # bt.logging.info(f'Now time: {datetime.now(tz=timezone.utc)}, {pe} ')
+            # bt.logging.info(f'Now time: {datetime.now(tz=timezone.utc)}, {repr(pe)} ')
             try:
                 result = c.execute(
                     """
@@ -707,7 +714,7 @@ class EventAggregator:
                     time.sleep(1 + (2 * tried))
 
                 else:
-                    bt.logging.error(f"Error saving event {pe}: {repr(e)}")
+                    bt.logging.error(f"Error saving event {repr(pe)}: {repr(e)}")
                     bt.logging.error(traceback.format_exc())
                     break
             tried += 1
@@ -725,7 +732,7 @@ class EventAggregator:
         tries = 4
         tried = 0
         while tried < tries:
-            # bt.logging.info(f'Now time: {datetime.now(tz=timezone.utc)}, {pe} ')
+            # bt.logging.info(f'Now time: {datetime.now(tz=timezone.utc)}, {repr(pe)} ')
             try:
                 cursor.execute(
                     """
@@ -746,7 +753,7 @@ class EventAggregator:
                     time.sleep(1 + (2 * tried))
 
                 else:
-                    bt.logging.error(f"Error marking event as exported {pe}: {repr(e)}")
+                    bt.logging.error(f"Error marking event as exported {repr(pe)}: {repr(e)}")
                     bt.logging.error(traceback.format_exc())
                     break
             tried += 1
@@ -812,11 +819,11 @@ class EventAggregator:
                     time.sleep(1 + (2 * tried))
                     # tried += 1
                 else:
-                    bt.logging.error(f"Error updating cluster prediction {uid=} {pe}: {repr(e)}")
+                    bt.logging.error(f"Error updating cluster prediction {repr(pe)}: {repr(e)}")
                     bt.logging.error(traceback.format_exc())
                     break
             except Exception as e:
-                bt.logging.error(f"Error updating cluster prediction {uid=} {pe}: {repr(e)}")
+                bt.logging.error(f"Error updating cluster prediction {repr(pe)}: {repr(e)}")
                 bt.logging.error(traceback.format_exc())
                 break
             tried += 1
@@ -838,7 +845,7 @@ class EventAggregator:
             )
             result: List[sqlite3.Row] = c.fetchall()
         except Exception as e:
-            bt.logging.error(f"Error fetching event predictions {pe}: {repr(e)}")
+            bt.logging.error(f"Error fetching event predictions {repr(pe)}: {repr(e)}")
             bt.logging.error(traceback.format_exc())
         conn.close()
         output = defaultdict(dict)
@@ -864,7 +871,7 @@ class EventAggregator:
             )
             result: List[sqlite3.Row] = c.fetchall()
         except Exception as e:
-            bt.logging.error(f"Error fetching non-exported event predictions {pe}: {repr(e)}")
+            bt.logging.error(f"Error fetching non-exported event predictions {repr(pe)}: {repr(e)}")
             bt.logging.error(traceback.format_exc())
         conn.close()
         output = defaultdict(dict)
@@ -907,7 +914,7 @@ class EventAggregator:
         else:
             # aggregate all previous intervals if not yet
             # self._resolve_previous_intervals(pe, uid, interval_start_minutes)
-            # bt.logging.info(f"{uid=} identifying interval for {interval_start_minutes=} {pe}")
+            # bt.logging.info(f"{uid=} identifying interval for {interval_start_minutes=} {repr(pe)}")
             self.update_cluster_prediction(pe, uid, blocktime, interval_start_minutes, answer)
 
         return submission
