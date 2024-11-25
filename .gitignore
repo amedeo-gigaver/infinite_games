@@ -172,3 +172,6 @@ venv-testnet
 Dockerfile
 docker-compose*
 test.db
+
+# macOS stuff
+.DS_Store
