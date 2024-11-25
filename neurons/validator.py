@@ -17,13 +17,13 @@
 
 import asyncio
 import base64
-from datetime import datetime, timedelta, timezone
 import json
 import math
 import os
 import sqlite3
 import sys
 import traceback
+from datetime import datetime, timedelta, timezone
 
 import requests
 
@@ -37,15 +37,24 @@ import time
 
 import bittensor as bt
 import torch
+
 import infinite_games
 
 # import base validator class which takes care of most of the boilerplate
 from infinite_games import __spec_version__ as spec_version
 from infinite_games.base.validator import BaseValidatorNeuron
-from infinite_games.events.base import CLUSTER_EPOCH_2024, CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES, EventAggregator, EventStatus, ProviderEvent, ProviderIntegration, Submission
-from infinite_games.utils.query import query_miners
 from infinite_games.events.azuro import AzuroProviderIntegration
+from infinite_games.events.base import (
+    CLUSTER_EPOCH_2024,
+    CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES,
+    EventAggregator,
+    EventStatus,
+    ProviderEvent,
+    ProviderIntegration,
+    Submission,
+)
 from infinite_games.events.polymarket import PolymarketProviderIntegration
+from infinite_games.utils.query import query_miners
 
 
 class Validator(BaseValidatorNeuron):
@@ -58,6 +67,8 @@ class Validator(BaseValidatorNeuron):
     """
 
     def __init__(self, integrations, db_path='validator.db', config=None):
+        bt.logging.info("Validator __init__ start")
+        start_time = time.time()
         super(Validator, self).__init__(config=config)
 
         bt.logging.info("load_state()")
@@ -75,15 +86,23 @@ class Validator(BaseValidatorNeuron):
         self.base_api_url = 'https://stage.ifgames.win' if self.is_test else 'https://ifgames.win'
         if self.is_test:
             bt.logging.info(f'Using provider in test mode with base url: {self.base_api_url}')
+        end_time = time.time()
+        bt.logging.info(f"Validator __init__ completed in {end_time - start_time:.2f} seconds")
 
     async def initialize_provider(self):
+        start_time = time.time()
         if not self.event_provider:
-            self.event_provider: EventAggregator = await EventAggregator.create(
-                state_path=self.config.neuron.full_path + '/events-v2.pickle',
-                integrations=self.integrations,
-                db_path=self.db_path
-            )
-            self.event_provider.load_state()
+            try:
+                self.event_provider: EventAggregator = await EventAggregator.create(
+                    state_path=self.config.neuron.full_path + '/events-v2.pickle',
+                    integrations=self.integrations,
+                    db_path=self.db_path
+                )
+                self.event_provider.load_state()
+            except Exception as e:
+                bt.logging.error(f"Error initializing EventAggregator: {e}")
+                bt.logging.error(traceback.format_exc())
+                return
             # self.event_provider.migrate_pickle_to_sql()
             self.event_provider.on_event_updated_hook(self.on_event_update)
             if os.getenv('VALIDATOR_WATCH_EVENTS_DISABLED', "0") == "0":
@@ -96,8 +115,11 @@ class Validator(BaseValidatorNeuron):
             # if self.wallet.hotkey.ss58_address == os.environ.get('TARGET_MONITOR_HOTKEY'):
             self.loop.create_task(self.track_interval_stats())
             bt.logging.debug("Provider initialized..")
+        end_time = time.time()
+        bt.logging.info(f"initialize_provider completed in {end_time - start_time:.2f} seconds")
 
     async def send_interval_stats(self):
+        start_time = time.time()
         now = datetime.now(timezone.utc)
         minutes_since_epoch = int((now - CLUSTER_EPOCH_2024).total_seconds()) // 60
         # previous interval from current one filled already, sending it.
@@ -121,10 +143,16 @@ class Validator(BaseValidatorNeuron):
             bt.logging.info(f'Total submission to export: {len(metrics)}')
             chunk_metrics = split_chunks(list(metrics), 15000)
             async for metrics in chunk_metrics:
-                self.send_interval_data(miner_data=metrics)
-                bt.logging.info(f'chunk submissions processed {len(metrics)}')
+                try:
+                    self.send_interval_data(miner_data=metrics)
+                    bt.logging.info(f'chunk submissions processed {len(metrics)}')
+                except Exception as e:
+                    bt.logging.error(f"Error sending interval data: {e}")
+                    bt.logging.error(traceback.format_exc())
                 await asyncio.sleep(4)
             self.event_provider.mark_submissions_as_exported()
+        end_time = time.time()
+        bt.logging.info(f"send_interval_stats completed in {end_time - start_time:.2f} seconds")
 
     async def track_interval_stats(self):
         bt.logging.info('Scheduling sending interval stats.')
@@ -137,6 +165,7 @@ class Validator(BaseValidatorNeuron):
     def on_event_update(self, pe: ProviderEvent):
         """Hook called whenever we have settling events. Event removed when we return True"""
         if pe.status == EventStatus.SETTLED:
+            start_time = time.time()
             market_type = pe.metadata.get('market_type', pe.market_type)
             event_text = f'{market_type} {pe.event_id}'
             bt.logging.info(f'Settled event: {event_text} {pe.description[:100]} answer: {pe.answer}')
@@ -255,11 +284,13 @@ class Validator(BaseValidatorNeuron):
                 beta = 1
                 non_zeros = scores != 0
                 scores[non_zeros] = alpha * scores[non_zeros] + (beta * torch.exp(30*scores[non_zeros]))
-            bt.logging.info(f'expd {torch.round(scores, decimals=3)}')            
+            bt.logging.info(f'expd {torch.round(scores, decimals=3)}')
             scores = torch.nn.functional.normalize(scores, p=1, dim=0)
             bt.logging.info(f'Normalized {torch.round(scores, decimals=3)}')
             self.update_scores(scores, miner_uids)
             self.export_scores(p_event=pe, miner_score_data=zip(miner_uids, brier_scores, scores))
+            end_time = time.time()
+            bt.logging.info(f"on_event_update for event {pe.event_id} completed in {end_time - start_time:.2f} seconds")
             return True
         elif pe.status == EventStatus.DISCARDED:
             bt.logging.info(f'Canceled event: {pe} removing from registry!')
@@ -268,7 +299,6 @@ class Validator(BaseValidatorNeuron):
         return False
 
     def export_scores(self, p_event: ProviderEvent, miner_score_data):
-        """Export all events data"""
         if os.environ.get('ENV') != 'pytest':
             try:
                 v_uid = self.metagraph.hotkeys.index(self.wallet.get_hotkey().ss58_address)
@@ -311,7 +341,7 @@ class Validator(BaseValidatorNeuron):
                     self.event_provider.mark_event_as_exported(p_event)
                 time.sleep(1)
             except Exception as e:
-                bt.logging.error(e)
+                bt.logging.error(f"Error exporting scores for event {p_event.event_id}: {e}")
                 bt.logging.error(traceback.format_exc())
         else:
             bt.logging.info('Skip export scores in test')
@@ -361,7 +391,11 @@ class Validator(BaseValidatorNeuron):
                 if integration.available_for_submission(provider_event):
                     bt.logging.trace(f'Submission {uid=} for {interval_start_minutes} {unique_event_id}')
                     any_miner_processed = True
-                    await self.event_provider.miner_predict(provider_event, uid.item(), score, interval_start_minutes, self.block)
+                    try:
+                        await self.event_provider.miner_predict(provider_event, uid.item(), score, interval_start_minutes, self.block)
+                    except Exception as e:
+                        bt.logging.error(f"Error processing miner prediction for uid {uid}: {e}")
+                        bt.logging.error(traceback.format_exc())
                 else:
                     bt.logging.trace(f'Submission received, but this event is not open for submissions miner {uid=} {unique_event_id=} {score=}')
                     continue
@@ -380,7 +414,11 @@ class Validator(BaseValidatorNeuron):
 
     def save_state(self):
         super().save_state()
-        self.event_provider.save_state()
+        try:
+            self.event_provider.save_state()
+        except Exception as e:
+            bt.logging.error(f"Error saving event provider state: {e}")
+            bt.logging.error(traceback.format_exc())
 
 
 # The main function parses the configuration and runs the validator.
