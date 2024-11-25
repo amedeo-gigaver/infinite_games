@@ -46,10 +46,11 @@ class IFGamesProviderIntegration(ProviderIntegration):
         return event.get('answer')
 
     def construct_provider_event(self, event_id, event):
+        end_date_ts = event.get('end_date')
         start_date_ts = event.get('start_date')
         start_date = datetime.fromtimestamp(start_date_ts, tz=timezone.utc)
         cutoff_ts = event.get('cutoff')
-        cutoff = datetime.fromtimestamp(cutoff_ts, tz=timezone.utc)
+        cutoff = datetime.fromtimestamp(cutoff_ts, tz=timezone.utc) # ?!
         return ProviderEvent(
             event_id=event_id,
             registered_date=datetime.now(timezone.utc),
@@ -64,7 +65,7 @@ class IFGamesProviderIntegration(ProviderIntegration):
             metadata={
                 'market_type': event.get('market_type', '').lower(),
                 'cutoff': event.get('cutoff'),
-                'end_date': event.get('end_date')
+                'end_date': end_date_ts
             }
         )
 
@@ -89,7 +90,7 @@ class IFGamesProviderIntegration(ProviderIntegration):
                 await self._wait_for_retry(retry_timeout, response)
             await asyncio.sleep(int(retry_timeout) + 1)
         else:
-            self.log(f'Got 429 for {response.url} but no Retry-After header present.')
+            self.error(f'Got 429 for {response.url} but no Retry-After header present.')
 
     async def get_event_by_id(self, event_id) -> Optional[dict]:
         return await self._request(f'{self.base_url}/api/v2/events/{event_id}')
