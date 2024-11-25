@@ -129,7 +129,7 @@ class IFGamesProviderIntegration(ProviderIntegration):
             except Exception as e:
                 error_response = str(e)
                 if retried >= max_retries:
-                    self.error(f"Error requesting {url}: {e}")
+                    self.error(f"Error requesting {url}: {repr(e)}")
                     return
                 retried += 1
                 await asyncio.sleep(expo_backoff ** retried)

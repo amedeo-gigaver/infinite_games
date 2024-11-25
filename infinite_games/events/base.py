@@ -149,7 +149,7 @@ class EventAggregator:
                 tasks = [self._sync_provider(integration) for _, integration in self.integrations.items()]
                 await asyncio.gather(*tasks)
             except Exception as e:
-                bt.logging.error(f'Could not pull events: {e}')
+                bt.logging.error(f'Could not pull events: {repr(e)}')
                 bt.logging.error(traceback.format_exc())
             await asyncio.sleep(self.COLLECTOR_WATCH_EVENTS_DELAY)
 
@@ -174,7 +174,7 @@ class EventAggregator:
             except EventRemovedException:
                 self.remove_event(event_data)
             except Exception as e:
-                bt.logging.error(f'Failed to check event {event_data}: {e}')
+                bt.logging.error(f'Failed to check event {event_data}: {repr(e)}')
                 bt.logging.error(traceback.format_exc())
 
     def log(self, msg):
@@ -226,7 +226,7 @@ class EventAggregator:
                         await asyncio.sleep(self.WATCH_EVENTS_DELAY)
                         self.log('Updating events...')
                 except Exception as e:
-                    self.error(f"Failed to get event: {e}")
+                    self.error(f"Failed to get event: {repr(e)}")
                     self.error(traceback.format_exc())
 
             self.log(f'Watching: {len(pending_events)} events')
@@ -257,7 +257,7 @@ class EventAggregator:
                     elif event.metadata.get('processed', False) is True:
                         bt.logging.warning(f'Tried to process already processed {event} event!')
                 except Exception as e:
-                    bt.logging.error(f'Failed to call update hook for event {key}: {e}')
+                    bt.logging.error(f'Failed to call update hook for event {key}: {repr(e)}')
                     bt.logging.error(traceback.format_exc())
         else:
             self.log(f'New event:  {key} {pe.description} - {pe.status}')
@@ -284,7 +284,7 @@ class EventAggregator:
             )
             result: List[sqlite3.Row] = c.fetchall()
         except Exception as e:
-            bt.logging.error(f"Error fetching event {event_id}: {e}")
+            bt.logging.error(f"Error fetching event {event_id}: {repr(e)}")
             bt.logging.error(traceback.format_exc())
         finally:
             conn.close()
@@ -322,7 +322,7 @@ class EventAggregator:
             conn.commit()
             return True
         except Exception as e:
-            bt.logging.error(f"Error removing event {pe}: {e}")
+            bt.logging.error(f"Error removing event {pe}: {repr(e)}")
             bt.logging.error(traceback.format_exc())
             return False
         finally:
@@ -391,7 +391,7 @@ class EventAggregator:
                 )
             result: List[sqlite3.Row] = c.fetchall()
         except Exception as e:
-            bt.logging.error(f"Error fetching events: {e}")
+            bt.logging.error(f"Error fetching events: {repr(e)}")
             bt.logging.error(traceback.format_exc())
         finally:
             conn.close()
@@ -544,7 +544,7 @@ class EventAggregator:
             print('Migration finished ✅')
             conn.commit()
         except Exception as e:
-            bt.logging.error(f"Error during migrations: {e}")
+            bt.logging.error(f"Error during migrations: {repr(e)}")
             bt.logging.error(traceback.format_exc())
             self.error('We cannot proceed because of the migration issues, please reach out to Infinite Games subnet developers ❌')
             exit(1)
@@ -577,7 +577,7 @@ class EventAggregator:
             conn.commit()
             bt.logging.info('Miner info synced.')
         except sqlite3.OperationalError as e:
-            bt.logging.error(f"Error syncing miners: {e}")
+            bt.logging.error(f"Error syncing miners: {repr(e)}")
             bt.logging.error(traceback.format_exc())
         finally:
             conn.close()
@@ -608,7 +608,7 @@ class EventAggregator:
                 conn.commit()
             return result[0][1] == result[0][2]
         except Exception as e:
-            bt.logging.error(f"Error saving event {pe}: {e}")
+            bt.logging.error(f"Error saving event {pe}: {repr(e)}")
             bt.logging.error(traceback.format_exc())
             return False
         finally:
@@ -630,7 +630,7 @@ class EventAggregator:
             conn.commit()
             return True
         except Exception as e:
-            bt.logging.error(f"Error marking event {pe} as exported: {e}")
+            bt.logging.error(f"Error marking event {pe} as exported: {repr(e)}")
             bt.logging.error(traceback.format_exc())
             return False
         finally:
@@ -649,7 +649,7 @@ class EventAggregator:
             conn.commit()
             return True
         except Exception as e:
-            bt.logging.error(f"Error marking submissions as exported: {e}")
+            bt.logging.error(f"Error marking submissions as exported: {repr(e)}")
             bt.logging.error(traceback.format_exc())
             return False
         finally:
@@ -670,7 +670,7 @@ class EventAggregator:
             )
             conn.commit()
         except sqlite3.OperationalError as e:
-            bt.logging.error(f"Error updating cluster prediction for uid {uid}, event {pe}: {e}")
+            bt.logging.error(f"Error updating cluster prediction for uid {uid}, event {pe}: {repr(e)}")
             bt.logging.error(traceback.format_exc())
         finally:
             conn.close()
@@ -691,7 +691,7 @@ class EventAggregator:
             )
             result: List[sqlite3.Row] = c.fetchall()
         except Exception as e:
-            bt.logging.error(f"Error fetching event predictions for {pe}: {e}")
+            bt.logging.error(f"Error fetching event predictions for {pe}: {repr(e)}")
             bt.logging.error(traceback.format_exc())
         finally:
             conn.close()
@@ -717,7 +717,7 @@ class EventAggregator:
             )
             result: List[sqlite3.Row] = c.fetchall()
         except Exception as e:
-            bt.logging.error(f"Error fetching non-exported event predictions for {pe}: {e}")
+            bt.logging.error(f"Error fetching non-exported event predictions for {pe}: {repr(e)}")
             bt.logging.error(traceback.format_exc())
         finally:
             conn.close()
@@ -742,7 +742,7 @@ class EventAggregator:
             )
             result = c.fetchall()
         except Exception as e:
-            bt.logging.error(f"Error fetching all non-exported event predictions for interval {interval_minutes}: {e}")
+            bt.logging.error(f"Error fetching all non-exported event predictions for interval {interval_minutes}: {repr(e)}")
             bt.logging.error(traceback.format_exc())
         finally:
             conn.close()

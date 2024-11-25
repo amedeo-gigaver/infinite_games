@@ -126,13 +126,13 @@ class BaseValidatorNeuron(BaseNeuron):
                     axon=self.axon,
                 )
             except Exception as e:
-                bt.logging.error(f"Failed to serve Axon with exception: {e}")
+                bt.logging.error(f"Failed to serve Axon with exception: {repr(e)}")
                 bt.logging.error(traceback.format_exc())
                 pass
 
         except Exception as e:
             bt.logging.error(
-                f"Failed to create Axon initialize with exception: {e}"
+                f"Failed to create Axon initialize with exception: {repr(e)}"
             )
             bt.logging.error(traceback.format_exc())
             pass
@@ -190,7 +190,7 @@ class BaseValidatorNeuron(BaseNeuron):
                 try:
                     self.sync()
                 except Exception as e:
-                    bt.logging.error(f"Error during sync: {e}")
+                    bt.logging.error(f"Error during sync: {repr(e)}")
                     bt.logging.error(traceback.format_exc())
 
                 self.step += 1
@@ -307,7 +307,7 @@ class BaseValidatorNeuron(BaseNeuron):
                 )
                 set_weight = True
             except Exception as e:
-                bt.logging.error(f"Failed to set weights on attempt {i}: {e}")
+                bt.logging.error(f"Failed to set weights on attempt {i}: {repr(e)}")
                 bt.logging.error(traceback.format_exc())
                 i += 1
                 time.sleep(4)
@@ -336,7 +336,7 @@ class BaseValidatorNeuron(BaseNeuron):
                 self.metagraph.sync(subtensor=self.subtensor)
                 synced = True
             except Exception as e:
-                bt.logging.error(f"Try to resync metagraph: {e}")
+                bt.logging.error(f"Try to resync metagraph: {repr(e)}")
                 bt.logging.error(traceback.format_exc())
                 time.sleep(4)
 
@@ -482,7 +482,7 @@ class BaseValidatorNeuron(BaseNeuron):
             else:
                 bt.logging.debug('*** Grafana logs sent')
         except Exception as e:
-            bt.logging.error(f"Error sending average scores: {e}")
+            bt.logging.error(f"Error sending average scores: {repr(e)}")
             bt.logging.error(traceback.format_exc())
 
     @backoff.on_exception(backoff.expo, Exception, max_tries=6)
@@ -517,7 +517,7 @@ class BaseValidatorNeuron(BaseNeuron):
             else:
                 bt.logging.debug('*** Grafana logs sent')
         except Exception as e:
-            bt.logging.error(f"Error sending event scores: {e}")
+            bt.logging.error(f"Error sending event scores: {repr(e)}")
             bt.logging.error(traceback.format_exc())
 
     @backoff.on_exception(backoff.expo, Exception, max_tries=6)
@@ -560,7 +560,7 @@ class BaseValidatorNeuron(BaseNeuron):
                     return True
                 time.sleep(1)
             except Exception as e:
-                bt.logging.error(f"Error sending interval data: {e}")
+                bt.logging.error(f"Error sending interval data: {repr(e)}")
                 bt.logging.error(traceback.format_exc())
         else:
             bt.logging.info('Skip export submissions in test')
@@ -584,7 +584,7 @@ class BaseValidatorNeuron(BaseNeuron):
                 self.config.neuron.full_path + "/state.pt",
             )
         except Exception as e:
-            bt.logging.error(f"Error saving state: {e}")
+            bt.logging.error(f"Error saving state: {repr(e)}")
             bt.logging.error(traceback.format_exc())
         end_time = time.time()
         bt.logging.info(f"State saved in {end_time - start_time:.2f} seconds")
@@ -611,7 +611,7 @@ class BaseValidatorNeuron(BaseNeuron):
         except FileNotFoundError:
             bt.logging.info(f"Neuron state not found in {self.config.neuron.full_path + '/state.pt'}, skip..")
         except Exception as e:
-            bt.logging.error(f"Error loading state: {e}")
+            bt.logging.error(f"Error loading state: {repr(e)}")
             bt.logging.error(traceback.format_exc())
         end_time = time.time()
         bt.logging.info(f"State loaded in {end_time - start_time:.2f} seconds")

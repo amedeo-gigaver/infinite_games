@@ -100,7 +100,7 @@ class Validator(BaseValidatorNeuron):
                 )
                 self.event_provider.load_state()
             except Exception as e:
-                bt.logging.error(f"Error initializing EventAggregator: {e}")
+                bt.logging.error(f"Error initializing EventAggregator: {repr(e)}")
                 bt.logging.error(traceback.format_exc())
                 return
             # self.event_provider.migrate_pickle_to_sql()
@@ -147,7 +147,7 @@ class Validator(BaseValidatorNeuron):
                     self.send_interval_data(miner_data=metrics)
                     bt.logging.info(f'chunk submissions processed {len(metrics)}')
                 except Exception as e:
-                    bt.logging.error(f"Error sending interval data: {e}")
+                    bt.logging.error(f"Error sending interval data: {repr(e)}")
                     bt.logging.error(traceback.format_exc())
                 await asyncio.sleep(4)
             self.event_provider.mark_submissions_as_exported()
@@ -341,7 +341,7 @@ class Validator(BaseValidatorNeuron):
                     self.event_provider.mark_event_as_exported(p_event)
                 time.sleep(1)
             except Exception as e:
-                bt.logging.error(f"Error exporting scores for event {p_event.event_id}: {e}")
+                bt.logging.error(f"Error exporting scores for event {p_event.event_id}: {repr(e)}")
                 bt.logging.error(traceback.format_exc())
         else:
             bt.logging.info('Skip export scores in test')
@@ -394,7 +394,7 @@ class Validator(BaseValidatorNeuron):
                     try:
                         await self.event_provider.miner_predict(provider_event, uid.item(), score, interval_start_minutes, self.block)
                     except Exception as e:
-                        bt.logging.error(f"Error processing miner prediction for uid {uid}: {e}")
+                        bt.logging.error(f"Error processing miner prediction for uid {uid}: {repr(e)}")
                         bt.logging.error(traceback.format_exc())
                 else:
                     bt.logging.trace(f'Submission received, but this event is not open for submissions miner {uid=} {unique_event_id=} {score=}')
@@ -417,7 +417,7 @@ class Validator(BaseValidatorNeuron):
         try:
             self.event_provider.save_state()
         except Exception as e:
-            bt.logging.error(f"Error saving event provider state: {e}")
+            bt.logging.error(f"Error saving event provider state: {repr(e)}")
             bt.logging.error(traceback.format_exc())
 
 
