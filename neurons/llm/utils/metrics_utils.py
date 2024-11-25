@@ -65,9 +65,7 @@ def calculate_cosine_similarity_bert(text_list, tokenizer, model):
     similarity_scores = []
     for i in range(len(embeddings)):
         for j in range(i + 1, len(embeddings)):
-            similarity = torch.nn.functional.cosine_similarity(
-                embeddings[i], embeddings[j]
-            )
+            similarity = torch.nn.functional.cosine_similarity(embeddings[i], embeddings[j])
             similarity_scores.append(similarity.item())
 
     # Calculating average similarity

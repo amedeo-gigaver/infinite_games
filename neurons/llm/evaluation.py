@@ -124,9 +124,7 @@ async def retrieve_and_forecast(
         logger.error(f"Error message: {e}")
         logger.info(f"IR failed at question: {question}.")
         return None
-    subset_ranked_articles = ranked_articles[
-        : ir_config.get("NUM_SUMMARIES_THRESHOLD", 100)
-    ].copy()
+    subset_ranked_articles = ranked_articles[: ir_config.get("NUM_SUMMARIES_THRESHOLD", 100)].copy()
     all_summaries = summarize.concat_summaries(subset_ranked_articles)
     logger.info(f"Information retrieval complete for question: {question}.")
     logger.info(f"Number of summaries: {len(subset_ranked_articles)}.")
@@ -180,9 +178,7 @@ async def retrieve_and_forecast(
         ranked_articles=ranked_articles,
         all_summaries=all_summaries,
         model_names=reason_config["BASE_REASONING_MODEL_NAMES"],
-        base_reasoning_prompt_templates=reason_config[
-            "BASE_REASONING_PROMPT_TEMPLATES"
-        ],
+        base_reasoning_prompt_templates=reason_config["BASE_REASONING_PROMPT_TEMPLATES"],
         base_reasoning_full_prompts=ensemble_dict["base_reasoning_full_prompts"],
         base_reasonings=ensemble_dict["base_reasonings"],
         base_predictions=ensemble_dict["base_predictions"],
@@ -223,8 +219,7 @@ async def retrieve_and_forecast(
         "meta_html": meta_html,
         "base_brier_score": base_brier_scores,
         "meta_brier_score": (ensemble_dict["meta_prediction"] - answer) ** 2,
-        "community_brier_score": (question_dict["community_pred_at_retrieval"] - answer)
-        ** 2,
+        "community_brier_score": (question_dict["community_pred_at_retrieval"] - answer) ** 2,
     }
     if return_articles:
         return output, all_articles, ranked_articles

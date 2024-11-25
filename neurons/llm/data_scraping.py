@@ -126,12 +126,8 @@ def get_source_links(driver, url):
     try:
         driver.get(url)  # Make sure to navigate to the page first
         driver.find_element(By.XPATH, '//a[text() = "Source Links"]').click()
-        WebDriverWait(driver, 2).until(
-            EC.visibility_of_element_located((By.ID, "links-table"))
-        )
-        rows = driver.find_elements(
-            By.XPATH, '//table[contains(@id, "links-table")]/tbody/tr'
-        )
+        WebDriverWait(driver, 2).until(EC.visibility_of_element_located((By.ID, "links-table")))
+        rows = driver.find_elements(By.XPATH, '//table[contains(@id, "links-table")]/tbody/tr')
         for entry in rows:
             try:
                 url_elem = entry.find_element(By.TAG_NAME, "a")

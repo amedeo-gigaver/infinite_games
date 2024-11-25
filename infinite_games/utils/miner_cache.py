@@ -12,7 +12,7 @@ from asyncio import Lock
 
 from pydantic import BaseModel, Field, field_validator
 
-FILE_NAME = '.miner-cache.json'
+FILE_NAME = ".miner-cache.json"
 RETRY_TIME = 2
 
 
@@ -45,11 +45,11 @@ class Event(BaseModel):
     next_try: Optional[int]
     prev_prob: Optional[float] = Field(..., min=0, max=1)
 
-    @field_validator('cutoff', mode='after')
+    @field_validator("cutoff", mode="after")
     def calculate_cutoff(cls, v, values):
         if v is None:
             try:
-                return values.data['cutoff'] - 60  # 1 min
+                return values.data["cutoff"] - 60  # 1 min
             except KeyError:
                 raise ValueError(f"Invalid market type: {v}")
         return v
@@ -66,7 +66,7 @@ class Event(BaseModel):
             retries=market["retries"] if "retries" in market else 2,
             cutoff=market["cutoff"] if "cutoff" in market else None,
             next_try=market["next_try"] if "next_try" in market else 1 << 31,
-            prev_prob=market["prev_prob"] if "prev_prob" in market else None
+            prev_prob=market["prev_prob"] if "prev_prob" in market else None,
         )
 
 
@@ -82,10 +82,7 @@ class MinerCacheObject(BaseModel):
 
     @classmethod
     def init_from_market(cls, market: dict, status=MinerCacheStatus.NOT_STARTED):
-        return cls(
-            event=Event.init_from_market(market),
-            status=status
-        )
+        return cls(event=Event.init_from_market(market), status=status)
 
     def set_for_rerun(self):
         self.event.prev_prob = self.event.probability
@@ -106,7 +103,7 @@ class MinerCache:
 
     def initialize_cache(self):
         try:
-            with open(FILE_NAME, 'r') as file:
+            with open(FILE_NAME, "r") as file:
                 loaded: dict[str, dict] = json.load(file)
 
             for key, value in loaded.items():
@@ -116,22 +113,18 @@ class MinerCache:
         except Exception as e:
             bt.logging.warning("Fail to load cache file {}".format(e))
 
-
     async def add(self, key, coro, market: MinerCacheObject):
         async with self._lock:
             self.cache[key] = market
 
-            heapq.heappush(
-                self.queue,
-                (market.event.cutoff, key, coro, market)
-            )
+            heapq.heappush(self.queue, (market.event.cutoff, key, coro, market))
 
     async def _clean_cache(self) -> None:
         async with self._lock:
             keys_for_deletion: list[str] = []
             for key, market in self.cache.items():
                 if market.status == MinerCacheStatus.COMPLETED and market.event.retries == 0:
-                    expired = market.event.cutoff + 2*86400
+                    expired = market.event.cutoff + 2 * 86400
                     if expired < int(datetime.utcnow().timestamp()):
                         keys_for_deletion.append(key)
                         bt.logging.info("Task {} to be removed".format(key))
@@ -147,7 +140,7 @@ class MinerCache:
                     data_for_storing[key] = market.to_dict()
 
         # Writing JSON data
-        with open(FILE_NAME, 'w') as file:
+        with open(FILE_NAME, "w") as file:
             json.dump(data_for_storing, file, indent=4)
 
     async def _run_tasks(self) -> None:
@@ -169,7 +162,7 @@ class MinerCache:
                         bt.logging.info("Pending tasks {}".format(len(self.queue)))
 
                     await self._store()
-                    #await self._clean_cache()
+                    # await self._clean_cache()
 
             except Exception as e:
                 bt.logging.error("Failed to create task {}".format(e))

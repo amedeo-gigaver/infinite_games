@@ -9,15 +9,12 @@ import anthropic
 import google.generativeai as google_ai
 
 # Local application/library-specific imports
-from .config.constants import (
-    OAI_SOURCE,
-    ANTHROPIC_SOURCE,
-    TOGETHER_AI_SOURCE, GOOGLE_SOURCE
-)
+from .config.constants import OAI_SOURCE, ANTHROPIC_SOURCE, TOGETHER_AI_SOURCE, GOOGLE_SOURCE
 from .config.keys import (
     ANTHROPIC_KEY,
     OPENAI_KEY,
-    TOGETHER_KEY, GOOGLE_AI_KEY,
+    TOGETHER_KEY,
+    GOOGLE_AI_KEY,
 )
 from .utils import model_utils, string_utils
 
@@ -36,7 +33,7 @@ if OPENAI_KEY:
 #         api_key=TOGETHER_KEY,
 #         base_url="https://api.together.xyz/v1",
 #     )
-    
+
 if GOOGLE_AI_KEY:
     google_ai.configure(api_key=GOOGLE_AI_KEY)
 
@@ -89,9 +86,7 @@ def get_response_from_oai_model(
         Returns:
             str: Response string from the API call.
         """
-        model_input = (
-            [{"role": "system", "content": system_prompt}] if system_prompt else []
-        )
+        model_input = [{"role": "system", "content": system_prompt}] if system_prompt else []
         model_input.append({"role": "user", "content": prompt})
         response = oai.chat.completions.create(
             model=model_name,
@@ -102,14 +97,10 @@ def get_response_from_oai_model(
         # logger.info(f"full prompt: {prompt}")
         return response.choices[0].message.content
 
-    return get_response_with_retry(
-        api_call, wait_time, "OpenAI API request exceeded rate limit."
-    )
+    return get_response_with_retry(api_call, wait_time, "OpenAI API request exceeded rate limit.")
 
 
-def get_response_from_anthropic_model(
-    model_name, prompt, max_tokens, temperature, wait_time
-):
+def get_response_from_anthropic_model(model_name, prompt, max_tokens, temperature, wait_time):
     """
     Make an API call to the Anthropic API and retry on failure after a
     specified wait time.
@@ -141,9 +132,7 @@ def get_response_from_anthropic_model(
     )
 
 
-def get_response_from_together_ai_model(
-    model_name, prompt, max_tokens, temperature, wait_time
-):
+def get_response_from_together_ai_model(model_name, prompt, max_tokens, temperature, wait_time):
     """
     Make an API call to the Together AI API and retry on failure after a
     specified wait time.
@@ -178,9 +167,7 @@ def get_response_from_together_ai_model(
     )
 
 
-def get_response_from_google_model(
-    model_name, prompt, max_tokens, temperature, wait_time
-):
+def get_response_from_google_model(model_name, prompt, max_tokens, temperature, wait_time):
     """
     Make an API call to the Together AI API and retry on failure after a specified wait time.
 
@@ -366,9 +353,7 @@ async def async_make_forecast(
     Returns:
         list of str: List of forecasts and reasonings from the model.
     """
-    assert (
-        len(reasoning_prompt_templates) > 0
-    ), "No reasoning prompt templates provided."
+    assert len(reasoning_prompt_templates) > 0, "No reasoning prompt templates provided."
     reasoning_full_prompts = []
     for reasoning_prompt_template in reasoning_prompt_templates:
         template, fields = reasoning_prompt_template
