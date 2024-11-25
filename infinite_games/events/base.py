@@ -1,23 +1,31 @@
-
 import asyncio
-from collections import defaultdict
+import json
 import os
 import pickle
 import shutil
 import sqlite3
 import time
 import traceback
-import bittensor as bt
+from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-import json
-from typing import Any, AsyncIterator, Callable, Dict, Iterator, List, Optional, Tuple, Type
+from typing import (
+    Any,
+    AsyncIterator,
+    Callable,
+    Dict,
+    Iterator,
+    List,
+    Optional,
+    Tuple,
+    Type,
+)
 
+import bittensor as bt
 from bittensor.chain_data import AxonInfo
 
 from infinite_games.utils.misc import split_chunks
 from infinite_games.utils.uids import get_miner_data_by_uid, miner_count_in_db
-
 
 # defines a time window for grouping submissions based on a specified number of minutes
 CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES = 60 * 4
@@ -64,6 +72,13 @@ class ProviderEvent:
     def __str__(self) -> str:
         return f'{self.market_type} {self.event_id}'
 
+    def __repr__(self) -> str:
+        return (
+            f"{self.market_type=} {self.event_id=} {self.registered_date=} "
+            f"{self.description=} {self.starts=} {self.resolve_date=} "
+            f"{self.answer=} {self.local_updated_at=} {self.status=} "
+            f"{json.dumps(self.metadata)}"
+        )
 
 class ProviderIntegration:
 
@@ -147,9 +162,8 @@ class EventAggregator:
                 tasks = [self._sync_provider(integration) for _, integration in self.integrations.items()]
                 await asyncio.gather(*tasks)
             except Exception as e:
-                bt.logging.error(e)
-                bt.logging.error('Could not pull events.. Retry..')
-                print(traceback.format_exc())
+                bt.logging.error(f'Could not pull events.. Retry.. Exception: {repr(e)}')
+                bt.logging.error(traceback.format_exc())
             await asyncio.sleep(self.COLLECTOR_WATCH_EVENTS_DELAY)
 
     async def check_event(self, event_data: ProviderEvent):
@@ -175,9 +189,8 @@ class EventAggregator:
             except EventRemovedException:
                 self.remove_event(event_data)
             except Exception as e:
-                bt.logging.error(f'Failed to check event {event_data}')
-                bt.logging.error(e)
-                print(traceback.format_exc())
+                bt.logging.error(f'Failed to check event {event_data}: {repr(e)}')
+                bt.logging.error(traceback.format_exc())
 
     def log(self, msg):
         bt.logging.info(f'{self.__class__.__name__} {msg}')
@@ -230,9 +243,8 @@ class EventAggregator:
                         await asyncio.sleep(self.WATCH_EVENTS_DELAY)
                         self.log(f'Updating events..')
                 except Exception as e:
-                    self.error("Failed to get event")
-                    self.error(e)
-                    print(traceback.format_exc())
+                    self.error(f"Failed to get event: {repr(e)}")
+                    self.error(traceback.format_exc())
 
             self.log(f'Watching: {len(pending_events)} events')
             self.log_upcoming(200)
@@ -256,7 +268,7 @@ class EventAggregator:
                 try:
                     event: ProviderEvent = self.get_event(key)
                     if not event:
-                        bt.logging.error(f'Could not get updated event from database {pe}')
+                        bt.logging.error(f'Could not get updated event from database {repr(pe)}')
                         return
                     if event.metadata.get('processed', False) is False and self.event_update_hook_fn(event) is True:
                         self.save_event(pe, True)
@@ -264,8 +276,7 @@ class EventAggregator:
                     elif event.metadata.get('processed', False) is True:
                         bt.logging.warning(f'Tried to process already processed {event} event!')
                 except Exception as e:
-                    bt.logging.error(f'Failed to call update hook for event {key}')
-                    bt.logging.error(e)
+                    bt.logging.error(f'Failed to call update hook for event {key}: {repr(e)}')
                     bt.logging.error(traceback.format_exc())
                     print(traceback.format_exc())
         else:
@@ -295,7 +306,7 @@ class EventAggregator:
             )
             result: List[sqlite3.Row] = c.fetchall()
         except Exception as e:
-            bt.logging.error(e)
+            bt.logging.error(f"Error fetching event {event_id}: {repr(e)}")
             bt.logging.error(traceback.format_exc())
         conn.close()
         if result:
@@ -303,7 +314,7 @@ class EventAggregator:
             pe: ProviderEvent = self.row_to_pe(data)
             integration = self.integrations.get(pe.market_type)
             if not integration:
-                bt.logging.warning(f'No integration found for event in database {pe}')
+                bt.logging.warning(f'No integration found for event in database {repr(pe)}')
                 return None
             return pe
         else:
@@ -331,7 +342,7 @@ class EventAggregator:
                     """,
                     (f'{pe.market_type}-{pe.event_id}',)
                 )
-                bt.logging.info(f'Removed event {pe}..')
+                bt.logging.info(f'Removed event {repr(pe)}..')
                 conn.commit()
                 return True
             except Exception as e:
@@ -342,7 +353,7 @@ class EventAggregator:
                     time.sleep(1 + (2 * tried))
 
                 else:
-                    bt.logging.error(e)
+                    bt.logging.error(f"Error removing event {repr(pe)}: {repr(e)}")
                     bt.logging.error(traceback.format_exc())
                     break
 
@@ -360,7 +371,7 @@ class EventAggregator:
         for pe in self.get_events(statuses=[EventStatus.PENDING], processed=False):
             integration = self.integrations.get(pe.market_type)
             if not integration:
-                bt.logging.warning(f'No integration found for event {pe}')
+                bt.logging.warning(f'No integration found for event {repr(pe)}')
                 continue
             if integration.available_for_submission(pe):
                 events.append(pe)
@@ -413,7 +424,7 @@ class EventAggregator:
                 )
             result: List[sqlite3.Row] = c.fetchall()
         except Exception as e:
-            bt.logging.error(e)
+            bt.logging.error(f"Error fetching events: {repr(e)}")
             bt.logging.error(traceback.format_exc())
         finally:
             conn.close()
@@ -508,7 +519,8 @@ class EventAggregator:
         try:
             current_dir = os.getcwd()
             total, used, free = shutil.disk_usage(current_dir)
-        except Exception:
+        except Exception as e:
+            self.error(f"Error checking disk space: {repr(e)}")
             self.error(traceback.format_exc())
             self.error('Error checking disk space, continue for migration..')
         else:
@@ -605,7 +617,7 @@ class EventAggregator:
                     )
                     time.sleep(1 + (2 * tried))
                 else:
-                    bt.logging.error(e)
+                    bt.logging.error(f"Error during migrations: {repr(e)}")
                     bt.logging.error(traceback.format_exc())
                     self.error('We cannot proceed because of the migration issues, please reach out to Infinite Games subnet developers ❌')
                     exit(1)
@@ -653,13 +665,11 @@ class EventAggregator:
                     time.sleep(1 + (2 * tried))
                     # tried += 1
                 else:
+                    bt.logging.error(f"Error syncing miner predictions {blocktime}: {repr(e)}")
                     bt.logging.error(traceback.format_exc())
-                    bt.logging.error(
-                        f"Error sync miner predictions {blocktime} "
-                    )
                     break
             except Exception as e:
-                bt.logging.error(e)
+                bt.logging.error(f"Error syncing miners: {repr(e)}")
                 bt.logging.error(traceback.format_exc())
                 break
             tried += 1
@@ -678,7 +688,7 @@ class EventAggregator:
         tries = 4
         tried = 0
         while tried < tries:
-            # bt.logging.info(f'Now time: {datetime.now(tz=timezone.utc)}, {pe} ')
+            # bt.logging.info(f'Now time: {datetime.now(tz=timezone.utc)}, {repr(pe)} ')
             try:
                 result = c.execute(
                     """
@@ -704,11 +714,7 @@ class EventAggregator:
                     time.sleep(1 + (2 * tried))
 
                 else:
-                    bt.logging.error(e)
-                    bt.logging.error(
-                        (self.event_key(pe.market_type, event_id=pe.event_id), pe.event_id,  pe.market_type, pe.registered_date,  pe.description, pe.starts, pe.resolve_date , pe.answer,pe.registered_date, pe.status, json.dumps(pe.metadata),
-                         pe.answer, pe.status, datetime.now(tz=timezone.utc), processed)
-                    )
+                    bt.logging.error(f"Error saving event {repr(pe)}: {repr(e)}")
                     bt.logging.error(traceback.format_exc())
                     break
             tried += 1
@@ -726,7 +732,7 @@ class EventAggregator:
         tries = 4
         tried = 0
         while tried < tries:
-            # bt.logging.info(f'Now time: {datetime.now(tz=timezone.utc)}, {pe} ')
+            # bt.logging.info(f'Now time: {datetime.now(tz=timezone.utc)}, {repr(pe)} ')
             try:
                 cursor.execute(
                     """
@@ -747,8 +753,7 @@ class EventAggregator:
                     time.sleep(1 + (2 * tried))
 
                 else:
-                    bt.logging.error(e)
-                    bt.logging.error(self.event_key(pe.market_type, event_id=pe.event_id))
+                    bt.logging.error(f"Error marking event as exported {repr(pe)}: {repr(e)}")
                     bt.logging.error(traceback.format_exc())
                     break
             tried += 1
@@ -780,10 +785,7 @@ class EventAggregator:
                     time.sleep(1 + (2 * tried))
 
                 else:
-                    bt.logging.error(
-                        'Error marking submissions!'
-                    )
-                    bt.logging.error(e)
+                    bt.logging.error(f"Error marking submissions as exported: {repr(e)}")
                     bt.logging.error(traceback.format_exc())
                     break
             tried += 1
@@ -817,14 +819,12 @@ class EventAggregator:
                     time.sleep(1 + (2 * tried))
                     # tried += 1
                 else:
+                    bt.logging.error(f"Error updating cluster prediction {repr(pe)}: {repr(e)}")
                     bt.logging.error(traceback.format_exc())
-                    bt.logging.error(
-                        f"Error setting miner predictions {uid=} {pe} {e} "
-                    )
                     break
             except Exception as e:
-                bt.logging.info(e)
-                bt.logging.info(traceback.format_exc())
+                bt.logging.error(f"Error updating cluster prediction {repr(pe)}: {repr(e)}")
+                bt.logging.error(traceback.format_exc())
                 break
             tried += 1
         conn.close()
@@ -845,7 +845,7 @@ class EventAggregator:
             )
             result: List[sqlite3.Row] = c.fetchall()
         except Exception as e:
-            bt.logging.error(e)
+            bt.logging.error(f"Error fetching event predictions {repr(pe)}: {repr(e)}")
             bt.logging.error(traceback.format_exc())
         conn.close()
         output = defaultdict(dict)
@@ -871,7 +871,7 @@ class EventAggregator:
             )
             result: List[sqlite3.Row] = c.fetchall()
         except Exception as e:
-            bt.logging.error(e)
+            bt.logging.error(f"Error fetching non-exported event predictions {repr(pe)}: {repr(e)}")
             bt.logging.error(traceback.format_exc())
         conn.close()
         output = defaultdict(dict)
@@ -898,7 +898,7 @@ class EventAggregator:
             )
             result: list = c.fetchall()
         except Exception as e:
-            bt.logging.error(e)
+            bt.logging.error(f"Error fetching all non-exported event predictions: {repr(e)}")
             bt.logging.error(traceback.format_exc())
             return []
         conn.close()
@@ -914,7 +914,7 @@ class EventAggregator:
         else:
             # aggregate all previous intervals if not yet
             # self._resolve_previous_intervals(pe, uid, interval_start_minutes)
-            # bt.logging.info(f"{uid=} identifying interval for {interval_start_minutes=} {pe}")
+            # bt.logging.info(f"{uid=} identifying interval for {interval_start_minutes=} {repr(pe)}")
             self.update_cluster_prediction(pe, uid, blocktime, interval_start_minutes, answer)
 
         return submission

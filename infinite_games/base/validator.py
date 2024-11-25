@@ -16,29 +16,27 @@
 # DEALINGS IN THE SOFTWARE.
 
 
+import asyncio
 import base64
 import copy
-from datetime import datetime, timedelta, timezone
 import json
 import os
 import pathlib
+import threading
 import time
 import traceback
+from datetime import datetime, timedelta, timezone
+from traceback import print_exception
+from typing import List
+
 import backoff
+import bittensor as bt
 import requests
 import torch
-import asyncio
-import threading
-import bittensor as bt
-
-from typing import List
-from traceback import print_exception
-
 import wandb
 
-
-from infinite_games.base.neuron import BaseNeuron
 from infinite_games import __version__
+from infinite_games.base.neuron import BaseNeuron
 from infinite_games.events.base import CLUSTER_EPOCH_2024
 
 
@@ -48,6 +46,8 @@ class BaseValidatorNeuron(BaseNeuron):
     """
 
     def __init__(self, config=None):
+        bt.logging.info("BaseValidatorNeuron __init__ start")
+        start_time = time.time()
         super().__init__(config=config)
 
         # Save a copy of the hotkeys to local memory.
@@ -110,6 +110,8 @@ class BaseValidatorNeuron(BaseNeuron):
                     dir=self.config.neuron.full_path,
                     reinit=True,
             )
+        end_time = time.time()
+        bt.logging.info(f"BaseValidatorNeuron __init__ completed in {end_time - start_time:.2f} seconds")
 
     def serve_axon(self):
         """Serve axon to enable external connections."""
@@ -124,13 +126,15 @@ class BaseValidatorNeuron(BaseNeuron):
                     axon=self.axon,
                 )
             except Exception as e:
-                bt.logging.error(f"Failed to serve Axon with exception: {e}")
+                bt.logging.error(f"Failed to serve Axon with exception: {repr(e)}")
+                bt.logging.error(traceback.format_exc())
                 pass
 
         except Exception as e:
             bt.logging.error(
-                f"Failed to create Axon initialize with exception: {e}"
+                f"Failed to create Axon initialize with exception: {repr(e)}"
             )
+            bt.logging.error(traceback.format_exc())
             pass
 
     async def concurrent_forward(self):
@@ -173,6 +177,7 @@ class BaseValidatorNeuron(BaseNeuron):
         try:
             while True:
                 bt.logging.info(f"step({self.step}) block({self.block})")
+                start_time = time.time()
 
                 # Run multiple forwards concurrently.
                 self.loop.run_until_complete(self.concurrent_forward())
@@ -185,10 +190,12 @@ class BaseValidatorNeuron(BaseNeuron):
                 try:
                     self.sync()
                 except Exception as e:
-                    bt.logging.error(e)
+                    bt.logging.error(f"Error during sync: {repr(e)}")
                     bt.logging.error(traceback.format_exc())
 
                 self.step += 1
+                end_time = time.time()
+                bt.logging.info(f"Validation loop iteration completed in {end_time - start_time:.2f} seconds")
 
         # If someone intentionally stops the validator, it'll safely terminate operations.
         except KeyboardInterrupt:
@@ -198,10 +205,8 @@ class BaseValidatorNeuron(BaseNeuron):
 
         # In case of unforeseen errors, the validator will log the error and continue operations.
         except Exception as err:
-            bt.logging.error("Error during validation", str(err))
-            bt.logging.debug(
-                print_exception(type(err), err, err.__traceback__)
-            )
+            bt.logging.error(f"Error during validation: {err}")
+            bt.logging.error(traceback.format_exc())
 
     def run_in_background_thread(self):
         """
@@ -256,6 +261,7 @@ class BaseValidatorNeuron(BaseNeuron):
         """
         Sets the validator weights to the metagraph hotkeys based on the scores it has received from the miners. The weights determine the trust and incentive level the validator assigns to miner nodes on the network.
         """
+        start_time = time.time()
 
         # Check if self.scores contains any NaN values and log a warning if it does.
         if torch.isnan(self.scores).any():
@@ -300,17 +306,23 @@ class BaseValidatorNeuron(BaseNeuron):
                     version_key=self.spec_version,
                 )
                 set_weight = True
-            except Exception:
-                bt.logging.error("Try to re-set weight")
-                i += 1
+            except Exception as e:
+                bt.logging.error(f"Failed to set weights on attempt {i}: {repr(e)}")
                 bt.logging.error(traceback.format_exc())
+                i += 1
                 time.sleep(4)
 
-        bt.logging.info(f"Set weights: {processed_weights}")
+        if set_weight:
+            bt.logging.info(f"Set weights: {processed_weights}")
+        else:
+            bt.logging.error("Failed to set weights after multiple attempts.")
+        end_time = time.time()
+        bt.logging.info(f"set_weights completed in {end_time - start_time:.2f} seconds")
 
     def resync_metagraph(self):
         """Resyncs the metagraph and updates the hotkeys and moving averages based on the new metagraph."""
         bt.logging.info("resync_metagraph()")
+        start_time = time.time()
 
         # Copies state of metagraph before syncing.
         previous_metagraph = copy.deepcopy(self.metagraph)
@@ -324,7 +336,7 @@ class BaseValidatorNeuron(BaseNeuron):
                 self.metagraph.sync(subtensor=self.subtensor)
                 synced = True
             except Exception as e:
-                bt.logging.error(f"Try to resync metagraph {e}")
+                bt.logging.error(f"Try to resync metagraph: {repr(e)}")
                 bt.logging.error(traceback.format_exc())
                 time.sleep(4)
 
@@ -353,6 +365,8 @@ class BaseValidatorNeuron(BaseNeuron):
 
         # Update the hotkeys.
         self.hotkeys = copy.deepcopy(self.metagraph.hotkeys)
+        end_time = time.time()
+        bt.logging.info(f"resync_metagraph completed in {end_time - start_time:.2f} seconds")
 
     def reset_daily_average_scores(self):
         """Current daily average scores are fixed and saved as previous day results for further moving average calculation"""
@@ -379,6 +393,7 @@ class BaseValidatorNeuron(BaseNeuron):
 
     def update_scores(self, rewards: torch.FloatTensor, uids: torch.LongTensor):
         """Performs exponential moving average on the scores based on the rewards received from the miners."""
+        start_time = time.time()
         # Check if rewards contains NaN values.
         if torch.isnan(rewards).any():
             bt.logging.warning(f"NaN values detected in rewards: {rewards}")
@@ -431,8 +446,9 @@ class BaseValidatorNeuron(BaseNeuron):
                 1 - alpha
             ) * self.scores.to(self.device)
         bt.logging.debug(f"Updated moving avg scores: {self.scores}")
-
         self.scoring_iterations += 1
+        end_time = time.time()
+        bt.logging.info(f"update_scores completed in {end_time - start_time:.2f} seconds")
 
     @backoff.on_exception(backoff.expo, Exception, max_tries=6)
     def send_average_scores(self, miner_scores=None):
@@ -450,20 +466,24 @@ class BaseValidatorNeuron(BaseNeuron):
         {miner_logs}
         '''
 
-        response = requests.post(
-            'https://influx-prod-24-prod-eu-west-2.grafana.net/api/v1/push/influx/write',
-            headers={
-                'Content-Type': 'text/plain',
-            },
-            data=str(body),
-            auth=(self.USER_ID, self.GRAFANA_API_KEY)
-        )
+        try:
+            response = requests.post(
+                'https://influx-prod-24-prod-eu-west-2.grafana.net/api/v1/push/influx/write',
+                headers={
+                    'Content-Type': 'text/plain',
+                },
+                data=str(body),
+                auth=(self.USER_ID, self.GRAFANA_API_KEY)
+            )
 
-        status_code = response.status_code
-        if status_code != 204:
-            bt.logging.error(f'*** Error sending logs! {response.content.decode("utf8")}')
-        else:
-            bt.logging.debug('*** Grafana logs sent')
+            status_code = response.status_code
+            if status_code != 204:
+                bt.logging.error(f'*** Error sending logs! {response.content.decode("utf8")}')
+            else:
+                bt.logging.debug('*** Grafana logs sent')
+        except Exception as e:
+            bt.logging.error(f"Error sending average scores: {repr(e)}")
+            bt.logging.error(traceback.format_exc())
 
     @backoff.on_exception(backoff.expo, Exception, max_tries=6)
     def send_event_scores(self, miner_scores=None):
@@ -482,19 +502,23 @@ class BaseValidatorNeuron(BaseNeuron):
         {miner_logs}
         '''
 
-        response = requests.post(
-            'https://influx-prod-24-prod-eu-west-2.grafana.net/api/v1/push/influx/write',
-            headers={
-                'Content-Type': 'text/plain',
-            },
-            data=str(body),
-            auth=(self.USER_ID, self.GRAFANA_API_KEY)
-        )
-        status_code = response.status_code
-        if status_code != 204:
-            bt.logging.error(f'*** Error sending logs! {response.content.decode("utf8")}')
-        else:
-            bt.logging.debug('*** Grafana logs sent')
+        try:
+            response = requests.post(
+                'https://influx-prod-24-prod-eu-west-2.grafana.net/api/v1/push/influx/write',
+                headers={
+                    'Content-Type': 'text/plain',
+                },
+                data=str(body),
+                auth=(self.USER_ID, self.GRAFANA_API_KEY)
+            )
+            status_code = response.status_code
+            if status_code != 204:
+                bt.logging.error(f'*** Error sending logs! {response.content.decode("utf8")}')
+            else:
+                bt.logging.debug('*** Grafana logs sent')
+        except Exception as e:
+            bt.logging.error(f"Error sending event scores: {repr(e)}")
+            bt.logging.error(traceback.format_exc())
 
     @backoff.on_exception(backoff.expo, Exception, max_tries=6)
     def send_interval_data(self, miner_data):
@@ -536,7 +560,7 @@ class BaseValidatorNeuron(BaseNeuron):
                     return True
                 time.sleep(1)
             except Exception as e:
-                bt.logging.error(e)
+                bt.logging.error(f"Error sending interval data: {repr(e)}")
                 bt.logging.error(traceback.format_exc())
         else:
             bt.logging.info('Skip export submissions in test')
@@ -544,40 +568,50 @@ class BaseValidatorNeuron(BaseNeuron):
     def save_state(self):
         """Saves the state of the validator to a file."""
         bt.logging.info("Saving validator state.")
-
+        start_time = time.time()
         # Save the state of the validator to file.
-        torch.save(
-            {
-                "step": self.step,
-                "scores": self.scores,
-                "hotkeys": self.hotkeys,
-                "average_scores": self.average_scores,
-                "previous_average_scores": self.previous_average_scores,
-                "scoring_iterations": self.scoring_iterations,
-                "latest_reset_date": self.latest_reset_date,
-            },
-            self.config.neuron.full_path + "/state.pt",
-        )
+        try:
+            torch.save(
+                {
+                    "step": self.step,
+                    "scores": self.scores,
+                    "hotkeys": self.hotkeys,
+                    "average_scores": self.average_scores,
+                    "previous_average_scores": self.previous_average_scores,
+                    "scoring_iterations": self.scoring_iterations,
+                    "latest_reset_date": self.latest_reset_date,
+                },
+                self.config.neuron.full_path + "/state.pt",
+            )
+        except Exception as e:
+            bt.logging.error(f"Error saving state: {repr(e)}")
+            bt.logging.error(traceback.format_exc())
+        end_time = time.time()
+        bt.logging.info(f"State saved in {end_time - start_time:.2f} seconds")
 
     def load_state(self):
         """Loads the state of the validator from a file."""
         bt.logging.info("Loading validator state.")
-
+        start_time = time.time()
         # Load the state of the validator from file.
         try:
             state = torch.load(self.config.neuron.full_path + "/state.pt")
+            self.step = state["step"]
+            self.scores = state["scores"]
+            self.hotkeys = state["hotkeys"]
+            if state.get("average_scores") is not None:
+                self.average_scores = state["average_scores"]
+            if state.get("previous_average_scores") is not None:
+                self.previous_average_scores = state["previous_average_scores"]
+            if state.get("scoring_iterations") is not None:
+                self.scoring_iterations = state["scoring_iterations"]
+            if state.get("latest_reset_date"):
+                self.latest_reset_date = state["latest_reset_date"]
+                bt.logging.info(f'Latest score reset date: {self.latest_reset_date}')
         except FileNotFoundError:
             bt.logging.info(f"Neuron state not found in {self.config.neuron.full_path + '/state.pt'}, skip..")
-            return
-        self.step = state["step"]
-        self.scores = state["scores"]
-        self.hotkeys = state["hotkeys"]
-        if state.get("average_scores") is not None:
-            self.average_scores = state["average_scores"]
-        if state.get("previous_average_scores") is not None:
-            self.previous_average_scores = state["previous_average_scores"]
-        if state.get("scoring_iterations") is not None:
-            self.scoring_iterations = state["scoring_iterations"]
-        if state.get("latest_reset_date"):
-            self.latest_reset_date = state["latest_reset_date"]
-            bt.logging.info(f'Latest score reset date: {self.latest_reset_date}')
+        except Exception as e:
+            bt.logging.error(f"Error loading state: {repr(e)}")
+            bt.logging.error(traceback.format_exc())
+        end_time = time.time()
+        bt.logging.info(f"State loaded in {end_time - start_time:.2f} seconds")
