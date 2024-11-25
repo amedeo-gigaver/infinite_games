@@ -27,7 +27,7 @@ from bittensor.chain_data import AxonInfo
 from infinite_games.utils.misc import split_chunks
 from infinite_games.utils.uids import get_miner_data_by_uid, miner_count_in_db
 
-# Defines a time window for grouping submissions based on a specified number of minutes
+# defines a time window for grouping submissions based on a specified number of minutes
 CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES = 60 * 4
 CLUSTER_EPOCH_2024 = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0, month=1, day=1)
 
@@ -39,8 +39,9 @@ class EventRemovedException(Exception):
 @dataclass
 class Submission:
     """Miner submission data"""
+
     submitted_ts: int
-    # This is blockchain block time when we send this submission.
+    # this is blockchain block time when we send this submission.
     blocktime: int
     answer: float
 
@@ -65,7 +66,7 @@ class ProviderEvent:
     answer: Optional[int]
     local_updated_at: datetime
     status: EventStatus
-    miner_predictions: Dict[int, Dict[int, Dict[Any, Any]]]
+    miner_predictions: Dict[int, Dict[int, Dict[any, any]]]
     metadata: Dict[str, Any]
 
     def __str__(self) -> str:
@@ -90,7 +91,7 @@ class ProviderIntegration:
     def available_for_submission(self, pe: ProviderEvent) -> bool:
         return True
 
-    def latest_submit_date(self, pe: ProviderEvent) -> datetime:
+    def latest_submit_date(self, pe: ProviderEvent) -> timedelta:
         return pe.starts or pe.resolve_date
 
     def log(self, msg):
@@ -109,7 +110,10 @@ class ProviderIntegration:
 class EventAggregator:
 
     def __init__(self, state_path: str, db_path: str = 'database.db'):
-        self.registered_events: Dict[str, ProviderEvent] = {}
+
+        self.registered_events: Dict[str, ProviderEvent] = {
+
+        }
         self.integrations: Dict[str, ProviderIntegration] = None
         self.state_path = state_path
         # This hook called both when refetching events from provider
@@ -128,6 +132,7 @@ class EventAggregator:
         self.integrations = {
             integration.provider_name(): await integration._ainit() for integration in integrations
         }
+
         return self
 
     def get_registered_event(self, unique_event_id: str):
@@ -135,12 +140,13 @@ class EventAggregator:
 
     async def _sync_provider(self, integration: ProviderIntegration):
         async for event in integration.sync_events():
+
             self.register_or_update_event(event)
 
     async def collect_events(self):
         if not self.integrations:
             self.error('Please add integration to provider and restart your script.')
-            raise Exception("No Provider Integrations Found. Please Add 'ProviderIntegration' compatible integrations")
+            raise Exception("No Provider Integrations Found. Please Add 'ProviderIntegration' compatible integrations ")
         self.log('Start collector..')
         while True:
             pending_events = self.get_events(statuses=[EventStatus.PENDING, EventStatus.SETTLED], processed=False)
@@ -149,7 +155,7 @@ class EventAggregator:
                 tasks = [self._sync_provider(integration) for _, integration in self.integrations.items()]
                 await asyncio.gather(*tasks)
             except Exception as e:
-                bt.logging.error(f'Could not pull events: {repr(e)}')
+                bt.logging.error(f'Could not pull events.. Retry.. Exception: {repr(e)}')
                 bt.logging.error(traceback.format_exc())
             await asyncio.sleep(self.COLLECTOR_WATCH_EVENTS_DELAY)
 
@@ -157,7 +163,7 @@ class EventAggregator:
         processed_already = event_data.metadata.get('processed', False)
         market_type = event_data.metadata.get('market_type', event_data.market_type)
         event_text = f'{market_type} {event_data.event_id}'
-        self.log(f'Update Event {event_text} {event_data.status} {processed_already=}')
+        self.log(f'Update Event {event_text} {event_data.status} {processed_already=} ')
 
         if event_data.status in [EventStatus.PENDING, EventStatus.SETTLED]:
             integration = self.integrations.get(event_data.market_type)
@@ -168,7 +174,9 @@ class EventAggregator:
             try:
                 updated_event_data: ProviderEvent = await integration.get_single_event(event_data.event_id)
                 if updated_event_data:
+                    # self.log(f'Event updated {updated_event_data.event_id}')
                     self.register_or_update_event(updated_event_data)
+                    # self.update_event(updated_event_data)
                 else:
                     self.warning(f'Could not update event {event_data}')
             except EventRemovedException:
@@ -215,29 +223,32 @@ class EventAggregator:
         """In base implementation we try to update/check each registered event via get_single_event"""
         self.log("Start watcher...")
         while True:
-            # Settled events have to be processed/scored, thus watch them too to force process
+            # settled events has to be processed/scored, thus watch them too to force process
             pending_events = self.get_events(statuses=[EventStatus.PENDING, EventStatus.SETTLED], processed=False)
             self.log(f'Update events: {len(pending_events)}')
+            # self.log_upcoming(50)
             if len(pending_events) != 0:
+
                 try:
                     events_chunks = split_chunks(list(pending_events), self.MAX_PROVIDER_CONCURRENT_TASKS)
                     async for events in events_chunks:
                         await asyncio.gather(*[self.check_event(event_data) for event_data in events])
                         await asyncio.sleep(self.WATCH_EVENTS_DELAY)
-                        self.log('Updating events...')
+                        self.log(f'Updating events..')
                 except Exception as e:
                     self.error(f"Failed to get event: {repr(e)}")
                     self.error(traceback.format_exc())
 
             self.log(f'Watching: {len(pending_events)} events')
             self.log_upcoming(200)
+            # self.log_submission_status(200)
             await asyncio.sleep(2)
 
     def event_key(self, provider_name, event_id):
         return f'{provider_name}-{event_id}'
 
     def register_or_update_event(self, pe: ProviderEvent):
-        """Adds or updates event. Returns true if this event was not in the list yet"""
+        """Adds or updates event. Returns true - if this event not in the list yet"""
         key = self.event_key(pe.market_type, event_id=pe.event_id)
         integration = self.integrations.get(pe.market_type)
         if not integration:
@@ -254,13 +265,16 @@ class EventAggregator:
                         return
                     if event.metadata.get('processed', False) is False and self.event_update_hook_fn(event) is True:
                         self.save_event(pe, True)
+                        pass
                     elif event.metadata.get('processed', False) is True:
                         bt.logging.warning(f'Tried to process already processed {event} event!')
                 except Exception as e:
                     bt.logging.error(f'Failed to call update hook for event {key}: {repr(e)}')
                     bt.logging.error(traceback.format_exc())
+                    print(traceback.format_exc())
         else:
-            self.log(f'New event:  {key} {pe.description} - {pe.status}')
+            self.log(f'New event:  {key} {pe.description} - {pe.status} ')
+
         return is_new
 
     def on_event_updated_hook(self, event_update_hook_fn: Callable[[ProviderEvent], None]):
@@ -269,6 +283,7 @@ class EventAggregator:
 
     def get_event(self, event_id):
         """Get single event"""
+
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
@@ -276,9 +291,9 @@ class EventAggregator:
         try:
             c = cursor.execute(
                 """
-                SELECT unique_event_id, event_id, market_type, registered_date, description, starts, resolve_date, outcome, local_updated_at, status, metadata, processed, exported
-                FROM events
-                WHERE unique_event_id = ?
+                select unique_event_id, event_id, market_type, registered_date, description,starts, resolve_date, outcome,local_updated_at,status, metadata, processed, exported
+                from events
+                where unique_event_id = ?
                 """,
                 (event_id,)
             )
@@ -286,8 +301,7 @@ class EventAggregator:
         except Exception as e:
             bt.logging.error(f"Error fetching event {event_id}: {repr(e)}")
             bt.logging.error(traceback.format_exc())
-        finally:
-            conn.close()
+        conn.close()
         if result:
             data = dict(result[0])
             pe: ProviderEvent = self.row_to_pe(data)
@@ -303,30 +317,43 @@ class EventAggregator:
         integration = self.integrations.get(pe.market_type)
         if not integration:
             bt.logging.error(f'No integration found for event {pe.market_type} - {pe.event_id}')
-            return None
+            return
         return integration
 
     def remove_event(self, pe: ProviderEvent) -> bool:
-        """Removes event"""
+        """Removed event"""
         conn = sqlite3.connect(self.db_path)
         c = conn.cursor()
-        try:
-            c.execute(
-                """
-                DELETE FROM events
-                WHERE unique_event_id = ?
-                """,
-                (self.event_key(pe.market_type, event_id=pe.event_id),)
-            )
-            bt.logging.info(f'Removed event {pe}.')
-            conn.commit()
-            return True
-        except Exception as e:
-            bt.logging.error(f"Error removing event {pe}: {repr(e)}")
-            bt.logging.error(traceback.format_exc())
-            return False
-        finally:
-            conn.close()
+        tries = 4
+        tried = 0
+        while tried < tries:
+            try:
+                c.execute(
+                    """
+                    delete from events
+                    where unique_event_id = ?
+                    """,
+                    (f'{pe.market_type}-{pe.event_id}',)
+                )
+                bt.logging.info(f'Removed event {pe}..')
+                conn.commit()
+                return True
+            except Exception as e:
+                if 'locked' in str(e):
+                    bt.logging.warning(
+                        f"Database locked, retry {tried + 1}.."
+                    )
+                    time.sleep(1 + (2 * tried))
+
+                else:
+                    bt.logging.error(f"Error removing event {pe}: {repr(e)}")
+                    bt.logging.error(traceback.format_exc())
+                    break
+
+            tried += 1
+
+        conn.close()
+        return False
 
     def save_state(self):
         pass
@@ -345,49 +372,48 @@ class EventAggregator:
 
     def row_to_pe(self, row) -> ProviderEvent:
         return ProviderEvent(
-            event_id=row.get('event_id'),
-            registered_date=datetime.fromisoformat(row.get('registered_date')),
-            market_type=row.get('market_type'),
-            description=row.get('description'),
-            starts=datetime.fromisoformat(row.get('starts')) if row.get('starts') else None,
-            resolve_date=datetime.fromisoformat(row.get('resolve_date')) if row.get('resolve_date') else None,
-            answer=float(row.get('outcome')) if row.get('outcome') else None,
-            local_updated_at=datetime.fromisoformat(row.get('local_updated_at')) if row.get('local_updated_at') else None,
-            status=int(row.get('status')),
-            miner_predictions={},
-            metadata={**json.loads(row.get('metadata', '{}')), **{'processed': row.get('processed') == 1}},
+            row.get('event_id'),
+            datetime.fromisoformat(row.get('registered_date')),
+            row.get('market_type'),
+            row.get('description'),
+            datetime.fromisoformat(row.get('starts')) if row.get('starts') else None,
+            datetime.fromisoformat(row.get('resolve_date')) if row.get('resolve_date') else None,
+            float(row.get('outcome')) if row.get('outcome') else None,
+            datetime.fromisoformat(row.get('local_updated_at')) if row.get('local_updated_at') else None,
+            int(row.get('status')),
+            {},
+            {**json.loads(row.get('metadata', '{}')), **{'processed': row.get('processed') == 1}},
         )
 
-    def get_events(self, statuses: List[int] = None, processed=None) -> List[ProviderEvent]:
+    def get_events(self, statuses: List[int]=None, processed=None) -> Iterator[ProviderEvent]:
         """Get all events"""
         if not statuses:
-            statuses = [EventStatus.PENDING, EventStatus.SETTLED, EventStatus.DISCARDED]
+            statuses = (str(EventStatus.PENDING), str(EventStatus.SETTLED), str(EventStatus.DISCARDED))
         else:
-            statuses = statuses
+            statuses = [str(status) for status in statuses]
+        # bt.logging.debug(f'STATUS: {statuses}')
         events = []
         result = []
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         try:
-            placeholders = ','.join('?' for _ in statuses)
             if processed is None:
                 c = cursor.execute(
-                    f"""
-                    SELECT unique_event_id, event_id, market_type, registered_date, description, starts, resolve_date, outcome, local_updated_at, status, metadata, exported
-                    FROM events
-                    WHERE status IN ({placeholders})
-                    """,
-                    statuses
+                    """
+                    select unique_event_id, event_id, market_type, registered_date, description, starts, resolve_date, outcome,local_updated_at,status, metadata, exported
+                    from events
+                    where status in ({})
+                    """.format(','.join(statuses))
                 )
             else:
                 c = cursor.execute(
-                    f"""
-                    SELECT unique_event_id, event_id, market_type, registered_date, description, starts, resolve_date, outcome, local_updated_at, status, metadata, exported
-                    FROM events
-                    WHERE status IN ({placeholders}) AND processed = ?
-                    """,
-                    (*statuses, processed)
+                    """
+                    select unique_event_id, event_id, market_type, registered_date, description, starts, resolve_date, outcome,local_updated_at,status, metadata, exported
+                    from events
+                    where status in ({}) and processed = ?
+                    """.format(','.join(statuses)),
+                    (processed,)
                 )
             result: List[sqlite3.Row] = c.fetchall()
         except Exception as e:
@@ -405,13 +431,14 @@ class EventAggregator:
         pass
 
     def _interval_aggregate_function(self, interval_submissions: List[Submission]):
-        avg = sum(submission.answer for submission in interval_submissions) / len(interval_submissions)
+        avg = sum(submissions.answer for submissions in interval_submissions) / len(interval_submissions)
         return avg
 
     def _resolve_previous_intervals(self, pe: ProviderEvent, uid: int, last_interval_start_minutes: int) -> bool:
         intervals = pe.miner_predictions.get(uid)
         if not intervals:
-            return False
+            return
+
         for interval_start_minutes, interval_data in intervals.items():
             total = interval_data.get('total_score')
             if (last_interval_start_minutes is None or interval_start_minutes < last_interval_start_minutes) and total is None:
@@ -421,7 +448,8 @@ class EventAggregator:
     def init_migrations(self):
         conn = sqlite3.connect(self.db_path)
         c = conn.cursor()
-        # Create tables if they don't exist
+
+        # create table if it doesn't exist
         c.execute(
             """
             CREATE TABLE IF NOT EXISTS predictions (
@@ -459,7 +487,8 @@ class EventAggregator:
                 processed BOOLEAN DEFAULT false,
                 exported INTEGER DEFAULT 0
             );
-            """
+
+        """
         )
 
         c.execute(
@@ -471,116 +500,173 @@ class EventAggregator:
                 registered_date DATETIME,
                 last_updated DATETIME,
                 blocktime INTEGER,
-                blocklisted BOOLEAN DEFAULT false,
+                blocklisted boolean DEFAULT false,
                 PRIMARY KEY (miner_hotkey, miner_uid)
             );
-            """
+
+        """
         )
+        tries = 4
+        tried = 0
+        bt.logging.info('Migrate providers to ifgames..')
         try:
-            # Add any migration logic here
-            self.log('Migrate providers to ifgames..')
             current_dir = os.getcwd()
             total, used, free = shutil.disk_usage(current_dir)
+        except Exception as e:
+            self.error(f"Error checking disk space: {repr(e)}")
+            self.error(traceback.format_exc())
+            self.error('Error checking disk space, continue for migration..')
+        else:
             free_gb = free / (1024 ** 3)
             if os.environ.get('ENV') != 'pytest' and free_gb < 20:
                 self.error(f'Not enough disk space ❌. Only {free_gb:.2f} GB available. Please make sure that you have available space then restart the process.')
                 exit(1)
             self.log(f'Free space: {free_gb:.2f} GB')
-            result = c.execute(
-                """
-                SELECT true FROM events WHERE market_type='ifgames' LIMIT 1
-                """
-            )
-            if len(result.fetchall()) > 0:
-                self.log('Already migrated to ifgames, skip...')
-                return
-            c.execute(
-                """
-                DELETE FROM events WHERE market_type='azuro' AND status IN (2, 3) AND processed = false
-                """
-            )
-            result = c.execute(
-                """
-                SELECT unique_event_id FROM events WHERE status IN (2, 3) AND processed = false
-                """
-            )
-            unique_event_ids = [event_id[0] for event_id in result.fetchall()]
-            for event in self.get_events(statuses=[EventStatus.PENDING, EventStatus.SETTLED], processed=False):
-                if event.market_type == 'polymarket':
-                    print(f'Migrating {event}..')
-                    event.metadata['market_type'] = 'polymarket'
-                    event.metadata['cutoff'] = int((event.resolve_date - timedelta(seconds=86400)).timestamp())
-                    self.save_event(event, commit=False, cursor=c)
-            placeholders = ','.join('?' * len(unique_event_ids))
-            c.execute(
-                f"""
-                UPDATE events SET market_type = 'ifgames', unique_event_id = 'ifgames-' || substr(unique_event_id, instr(unique_event_id, '-') + 1)
-                WHERE unique_event_id IN ({placeholders})
-                """,
-                unique_event_ids
-            )
-            print('Migrated pending/non-processed events: ', len(unique_event_ids))
-            print('Migration is in progress..')
+        while tried < tries:
+            try:
+                result = c.execute(
+                    """
+                    select true from events where market_type='ifgames' limit 1
+                    """
+                )
 
-            count_result = c.execute(
-                f"""
-                SELECT count(*) FROM predictions
-                WHERE unique_event_id IN ({placeholders})
-                """,
-                unique_event_ids
-            )
-            print('Total predictions to migrate: ', count_result.fetchall()[0][0])
-            print('Migrating predictions... please wait...')
-            now = time.perf_counter()
-            c.execute(
-                f"""
-                UPDATE predictions SET unique_event_id = 'ifgames-' || substr(unique_event_id, instr(unique_event_id, '-') + 1)
-                WHERE unique_event_id IN ({placeholders})
-                """,
-                unique_event_ids
-            )
-            after_now = time.perf_counter()
-            print('Predictions migrated. Took: ', int(after_now - now), ' seconds')
-            print('Migration finished ✅')
-            conn.commit()
-        except Exception as e:
-            bt.logging.error(f"Error during migrations: {repr(e)}")
-            bt.logging.error(traceback.format_exc())
-            self.error('We cannot proceed because of the migration issues, please reach out to Infinite Games subnet developers ❌')
-            exit(1)
-        finally:
-            conn.close()
+                if len(result.fetchall()) > 0:
+                    self.log('Already migrated to ifgames skip...')
+                    break
+                c.execute(
+                    """
+                    delete from events where market_type='azuro' and status in (2, 3) and processed = false
+                    """
+                )
+                result = c.execute(
+                    """
+                    select unique_event_id from events where status in (2, 3) and processed = false
+                    """
+                )
+
+                unique_event_ids = [event_id[0] for event_id in result.fetchall()]
+                for event in self.get_events(statuses=[EventStatus.PENDING, EventStatus.SETTLED], processed=False):
+
+                    if event.market_type == 'polymarket':
+                        print(f'Migrating {event}..')
+                        event.metadata['market_type'] = 'polymarket'
+                        event.metadata['cutoff'] = int((event.resolve_date - timedelta(seconds=86400)).timestamp())
+                        self.save_event(event, commit=False, cursor=c)
+                c.execute(
+                    """
+                    update events set market_type = 'ifgames', unique_event_id = 'ifgames-' || substring(unique_event_id, INSTR(unique_event_id, '-') +  1)
+                    where unique_event_id in ({subs})
+                    """.format(subs=','.join('?'*len(unique_event_ids))), unique_event_ids
+                )
+                print('Migrated pending/non-processed events: ', len(unique_event_ids))
+                print('Migration is in progress..')
+
+                count_result = c.execute(
+                    """
+                    select count(*) from predictions
+                    where unique_event_id in ({subs})
+                    """.format(subs=','.join('?'*len(unique_event_ids))), unique_event_ids
+                )
+                print('Total predictions to migrate: ', count_result.fetchall()[0][0])
+                print('Migrating predictions.. please wait..')
+                now = time.perf_counter()
+                c.execute(
+                    """
+                    update predictions set unique_event_id = 'ifgames-' || substring(unique_event_id, INSTR(unique_event_id, '-') +  1)
+                    where unique_event_id in ({subs})
+                    """.format(subs=','.join('?'*len(unique_event_ids))), unique_event_ids
+                )
+                after_now = time.perf_counter()
+                print('Predictions migrated. Took: ', int(after_now - now), ' seconds')
+                print('Migration finished ✅')
+
+                # c.execute(
+                #     """
+                #     delete from predictions where rowid in (
+                #         select p.rowid from predictions p inner join events e
+                #         on e.unique_event_id = p.unique_event_id
+                #         where e.status = '3' and e.registered_date <  date('now', '-2 months')
+                #     ) and exported = '1'
+                #     """
+                # )
+                # c.execute(
+                #     """
+                #     delete from events
+                #     where status = '3' and registered_date <  date('now', '-2 months')
+                #     and exported = '1'
+                #     """
+                # )
+                # bt.logging.info('Cleaned old records..')
+                break
+            except Exception as e:
+                if 'locked' in str(e):
+                    bt.logging.warning(
+                        f"Database locked, retry {tried + 1}.."
+                    )
+                    time.sleep(1 + (2 * tried))
+                elif 'malformed' in str(e):
+                    bt.logging.warning(
+                        f"Database is malformed or locked, retry {tried + 1}.."
+                    )
+                    time.sleep(1 + (2 * tried))
+                else:
+                    bt.logging.error(f"Error during migrations: {repr(e)}")
+                    bt.logging.error(traceback.format_exc())
+                    self.error('We cannot proceed because of the migration issues, please reach out to Infinite Games subnet developers ❌')
+                    exit(1)
+                    break
+
+            tried += 1
+
+        conn.commit()
+        conn.close()
 
     def sync_miners(self, axons: List[Tuple[int, AxonInfo]], blocktime: int):
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
-        bt.logging.info('Sync miner nodes...')
+        tries = 4
+        tried = 0
+        bt.logging.info('Sync miner nodes..')
         miners_len = miner_count_in_db(self.db_path)
         if miners_len == 0:
-            bt.logging.info('No miners, registering all...')
-        try:
-            cursor.executemany(
-                """
-                INSERT INTO miners (miner_hotkey, miner_uid, node_ip, registered_date, last_updated, blocktime, blocklisted)
-                VALUES (?, ?, ?, ?, datetime('now', 'utc'), ?, ?)
-                ON CONFLICT(miner_hotkey, miner_uid)
-                DO UPDATE SET node_ip = ?, last_updated = datetime('now', 'utc'), blocktime = ?
-                """,
-                (
-                    (axon.hotkey, uid, axon.ip,
-                     datetime.now() if miners_len > 0 else datetime(year=2024, month=1, day=1),
-                     blocktime, False,
-                     axon.ip, blocktime)
-                    for uid, axon in axons
-                ),
-            )
-            conn.commit()
-            bt.logging.info('Miner info synced.')
-        except sqlite3.OperationalError as e:
-            bt.logging.error(f"Error syncing miners: {repr(e)}")
-            bt.logging.error(traceback.format_exc())
-        finally:
-            conn.close()
+            bt.logging.info('No miners, registering all..')
+        while tried < tries:
+
+            try:
+                cursor.executemany(
+                    """
+                    INSERT into miners ( miner_hotkey, miner_uid, node_ip, registered_date,last_updated,blocktime,blocklisted)
+                    Values (?, ?, ?, ?, datetime('now', 'utc'), ?, ?)
+                    ON CONFLICT(miner_hotkey, miner_uid)
+                    DO UPDATE set node_ip = ?, last_updated = datetime('now', 'utc'), blocktime = ?""",
+                    (
+                        (axon.hotkey, uid, axon.ip,
+                         datetime.now() if miners_len > 0 else datetime(year=2024, month=1, day=1),
+                         blocktime, False,
+                         axon.ip, blocktime)
+                        for uid, axon in axons
+                    ),
+                )
+                conn.execute("COMMIT")
+                bt.logging.info('Miner info synced.')
+                break
+            except sqlite3.OperationalError as e:
+                if 'locked' in str(e):
+                    bt.logging.warning(
+                        f"Database locked, retry {tried + 1}.."
+                    )
+                    time.sleep(1 + (2 * tried))
+                    # tried += 1
+                else:
+                    bt.logging.error(f"Error syncing miner predictions {blocktime}: {repr(e)}")
+                    bt.logging.error(traceback.format_exc())
+                    break
+            except Exception as e:
+                bt.logging.error(f"Error syncing miners: {repr(e)}")
+                bt.logging.error(traceback.format_exc())
+                break
+            tried += 1
+        conn.close()
 
     def save_event(self, pe: ProviderEvent, processed=False, commit=True, cursor=None) -> bool:
         """Returns true if new event"""
@@ -591,89 +677,150 @@ class EventAggregator:
             conn = cursor.connection
             c = cursor
 
-        try:
-            result = c.execute(
-                """
-                INSERT INTO events (unique_event_id, event_id, market_type, registered_date, description, starts, resolve_date, outcome, local_updated_at, status, metadata)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ON CONFLICT(unique_event_id)
-                DO UPDATE SET outcome = ?, status = ?, local_updated_at = ?, processed = ?, metadata = ?, description = ?
-                RETURNING unique_event_id, registered_date, local_updated_at
-                """,
-                (self.event_key(pe.market_type, event_id=pe.event_id), pe.event_id, pe.market_type, pe.registered_date, pe.description, pe.starts, pe.resolve_date, pe.answer, pe.registered_date, pe.status, json.dumps(pe.metadata),
-                 pe.answer, pe.status, datetime.now(tz=timezone.utc), processed, json.dumps(pe.metadata), pe.description),
-            )
-            result = result.fetchall()
-            if commit:
-                conn.commit()
+        result = []
+        tries = 4
+        tried = 0
+        while tried < tries:
+            # bt.logging.info(f'Now time: {datetime.now(tz=timezone.utc)}, {pe} ')
+            try:
+                result = c.execute(
+                    """
+                    INSERT into events ( unique_event_id, event_id, market_type, registered_date, description,starts, resolve_date, outcome,local_updated_at,status, metadata)
+                    Values (?, ?, ?, ?, ?, ?, ?, ?, ?, ? , ?)
+                    ON CONFLICT(unique_event_id)
+                    DO UPDATE set outcome = ?, status = ?, local_updated_at = ?, processed = ?, metadata = ?, description = ?
+                    RETURNING unique_event_id, registered_date, local_updated_at
+                    """,
+                    (self.event_key(pe.market_type, event_id=pe.event_id), pe.event_id,  pe.market_type, pe.registered_date,  pe.description, pe.starts, pe.resolve_date , pe.answer,pe.registered_date, pe.status, json.dumps(pe.metadata),
+                    pe.answer, pe.status, datetime.now(tz=timezone.utc), processed, json.dumps(pe.metadata), pe.description),
+                )
+                result = result.fetchall()
+                # bt.logging.debug(result)
+                if commit:
+                    conn.execute("COMMIT")
+                break
+            except Exception as e:
+                if 'locked' in str(e):
+                    bt.logging.warning(
+                        f"Database locked, retry {tried + 1}.."
+                    )
+                    time.sleep(1 + (2 * tried))
+
+                else:
+                    bt.logging.error(f"Error saving event {pe}: {repr(e)}")
+                    bt.logging.error(traceback.format_exc())
+                    break
+            tried += 1
+        if not cursor:
+            conn.close()
+        if result and result[0]:
+            # bt.logging.debug(result)
             return result[0][1] == result[0][2]
-        except Exception as e:
-            bt.logging.error(f"Error saving event {pe}: {repr(e)}")
-            bt.logging.error(traceback.format_exc())
-            return False
-        finally:
-            if not cursor:
-                conn.close()
+        return False
 
     def mark_event_as_exported(self, pe: ProviderEvent) -> bool:
-        """Marks the event as exported"""
+        """Returns true if exported successfully"""
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
-        try:
-            cursor.execute(
-                """
-                UPDATE events SET exported = true
-                WHERE unique_event_id = ?
-                """,
-                (self.event_key(pe.market_type, event_id=pe.event_id),)
-            )
-            conn.commit()
-            return True
-        except Exception as e:
-            bt.logging.error(f"Error marking event {pe} as exported: {repr(e)}")
-            bt.logging.error(traceback.format_exc())
-            return False
-        finally:
-            conn.close()
+        tries = 4
+        tried = 0
+        while tried < tries:
+            # bt.logging.info(f'Now time: {datetime.now(tz=timezone.utc)}, {pe} ')
+            try:
+                cursor.execute(
+                    """
+                    UPDATE events set exported = true
+                    where unique_event_id = ?
+                    """,
+                    (self.event_key(pe.market_type, event_id=pe.event_id), ),
+                )
+                # bt.logging.debug(result)
+                conn.execute("COMMIT")
+                conn.close()
+                return True
+            except Exception as e:
+                if 'locked' in str(e):
+                    bt.logging.warning(
+                        f"Database locked, retry {tried + 1}.."
+                    )
+                    time.sleep(1 + (2 * tried))
+
+                else:
+                    bt.logging.error(f"Error marking event as exported {pe}: {repr(e)}")
+                    bt.logging.error(traceback.format_exc())
+                    break
+            tried += 1
+
+        conn.close()
+        return False
 
     def mark_submissions_as_exported(self) -> bool:
-        """Marks submissions as exported"""
+        """Returns true if submitted successfully"""
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
-        try:
-            cursor.execute(
-                """
-                UPDATE predictions SET exported = true
-                """
-            )
-            conn.commit()
-            return True
-        except Exception as e:
-            bt.logging.error(f"Error marking submissions as exported: {repr(e)}")
-            bt.logging.error(traceback.format_exc())
-            return False
-        finally:
-            conn.close()
+        tries = 4
+        tried = 0
+        while tried < tries:
+            try:
+                cursor.execute(
+                    """
+                    UPDATE predictions set exported = true
+                    """,
+                )
+                # bt.logging.debug(result)
+                conn.execute("COMMIT")
+                break
+            except Exception as e:
+                if 'locked' in str(e):
+                    bt.logging.warning(
+                        f"Database locked, retry {tried + 1}.."
+                    )
+                    time.sleep(1 + (2 * tried))
+
+                else:
+                    bt.logging.error(f"Error marking submissions as exported: {repr(e)}")
+                    bt.logging.error(traceback.format_exc())
+                    break
+            tried += 1
+
+        conn.close()
+        return True
 
     def update_cluster_prediction(self, pe: ProviderEvent, uid: int, blocktime: int, interval_start_minutes: int, new_prediction):
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
-        try:
-            cursor.execute(
-                """
-                INSERT INTO predictions (unique_event_id, minerHotkey, minerUid, predictedOutcome, interval_start_minutes, interval_agg_prediction, interval_count, submitted, blocktime)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ON CONFLICT(unique_event_id, interval_start_minutes, minerUid)
-                DO UPDATE SET interval_agg_prediction = (interval_agg_prediction * interval_count + ?) / (interval_count + 1), interval_count = interval_count + 1
-                """,
-                (self.event_key(pe.market_type, event_id=pe.event_id), None, uid, None, interval_start_minutes, new_prediction, 1, datetime.now(tz=timezone.utc), blocktime, new_prediction),
-            )
-            conn.commit()
-        except sqlite3.OperationalError as e:
-            bt.logging.error(f"Error updating cluster prediction for uid {uid}, event {pe}: {repr(e)}")
-            bt.logging.error(traceback.format_exc())
-        finally:
-            conn.close()
+        tries = 4
+        tried = 0
+        while tried < tries:
+
+            try:
+                cursor.execute(
+                    """
+                    INSERT into predictions ( unique_event_id, minerHotkey, minerUid, predictedOutcome,interval_start_minutes,interval_agg_prediction,interval_count,submitted,blocktime)
+                    Values (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ON CONFLICT(unique_event_id,  interval_start_minutes, minerUid)
+                    DO UPDATE set interval_agg_prediction = (interval_agg_prediction * interval_count + ?) / (interval_count + 1), interval_count = interval_count + 1""",
+                    (self.event_key(pe.market_type, event_id=pe.event_id), None, uid, None, interval_start_minutes, new_prediction , 1,datetime.now(tz=timezone.utc), blocktime, new_prediction),
+                )
+                conn.execute("COMMIT")
+                break
+            except sqlite3.OperationalError as e:
+                if 'locked' in str(e):
+                    bt.logging.warning(
+                        f"Database locked, retry {tried + 1}.."
+                    )
+                    time.sleep(1 + (2 * tried))
+                    # tried += 1
+                else:
+                    bt.logging.error(f"Error updating cluster prediction {uid=} {pe}: {repr(e)}")
+                    bt.logging.error(traceback.format_exc())
+                    break
+            except Exception as e:
+                bt.logging.error(f"Error updating cluster prediction {uid=} {pe}: {repr(e)}")
+                bt.logging.error(traceback.format_exc())
+                break
+            tried += 1
+        conn.close()
 
     def get_event_predictions(self, pe: ProviderEvent):
         conn = sqlite3.connect(self.db_path)
@@ -683,22 +830,22 @@ class EventAggregator:
         try:
             c = cursor.execute(
                 """
-                SELECT unique_event_id, minerHotkey, minerUid, predictedOutcome, interval_start_minutes, interval_agg_prediction, interval_count, submitted, blocktime
-                FROM predictions
-                WHERE unique_event_id = ?
+                select unique_event_id, minerHotkey, minerUid, predictedOutcome,interval_start_minutes,interval_agg_prediction,interval_count,submitted,blocktime
+                from predictions
+                where unique_event_id = ?
                 """,
                 (self.event_key(pe.market_type, event_id=pe.event_id),)
             )
             result: List[sqlite3.Row] = c.fetchall()
         except Exception as e:
-            bt.logging.error(f"Error fetching event predictions for {pe}: {repr(e)}")
+            bt.logging.error(f"Error fetching event predictions {pe}: {repr(e)}")
             bt.logging.error(traceback.format_exc())
-        finally:
-            conn.close()
+        conn.close()
         output = defaultdict(dict)
         for row in result:
             interval_prediction = dict(row)
-            output[int(interval_prediction['minerUid'])][int(interval_prediction['interval_start_minutes'])] = interval_prediction
+            if int(interval_prediction['interval_start_minutes']) not in output[int(interval_prediction['minerUid'])]:
+                output[int(interval_prediction['minerUid'])][int(interval_prediction['interval_start_minutes'])] = interval_prediction
         return output
 
     def get_non_exported_event_predictions(self, pe: ProviderEvent):
@@ -709,49 +856,58 @@ class EventAggregator:
         try:
             c = cursor.execute(
                 """
-                SELECT unique_event_id, minerHotkey, minerUid, predictedOutcome, interval_start_minutes, interval_agg_prediction, interval_count, submitted, blocktime
-                FROM predictions
-                WHERE unique_event_id = ? AND exported = false
+                select unique_event_id, minerHotkey, minerUid, predictedOutcome,interval_start_minutes,interval_agg_prediction,interval_count,submitted,blocktime
+                from predictions
+                where unique_event_id = ? and exported = false
                 """,
                 (self.event_key(pe.market_type, event_id=pe.event_id),)
             )
             result: List[sqlite3.Row] = c.fetchall()
         except Exception as e:
-            bt.logging.error(f"Error fetching non-exported event predictions for {pe}: {repr(e)}")
+            bt.logging.error(f"Error fetching non-exported event predictions {pe}: {repr(e)}")
             bt.logging.error(traceback.format_exc())
-        finally:
-            conn.close()
+        conn.close()
         output = defaultdict(dict)
         for row in result:
             interval_prediction = dict(row)
-            output[int(interval_prediction['minerUid'])][int(interval_prediction['interval_start_minutes'])] = interval_prediction
+            if int(interval_prediction['interval_start_minutes']) not in output[int(interval_prediction['minerUid'])]:
+                output[int(interval_prediction['minerUid'])][int(interval_prediction['interval_start_minutes'])] = interval_prediction
         return output
 
     def get_all_non_exported_event_predictions(self, interval_minutes):
         conn = sqlite3.connect(self.db_path)
+        # conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         result = []
         try:
             c = cursor.execute(
                 """
-                SELECT e.metadata, e.unique_event_id, p.minerHotkey, p.minerUid, p.predictedOutcome, p.interval_start_minutes, p.interval_agg_prediction, p.interval_count, p.submitted, p.blocktime
-                FROM predictions p JOIN events e ON p.unique_event_id = e.unique_event_id
-                WHERE p.exported = false AND interval_start_minutes = ?
+                select e.metadata, e.unique_event_id, p.minerHotkey, p.minerUid, p.predictedOutcome, p.interval_start_minutes, p.interval_agg_prediction,p.interval_count,p.submitted,p.blocktime
+                from predictions p join events e on p.unique_event_id = e.unique_event_id
+                where
+                p.exported = false and interval_start_minutes = ?
                 """,
                 (interval_minutes,)
             )
-            result = c.fetchall()
+            result: list = c.fetchall()
         except Exception as e:
-            bt.logging.error(f"Error fetching all non-exported event predictions for interval {interval_minutes}: {repr(e)}")
+            bt.logging.error(f"Error fetching all non-exported event predictions: {repr(e)}")
             bt.logging.error(traceback.format_exc())
-        finally:
-            conn.close()
-        return result
+            return []
+        conn.close()
+        output = result
+        return output
 
     async def miner_predict(self, pe: ProviderEvent, uid: int, answer: float, interval_start_minutes: int, blocktime: int) -> Submission:
+        # bt.logging.info(f'{uid=} retrieving submission..')
+        submission: Submission = pe.miner_predictions.get(uid)
         market_type = pe.metadata.get('market_type', pe.market_type)
         if market_type == 'azuro':
             self.update_cluster_prediction(pe, uid, blocktime, 0, answer)
         else:
+            # aggregate all previous intervals if not yet
+            # self._resolve_previous_intervals(pe, uid, interval_start_minutes)
+            # bt.logging.info(f"{uid=} identifying interval for {interval_start_minutes=} {pe}")
             self.update_cluster_prediction(pe, uid, blocktime, interval_start_minutes, answer)
-        return Submission(submitted_ts=int(datetime.now(tz=timezone.utc).timestamp()), blocktime=blocktime, answer=answer)
+
+        return submission
