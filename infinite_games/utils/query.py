@@ -1,5 +1,6 @@
 import os
 from typing import Any, AsyncGenerator, List, Union
+
 import bittensor as bt
 from bittensor import AxonInfo
 

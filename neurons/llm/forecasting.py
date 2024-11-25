@@ -1,7 +1,7 @@
 from datetime import datetime
 
-from . import ranking, summarize, ensemble
-from .config.keys import OPENAI_KEY, GOOGLE_AI_KEY
+from . import ensemble, ranking, summarize
+from .config.keys import GOOGLE_AI_KEY, OPENAI_KEY
 from .prompts.prompts import PROMPT_DICT
 
 

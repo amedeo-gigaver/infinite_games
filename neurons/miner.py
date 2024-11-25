@@ -1,6 +1,24 @@
 # The MIT License (MIT)
 # Copyright © 2023 Yuma Rao
 import os
+import time
+import typing
+from datetime import datetime
+
+import bittensor as bt
+
+import infinite_games
+
+# import base miner class which takes care of most of the boilerplate
+from infinite_games.base.miner import BaseMinerNeuron
+from infinite_games.events.azuro import AzuroProviderIntegration
+from infinite_games.events.polymarket import PolymarketProviderIntegration
+from infinite_games.utils.miner_cache import (
+    MarketType,
+    MinerCache,
+    MinerCacheObject,
+    MinerCacheStatus,
+)
 
 # Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
 # documentation files (the “Software”), to deal in the Software without restriction, including without limitation
@@ -16,24 +34,6 @@ import os
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 
-import time
-import typing
-from datetime import datetime
-
-import bittensor as bt
-
-import infinite_games
-
-# import base miner class which takes care of most of the boilerplate
-from infinite_games.base.miner import BaseMinerNeuron
-from infinite_games.events.azuro import AzuroProviderIntegration
-from infinite_games.events.polymarket import PolymarketProviderIntegration
-from infinite_games.utils.miner_cache import (
-    MinerCache,
-    MinerCacheStatus,
-    MinerCacheObject,
-    MarketType,
-)
 
 if os.getenv("OPENAI_KEY"):
     from llm.forecasting import Forecaster

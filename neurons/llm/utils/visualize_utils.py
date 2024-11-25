@@ -1,12 +1,13 @@
 # Standard library imports
 import datetime
 
-# Related third-party imports
-from IPython.core.display import HTML
 import markdown2
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+
+# Related third-party imports
+from IPython.core.display import HTML
 from scipy.stats import logistic
 from utils import utils
 

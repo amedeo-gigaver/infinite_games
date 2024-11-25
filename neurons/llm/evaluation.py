@@ -3,15 +3,15 @@ import logging
 
 # Local application/library-specific imports
 import alignment
-from config.constants import (
-    DEFAULT_RETRIEVAL_CONFIG,
-    DEFAULT_REASONING_CONFIG,
-    S3,
-    S3_BUCKET_NAME,
-)
 import ensemble
 import ranking
 import summarize
+from config.constants import (
+    DEFAULT_REASONING_CONFIG,
+    DEFAULT_RETRIEVAL_CONFIG,
+    S3,
+    S3_BUCKET_NAME,
+)
 from utils import db_utils
 
 # Set up logging

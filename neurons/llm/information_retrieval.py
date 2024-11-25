@@ -1,26 +1,27 @@
 # Standard library imports
 import asyncio
+import json
 import logging
 import re
-import json
-
-from urllib.parse import urlparse, quote
-from selectolax.parser import HTMLParser
 from datetime import datetime
+from urllib.parse import quote, urlparse
+
+import newspaper
+import requests
 from dateutil.relativedelta import relativedelta
 
 # Related third-party imports
 from gnews import GNews
-import newspaper
 from newscatcherapi import NewsCatcherApiClient
-import requests
+from selectolax.parser import HTMLParser
+
+from . import model_eval
 
 # Local application/library-specific imports
 from .config.constants import IRRETRIEVABLE_SITES
 from .config.keys import NEWSCASTCHER_KEY
 from .config.site_whitelist import NEWS_WHITE_LIST
-from . import model_eval
-from .utils import time_utils, string_utils
+from .utils import string_utils, time_utils
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)

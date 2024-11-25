@@ -1,13 +1,12 @@
 import asyncio
-from datetime import datetime
 import os
-
-from bittensor.mock.wallet_mock import MockWallet, get_mock_wallet
-from bittensor.mock import MockSubtensor
-from pytest import fixture
 import shutil
+from datetime import datetime
 
 import bittensor as bt
+from bittensor.mock import MockSubtensor
+from bittensor.mock.wallet_mock import MockWallet, get_mock_wallet
+from pytest import fixture
 
 bt.debug(True)
 

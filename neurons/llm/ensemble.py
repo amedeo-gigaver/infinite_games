@@ -4,9 +4,10 @@ import logging
 # Related third-party imports
 import numpy as np
 
+from . import model_eval
+
 # Local application/library-specific imports
 from .config.constants import TOKENS_TO_PROBS_DICT
-from . import model_eval
 from .prompts.prompts import PROMPT_DICT
 from .utils import string_utils, utils
 

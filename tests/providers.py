@@ -1,8 +1,8 @@
 from datetime import datetime, timezone
 
-from infinite_games.events.ifgames import IFGamesProviderIntegration
 from infinite_games.events.azuro import AzuroProviderIntegration
 from infinite_games.events.base import EventStatus, ProviderEvent
+from infinite_games.events.ifgames import IFGamesProviderIntegration
 from infinite_games.events.polymarket import PolymarketProviderIntegration
 from tests.utils import after
 

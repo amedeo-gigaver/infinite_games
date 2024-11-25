@@ -3,19 +3,20 @@ import asyncio
 import logging
 import time
 
-# Related third-party imports
-import openai
 import anthropic
 import google.generativeai as google_ai
 
+# Related third-party imports
+import openai
+
 # Local application/library-specific imports
-from .config.constants import OAI_SOURCE, ANTHROPIC_SOURCE, TOGETHER_AI_SOURCE, GOOGLE_SOURCE
-from .config.keys import (
-    ANTHROPIC_KEY,
-    OPENAI_KEY,
-    TOGETHER_KEY,
-    GOOGLE_AI_KEY,
+from .config.constants import (
+    ANTHROPIC_SOURCE,
+    GOOGLE_SOURCE,
+    OAI_SOURCE,
+    TOGETHER_AI_SOURCE,
 )
+from .config.keys import ANTHROPIC_KEY, GOOGLE_AI_KEY, OPENAI_KEY, TOGETHER_KEY
 from .utils import model_utils, string_utils
 
 # Setup code

@@ -3,11 +3,12 @@ import concurrent.futures
 import logging
 import re
 
+import model_eval
+
 # Local application/library-specific imports
 from config.constants import S3, S3_BUCKET_NAME
-import model_eval
 from prompts.prompts import PROMPT_DICT
-from utils import db_utils, time_utils, string_utils
+from utils import db_utils, string_utils, time_utils
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)

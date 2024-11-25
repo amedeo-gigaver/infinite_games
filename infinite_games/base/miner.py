@@ -16,13 +16,13 @@
 # DEALINGS IN THE SOFTWARE.
 
 
-import time
-import torch
 import asyncio
 import threading
+import time
 import traceback
 
 import bittensor as bt
+import torch
 
 from infinite_games.base.neuron import BaseNeuron
 

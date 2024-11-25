@@ -1,7 +1,8 @@
 # Related third-party imports
-from datetime import datetime, timedelta
-import pandas as pd
 import math
+from datetime import datetime, timedelta
+
+import pandas as pd
 
 
 def extract_date(datetime):

@@ -17,17 +17,17 @@
 # DEALINGS IN THE SOFTWARE.
 
 import asyncio
-
-
-from datetime import datetime, timedelta, timezone
-
 import json
 import sys
-from time import sleep
-from freezegun import freeze_time
-import torch
 import unittest
+from datetime import datetime, timedelta, timezone
+from time import sleep
+
 import bittensor as bt
+import torch
+from bittensor.mock import wallet_mock
+from bittensor.mock.wallet_mock import MockWallet
+from freezegun import freeze_time
 
 from infinite_games.events.azuro import AzuroProviderIntegration
 from infinite_games.events.base import (
@@ -38,12 +38,9 @@ from infinite_games.events.base import (
 from infinite_games.events.polymarket import PolymarketProviderIntegration
 from infinite_games.protocol import EventPredictionSynapse
 from neurons.validator import Validator
-from bittensor.mock import wallet_mock
-from bittensor.mock.wallet_mock import MockWallet
-
 from tests.providers import (
-    MockIFGamesProviderIntegration,
     MockAzuroProviderIntegration,
+    MockIFGamesProviderIntegration,
     MockPolymarketProviderIntegration,
 )
 from tests.utils import after, before, fake_synapse_response

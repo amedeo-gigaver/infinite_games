@@ -1,10 +1,11 @@
 # Standard library imports
 from datetime import datetime
 
+from config.constants import S3, S3_BUCKET_NAME
+from config.keys import keys
+
 # Local application/library-specific imports
 from utils import db_utils
-from config.keys import keys
-from config.constants import S3_BUCKET_NAME, S3
 
 # Set up constants
 AWS_ACCESS_KEY = keys["AWS_ACCESS_KEY"]
