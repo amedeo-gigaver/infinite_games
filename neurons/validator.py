@@ -61,9 +61,14 @@ class Validator(BaseValidatorNeuron):
     """
     Validator neuron class.
 
-    This class inherits from the BaseValidatorNeuron class, which in turn inherits from BaseNeuron. The BaseNeuron class takes care of routine tasks such as setting up wallet, subtensor, metagraph, logging directory, parsing config, etc. You can override any of the methods in BaseNeuron if you need to customize the behavior.
+    This class inherits from the BaseValidatorNeuron class, which in turn inherits from BaseNeuron.
+    The BaseNeuron class takes care of routine tasks such as setting up wallet, subtensor, metagraph,
+    logging directory, parsing config, etc. You can override any of the methods in BaseNeuron if you
+    need to customize the behavior.
 
-    This class provides reasonable default behavior for a validator such as keeping a moving average of the scores of the miners and using them to set weights at the end of each epoch. Additionally, the scores are reset for new hotkeys at the end of each epoch.
+    This class provides reasonable default behavior for a validator such as keeping a moving average
+    of the scores of the miners and using them to set weights at the end of each epoch.
+    Additionally, the scores are reset for new hotkeys at the end of each epoch.
     """
 
     def __init__(self, integrations, db_path="validator.db", config=None):
@@ -294,6 +299,7 @@ class Validator(BaseValidatorNeuron):
                         effective_finish_start_minutes,
                         CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES,
                     ):
+
                         interval_data = (prediction_intervals or {}).get(
                             interval_start_minutes, {"interval_agg_prediction": None}
                         )
@@ -433,75 +439,108 @@ class Validator(BaseValidatorNeuron):
         The forward function is called by the validator every time step.
 
         """
-        await self.initialize_provider()
-        self.reset_daily_average_scores()
-        self.print_info()
-        block_start = self.block
+        try:
+            await self.initialize_provider()
+            self.reset_daily_average_scores()
+            self.print_info()
+            block_start = self.block
 
-        miner_uids = infinite_games.utils.uids.get_all_uids(self)
-        # Create synapse object to send to the miner.
-        synapse = infinite_games.protocol.EventPredictionSynapse()
-        events_available_for_submission = self.event_provider.get_events_for_submission()
-        bt.logging.info(f"Event for submission: {len(events_available_for_submission)}")
-        synapse.init(events_available_for_submission)
-        bt.logging.info(f"Axons: {len(self.metagraph.axons)}")
-        for axon in self.metagraph.axons:
-            bt.logging.trace(f"IP: {axon.ip}, hotkey id: {axon.hotkey}")
-        self.event_provider.sync_miners(
-            [(uid, self.metagraph.axons[uid]) for uid in range(self.metagraph.n.item())],
-            block_start,
-        )
-        bt.logging.info("Querying miners..")
-        # The dendrite client queries the network.
-        responses = query_miners(
-            self.dendrite, [self.metagraph.axons[uid] for uid in miner_uids], synapse
-        )
-        now = datetime.now(timezone.utc)
-        minutes_since_epoch = int((now - CLUSTER_EPOCH_2024).total_seconds()) // 60
-        interval_start_minutes = minutes_since_epoch - (
-            minutes_since_epoch % (CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES)
-        )
+            miner_uids = infinite_games.utils.uids.get_all_uids(self)
+            # Create synapse object to send to the miner.
+            synapse = infinite_games.protocol.EventPredictionSynapse()
+            events_available_for_submission = self.event_provider.get_events_for_submission()
+            bt.logging.info(f"Event for submission: {len(events_available_for_submission)}")
+            synapse.init(events_available_for_submission)
+            bt.logging.info(f"Axons: {len(self.metagraph.axons)}")
+            for axon in self.metagraph.axons:
+                bt.logging.trace(f"IP: {axon.ip}, hotkey id: {axon.hotkey}")
+            self.event_provider.sync_miners(
+                [(uid, self.metagraph.axons[uid]) for uid in range(self.metagraph.n.item())],
+                block_start,
+            )
+            bt.logging.info("Querying miners..")
+            # The dendrite client queries the network.
+            responses = query_miners(
+                self.dendrite, [self.metagraph.axons[uid] for uid in miner_uids], synapse
+            )
+            now = datetime.now(timezone.utc)
+            minutes_since_epoch = int((now - CLUSTER_EPOCH_2024).total_seconds()) // 60
+            interval_start_minutes = minutes_since_epoch - (
+                minutes_since_epoch % (CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES)
+            )
 
-        any_miner_processed = False
+            any_miner_processed = False
+            success_count = 0
+            else_count = 0
+            total_count = 0
+            err_count = 0
+            start_time = time.time()
+        except Exception as e:
+            bt.logging.error(f"Error in validator forward pre-loop: {repr(e)}", exc_info=True)
+            raise e
+
         for uid, resp in zip(miner_uids, responses):
             for unique_event_id, event_data in resp.events.items():
-                score = event_data.get("probability")
-                provider_event = self.event_provider.get_registered_event(unique_event_id)
-                if not provider_event:
-                    bt.logging.trace(
-                        f"Miner submission for non registered event detected  {uid=} {unique_event_id=}"
-                    )
-                    continue
-                if score is None:
-                    bt.logging.trace(
-                        f"uid: {uid.item()} no prediction for {unique_event_id} sent, skip.."
-                    )
-                    continue
-                integration = self.event_provider.integrations.get(provider_event.market_type)
-                if not integration:
-                    bt.logging.error(
-                        f"No integration found to register miner submission {uid=} {unique_event_id=} {score=}"
-                    )
-                    continue
-                if integration.available_for_submission(provider_event):
-                    bt.logging.trace(
-                        f"Submission {uid=} for {interval_start_minutes} {unique_event_id}"
-                    )
-                    any_miner_processed = True
-                    try:
+                try:
+                    total_count += 1
+                    score = event_data.get("probability")
+                    provider_event = self.event_provider.get_registered_event(unique_event_id)
+                    if not provider_event:
+                        bt.logging.trace(
+                            f"Miner submission for non registered event detected  {uid=} {unique_event_id=}"
+                        )
+                        else_count += 1
+                        continue
+                    if score is None:
+                        bt.logging.trace(
+                            f"uid: {uid.item()} no prediction for {unique_event_id} sent, skip.."
+                        )
+                        else_count += 1
+                        continue
+                    integration = self.event_provider.integrations.get(provider_event.market_type)
+                    if not integration:
+                        bt.logging.error(
+                            f"No integration found to register miner submission {uid=} {unique_event_id=} {score=}"
+                        )
+                        else_count += 1
+                        continue
+                    if integration.available_for_submission(provider_event):
+                        bt.logging.trace(
+                            f"Submission {uid=} for {interval_start_minutes} {unique_event_id}"
+                        )
+                        any_miner_processed = True
+
                         await self.event_provider.miner_predict(
                             provider_event, uid.item(), score, interval_start_minutes, self.block
                         )
-                    except Exception as e:
+                        success_count += 1
+
+                    else:
+                        bt.logging.trace(
+                            f"Submission received, but this event is not open for submissions miner {uid=} {unique_event_id=} {score=}"
+                        )
+                        else_count += 1
+                        continue
+
+                except Exception as e:
+                    # don't log all errors tracebacks, just first 5 - to avoid spamming logs
+                    if err_count < 5:
+                        bt.logging.error(
+                            f"Error processing miner prediction for uid {uid}: {repr(e)}",
+                            exc_info=True,
+                        )
+                    else:
                         bt.logging.error(
                             f"Error processing miner prediction for uid {uid}: {repr(e)}"
                         )
-                        bt.logging.error(traceback.format_exc())
-                else:
-                    bt.logging.trace(
-                        f"Submission received, but this event is not open for submissions miner {uid=} {unique_event_id=} {score=}"
-                    )
-                    continue
+                    err_count += 1
+
+        elapsed = time.time() - start_time
+        log_msg = (
+            f"Processed {success_count}/{total_count} miner submissions in {elapsed:.2f} seconds; "
+            f"Skipped {else_count} submissions and had {err_count} errors"
+        )
+        bt.logging.info(log_msg)
 
         if any_miner_processed:
             bt.logging.info("Processed miner responses.")
@@ -509,11 +548,17 @@ class Validator(BaseValidatorNeuron):
             bt.logging.info("No miner submissions received")
         self.blocktime += 1
         if os.environ.get("ENV") != "pytest":
-            while block_start == self.block:
-                bt.logging.debug(
-                    f"FORWARD INTERVAL: {float(os.environ.get('VALIDATOR_FORWARD_INTERVAL_SEC', '10'))}"
-                )
-                await asyncio.sleep(float(os.environ.get("VALIDATOR_FORWARD_INTERVAL_SEC", "10")))
+            try:
+                while block_start == self.block:
+                    bt.logging.debug(
+                        f"FORWARD INTERVAL: {float(os.environ.get('VALIDATOR_FORWARD_INTERVAL_SEC', '10'))}"
+                    )
+                    await asyncio.sleep(
+                        float(os.environ.get("VALIDATOR_FORWARD_INTERVAL_SEC", "10"))
+                    )
+            except Exception as e:
+                bt.logging.error(f"Error in validator forward post-loop: {repr(e)}", exc_info=True)
+                raise e
         # else:
         # await asyncio.sleep(float(os.environ.get('VALIDATOR_FORWARD_INTERVAL_SEC', '10')))
 
