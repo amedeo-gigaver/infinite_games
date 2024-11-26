@@ -95,9 +95,11 @@ def _ttl_hash_gen(seconds: int):
 # order of decorators is CRITICAL here!
 # 12 seconds updating block.
 @backoff.on_exception(
-    backoff.expo,
+    backoff.constant,
     Exception,
-    max_time=60,
+    interval=0.1,
+    max_time=1,
+    max_tries=3,
     on_backoff=lambda details: bt.logging.warning(
         f"Retrying due to exception: {details['exception']}"
     ),

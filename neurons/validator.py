@@ -478,6 +478,11 @@ class Validator(BaseValidatorNeuron):
             bt.logging.error(f"Error in validator forward pre-loop: {repr(e)}", exc_info=True)
             raise e
 
+        loop_msg = (
+            f"Forward loop: processing {len(miner_uids)} miners for interval {interval_start_minutes} - "
+            f"{len(responses)} responses received."
+        )
+        bt.logging.info(loop_msg)
         for uid, resp in zip(miner_uids, responses):
             for unique_event_id, event_data in resp.events.items():
                 try:
@@ -542,7 +547,7 @@ class Validator(BaseValidatorNeuron):
         bt.logging.info(log_msg)
 
         if any_miner_processed:
-            bt.logging.info("Processed miner responses.")
+            bt.logging.info("Processed at least one miner response.")
         else:
             bt.logging.info("No miner submissions received")
         self.blocktime += 1
