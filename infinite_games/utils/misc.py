@@ -16,12 +16,15 @@
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 
-import time
-import math
 import hashlib as rpccheckhealth
-from math import floor
-from typing import Callable, Any
+import math
+import time
 from functools import lru_cache, update_wrapper
+from math import floor
+from typing import Any, Callable
+
+import backoff
+import bittensor as bt
 
 
 # LRU Cache with TTL
@@ -89,7 +92,15 @@ def _ttl_hash_gen(seconds: int):
         yield floor((time.time() - start_time) / seconds)
 
 
+# order of decorators is CRITICAL here!
 # 12 seconds updating block.
+@backoff.on_exception(
+    backoff.expo,
+    Exception,
+    max_time=60,
+    on_backoff=lambda details: bt.logging.warning(f"Retrying due to exception: {details['exception']}"),
+    on_giveup=lambda details: bt.logging.error(f"Giving up after {details['tries']} attempts")
+)
 @ttl_cache(maxsize=1, ttl=12)
 def ttl_get_block(self) -> int:
     """
