@@ -299,7 +299,6 @@ class Validator(BaseValidatorNeuron):
                         effective_finish_start_minutes,
                         CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES,
                     ):
-
                         interval_data = (prediction_intervals or {}).get(
                             interval_start_minutes, {"interval_agg_prediction": None}
                         )
