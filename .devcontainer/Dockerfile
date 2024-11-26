@@ -14,10 +14,9 @@ COPY requirements.txt /workspace/requirements.txt
 COPY requirements_dev.txt /workspace/requirements_dev.txt
 
 # Install Python dependencies
-RUN python -m venv venv \
-    && /venv/bin/python -m pip install --upgrade pip \
-    && /venv/bin/pip install --no-cache-dir -r /workspace/requirements.txt \
-    && /venv/bin/pip install --no-cache-dir -r /workspace/requirements_dev.txt
+RUN pip install --upgrade pip \
+    && pip install --no-cache-dir -r /workspace/requirements.txt \
+    && pip install --no-cache-dir -r /workspace/requirements_dev.txt
 
 ENV PYTHONPATH="/workspace:${PYTHONPATH}"
 
