@@ -89,7 +89,6 @@ class MinerCacheObject(BaseModel):
 
 
 class MinerCache:
-
     def __init__(self):
         self.cache: dict[str, MinerCacheObject] = {}
         self.queue = []

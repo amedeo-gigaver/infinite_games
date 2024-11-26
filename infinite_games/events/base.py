@@ -85,7 +85,6 @@ class ProviderEvent:
 
 
 class ProviderIntegration:
-
     def __init__(self, max_pending_events=None):
         self.max_pending_events = max_pending_events
         if self.max_pending_events:
@@ -119,9 +118,7 @@ class ProviderIntegration:
 
 
 class EventAggregator:
-
     def __init__(self, state_path: str, db_path: str = "database.db"):
-
         self.registered_events: Dict[str, ProviderEvent] = {}
         self.integrations: Dict[str, ProviderIntegration] = None
         self.state_path = state_path
@@ -151,7 +148,6 @@ class EventAggregator:
 
     async def _sync_provider(self, integration: ProviderIntegration):
         async for event in integration.sync_events():
-
             self.register_or_update_event(event)
 
     async def collect_events(self):
@@ -261,7 +257,6 @@ class EventAggregator:
             self.log(f"Update events: {len(pending_events)}")
             # self.log_upcoming(50)
             if len(pending_events) != 0:
-
                 try:
                     events_chunks = split_chunks(
                         list(pending_events), self.MAX_PROVIDER_CONCURRENT_TASKS
@@ -609,7 +604,6 @@ class EventAggregator:
                 for event in self.get_events(
                     statuses=[EventStatus.PENDING, EventStatus.SETTLED], processed=False
                 ):
-
                     if event.market_type == "polymarket":
                         print(f"Migrating {event}..")
                         event.metadata["market_type"] = "polymarket"
@@ -703,7 +697,6 @@ class EventAggregator:
         if miners_len == 0:
             bt.logging.info("No miners, registering all..")
         while tried < tries:
-
             try:
                 cursor.executemany(
                     """
@@ -890,7 +883,6 @@ class EventAggregator:
         tries = 4
         tried = 0
         while tried < tries:
-
             try:
                 cursor.execute(
                     """

@@ -213,7 +213,6 @@ class AzuroProviderIntegration(ProviderIntegration):
             self.log(f"Syncing events from {now}")
             start_from = int(now.timestamp())
         else:
-
             self.log(f"Syncing events {start_from=} ")
         query = gql(
             """

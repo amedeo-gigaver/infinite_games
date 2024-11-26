@@ -24,7 +24,6 @@ from infinite_games.events.base import ProviderEvent
 
 
 class EventPredictionSynapse(bt.Synapse):
-
     events: dict = {}
 
     def init(self, events: List[ProviderEvent]):

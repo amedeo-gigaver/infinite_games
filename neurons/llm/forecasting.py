@@ -62,7 +62,6 @@ def _get_reasoning_config(model_setup: dict):
 
 
 class Forecaster:
-
     model_setups = {
         # Budget version of OPENAI models
         0: {

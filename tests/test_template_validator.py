@@ -47,7 +47,6 @@ from tests.utils import after, before, fake_synapse_response
 
 
 class TestTemplateValidatorNeuronTestCase:
-
     async def next_run(self, v: Validator):
         """Imitate Validator.run with 1 step"""
 
@@ -115,7 +114,6 @@ class TestTemplateValidatorNeuronTestCase:
             monkeypatch.setattr("neurons.validator.query_miners", lambda a, b, c: mock_response)
             self.next_run(v)
         for window in range(1, 42):
-
             window_time = initial_date + timedelta(
                 minutes=CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES * window
             )
@@ -125,7 +123,6 @@ class TestTemplateValidatorNeuronTestCase:
         # based on providers.py hardcode values
         settle_date = initial_date + timedelta(days=7)
         with freeze_time(settle_date, tick=True):
-
             test_event = await iggames_provider.get_single_event(
                 "dbcba93a-fe3b-4092-b918-8231b23f2faa"
             )
@@ -255,7 +252,6 @@ class TestTemplateValidatorNeuronTestCase:
             monkeypatch.setattr("neurons.validator.query_miners", lambda a, b, c: mock_response)
             await self.next_run(v)
         for window in range(1, 42):
-
             window_time = initial_date + timedelta(
                 minutes=CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES * window
             )
@@ -265,7 +261,6 @@ class TestTemplateValidatorNeuronTestCase:
         # based on providers.py hardcode values
         settle_date = initial_date + timedelta(days=7)
         with freeze_time(settle_date, tick=True):
-
             test_event = await iggames_provider.get_single_event(
                 "cbcba93a-fe3b-4092-b918-8231b23f2faa"
             )

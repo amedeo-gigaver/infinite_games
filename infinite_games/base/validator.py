@@ -329,7 +329,6 @@ class BaseValidatorNeuron(BaseNeuron):
         # Sync the metagraph.
         while not synced:
             try:
-
                 self.metagraph.sync(subtensor=self.subtensor)
                 synced = True
             except Exception as e:
@@ -465,7 +464,6 @@ class BaseValidatorNeuron(BaseNeuron):
         miner_logs = ""
         measurement = os.environ.get("AVERAGE_MEASUREMENT_NAME", "miners_average_scores")
         if miner_scores:
-
             for miner_id, score, total_weight in miner_scores:
                 # bt.logging.debug(f'Miner {miner_id} {score} {old_weight} -> {total_weight}')
                 miner_logs += f"{measurement},source={miner_id},vali={self.wallet.hotkey.ss58_address} metric={score},weight={total_weight}\n"
@@ -500,7 +498,6 @@ class BaseValidatorNeuron(BaseNeuron):
         miner_logs = ""
         measurement = os.environ.get("EVENT_MEASUREMENT_NAME", "miners_event_scores")
         if miner_scores:
-
             for miner_id, market_type, event_id, brier_score, effective_score in miner_scores:
                 # bt.logging.debug(f'Miner {miner_id} {brier_score}')
                 miner_logs += f"{measurement},source={miner_id},vali={self.wallet.hotkey.ss58_address} score={brier_score},effective_score={effective_score}\n"

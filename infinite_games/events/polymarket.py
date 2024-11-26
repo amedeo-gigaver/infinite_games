@@ -159,7 +159,6 @@ class PolymarketProviderIntegration(ProviderIntegration):
                             await self._handle_429(resp)
                         # self.log(f'Retry {url}.. {retried + 1}')
                     else:
-
                         payload = await resp.json()
                         return payload
             except Exception as e:
@@ -202,7 +201,6 @@ class PolymarketProviderIntegration(ProviderIntegration):
                     self.error(str(e))
 
             if resp:
-
                 cursor = nxt["next_cursor"]
                 for market in nxt["data"]:
                     if count > max_events:
@@ -227,7 +225,6 @@ class PolymarketProviderIntegration(ProviderIntegration):
                             continue
                         yield pe
                     except Exception as e:
-
                         self.error(f"Error parse market {market.get('market_slug')} {e} {market}")
                         self.error(traceback.format_exc())
             else:

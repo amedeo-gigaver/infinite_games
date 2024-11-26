@@ -134,14 +134,14 @@ class Miner(BaseMinerNeuron):
                     if cached_market.event.retries > 0 and cached_market.event.next_try <= int(
                         today.timestamp()
                     ):
-
                         # Set the stored object in a rerun state.
                         cached_market.set_for_rerun()
 
                         # After this re-run, set the next.
-                        cached_market.event.retries, cached_market.event.next_try = (
-                            await _calculate_next_try(cached_market)
-                        )
+                        (
+                            cached_market.event.retries,
+                            cached_market.event.next_try,
+                        ) = await _calculate_next_try(cached_market)
 
                         await self.cache.add(cid, self._generate_prediction, cached_market)
                     else:
