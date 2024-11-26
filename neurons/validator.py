@@ -374,31 +374,49 @@ class Validator(BaseValidatorNeuron):
         interval_start_minutes = minutes_since_epoch - (minutes_since_epoch % (CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES))
 
         any_miner_processed = False
+        success_count = 0
+        else_count = 0
+        total_count = 0
+        err_count = 0
+        start_time = time.time()
         for (uid, resp) in zip(miner_uids, responses):
             for (unique_event_id, event_data) in resp.events.items():
+                total_count += 1
                 score = event_data.get('probability')
                 provider_event = self.event_provider.get_registered_event(unique_event_id)
                 if not provider_event:
                     bt.logging.trace(f'Miner submission for non registered event detected  {uid=} {unique_event_id=}')
+                    else_count += 1
                     continue
                 if score is None:
                     bt.logging.trace(f'uid: {uid.item()} no prediction for {unique_event_id} sent, skip..')
+                    else_count += 1
                     continue
                 integration = self.event_provider.integrations.get(provider_event.market_type)
                 if not integration:
                     bt.logging.error(f'No integration found to register miner submission {uid=} {unique_event_id=} {score=}')
+                    else_count += 1
                     continue
                 if integration.available_for_submission(provider_event):
                     bt.logging.trace(f'Submission {uid=} for {interval_start_minutes} {unique_event_id}')
                     any_miner_processed = True
                     try:
                         await self.event_provider.miner_predict(provider_event, uid.item(), score, interval_start_minutes, self.block)
+                        success_count += 1
                     except Exception as e:
-                        bt.logging.error(f"Error processing miner prediction for uid {uid}: {repr(e)}")
-                        bt.logging.error(traceback.format_exc())
+                        err_count += 1
+                        bt.logging.error(f"Error processing miner prediction for uid {uid}: {repr(e)}", exc_info=True)
                 else:
                     bt.logging.trace(f'Submission received, but this event is not open for submissions miner {uid=} {unique_event_id=} {score=}')
+                    else_count += 1
                     continue
+
+        elapsed = time.time() - start_time
+        log_msg = (
+            f"Processed {success_count}/{total_count} miner submissions in {elapsed:.2f} seconds; "
+            f"Skipped {else_count} submissions and had {err_count} errors"
+        )
+        bt.logging.info(log_msg)
 
         if any_miner_processed:
             bt.logging.info("Processed miner responses.")
