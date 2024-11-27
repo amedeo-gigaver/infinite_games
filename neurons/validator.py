@@ -74,11 +74,11 @@ class Validator(BaseValidatorNeuron):
     # get_block often errors in testnet, so we override it here
     @property
     def block(self):
-        if self.is_test:
+        if self.subtensor.network in ["test", "mock"]:
             # seen in logs
             # 2024-11-26 18:21:05.770 |  Validator starting at block: 3322388
             start_ts_str = "2024-11-26 18:21:05"
-            start_ts = datetime.strptime(start_ts_str, "%Y-%m-%d %H:%M:%S.%f")
+            start_ts = datetime.strptime(start_ts_str, "%Y-%m-%d %H:%M:%S")
             time_diff = datetime.now() - start_ts
             n_blocks = int(time_diff.total_seconds() / 12)
             start_block = 3322388
