@@ -28,6 +28,7 @@ from infinite_games.base.miner import BaseMinerNeuron
 from infinite_games.events.azuro import AzuroProviderIntegration
 from infinite_games.events.polymarket import PolymarketProviderIntegration
 from infinite_games.utils.miner_cache import MinerCache, MinerCacheStatus, MinerCacheObject, MarketType
+from infinite_games.events.fred import FredAnalyzer
 
 if os.getenv("OPENAI_KEY"):
     from llm.forecasting import Forecaster
@@ -66,6 +67,7 @@ class Miner(BaseMinerNeuron):
         self.providers_set = False
         self.azuro = None
         self.polymarket = None
+        self.fred_analyzer = FredAnalyzer()
         self.cache = MinerCache()
         self.cache.initialize_cache()
         self.llm = Forecaster() if os.getenv("OPENAI_KEY") else None
@@ -87,8 +89,28 @@ class Miner(BaseMinerNeuron):
                 x = await self.azuro.get_event_by_id(market.event.event_id)
                 market.event.probability = 1.0 / float(x["outcome"]["currentOdds"])
 
+            # FRED events
+            elif market.event.market_type == MarketType.FRED:
+                target_value = float([x for x in market.event.title.split() if x.endswith('%')][0].rstrip('%'))
+                
+                fred_prob = await self.fred_analyzer.predict(
+                    market.event.description,
+                    target_value
+                )
+                
+                # If LLM is available, combine predictions
+                if self.llm:
+                    llm_prediction = await self.llm.get_prediction(market)
+                    if llm_prediction is not None:
+                        # Weighted average of FRED and LLM predictions
+                        market.event.probability = 0.7 * fred_prob + 0.3 * llm_prediction
+                    else:
+                        market.event.probability = fred_prob
+                else:
+                    market.event.probability = fred_prob
+
             else:
-                # LLM
+                # Other market types
                 llm_prediction = (await self.llm.get_prediction(market)) if self.llm else None
                 if llm_prediction is not None:
                     market.event.probability = llm_prediction
@@ -105,7 +127,7 @@ class Miner(BaseMinerNeuron):
                 )
             )
         except Exception as e:
-            bt.logging.error("Failed to assign, probability, {}".format(e))
+            bt.logging.error("Failed to assign probability, {}".format(e))
 
     async def forward(
             self, synapse: infinite_games.protocol.EventPredictionSynapse
