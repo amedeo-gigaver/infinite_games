@@ -175,3 +175,6 @@ test.db
 
 # macOS stuff
 .DS_Store
+
+# bittensor test wallets
+.bittensor

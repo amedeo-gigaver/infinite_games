@@ -19,6 +19,7 @@
 import hashlib as rpccheckhealth
 import math
 import time
+from datetime import datetime
 from functools import lru_cache, update_wrapper
 from math import floor
 from typing import Any, Callable
@@ -124,7 +125,19 @@ def ttl_get_block(self) -> int:
 
     Note: self here is the miner or validator instance
     """
-    return self.subtensor.get_current_block()
+
+    # get_current_block often errors in testnet, so we override it here
+    if self.subtensor.network in ["test", "mock"]:
+        # seen in logs
+        # 2024-11-26 18:21:05.770 |  Validator starting at block: 3322388
+        start_ts_str = "2024-11-26 18:21:05"
+        start_ts = datetime.strptime(start_ts_str, "%Y-%m-%d %H:%M:%S")
+        time_diff = datetime.now() - start_ts
+        n_blocks = int(time_diff.total_seconds() / 12)
+        start_block = 3322388
+        return start_block + n_blocks
+    else:
+        return self.subtensor.get_current_block()
 
 
 async def split_chunks(l, n):
