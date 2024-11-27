@@ -102,7 +102,9 @@ class Validator(BaseValidatorNeuron):
         self.db_path = db_path
         self.last_log_block = 0
         # TODO: fix this messy check; second conditions should work
-        self.is_test = "subtensor.networktest" in ("".join(sys.argv)) or self.subtensor.network == "test"
+        self.is_test = (
+            "subtensor.networktest" in ("".join(sys.argv)) or self.subtensor.network == "test"
+        )
         self.base_api_url = "https://stage.ifgames.win" if self.is_test else "https://ifgames.win"
         if self.is_test:
             log_msg = (
