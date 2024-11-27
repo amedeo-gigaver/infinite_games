@@ -71,21 +71,6 @@ class Validator(BaseValidatorNeuron):
     Additionally, the scores are reset for new hotkeys at the end of each epoch.
     """
 
-    # get_block often errors in testnet, so we override it here
-    @property
-    def block(self):
-        if self.subtensor.network in ["test", "mock"]:
-            # seen in logs
-            # 2024-11-26 18:21:05.770 |  Validator starting at block: 3322388
-            start_ts_str = "2024-11-26 18:21:05"
-            start_ts = datetime.strptime(start_ts_str, "%Y-%m-%d %H:%M:%S")
-            time_diff = datetime.now() - start_ts
-            n_blocks = int(time_diff.total_seconds() / 12)
-            start_block = 3322388
-            return start_block + n_blocks
-        else:
-            return super().block
-
     def __init__(self, integrations, db_path="validator.db", config=None):
         bt.logging.info("Validator __init__ start")
         start_time = time.time()
