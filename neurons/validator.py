@@ -71,6 +71,21 @@ class Validator(BaseValidatorNeuron):
     Additionally, the scores are reset for new hotkeys at the end of each epoch.
     """
 
+    # get_block often errors in testnet, so we override it here
+    @property
+    def block(self):
+        if self.is_test:
+            # seen in logs
+            # 2024-11-26 18:21:05.770 |  Validator starting at block: 3322388
+            start_ts_str = "2024-11-26 18:21:05"
+            start_ts = datetime.strptime(start_ts_str, "%Y-%m-%d %H:%M:%S.%f")
+            time_diff = datetime.now() - start_ts
+            n_blocks = int(time_diff.total_seconds() / 12)
+            start_block = 3322388
+            return start_block + n_blocks
+        else:
+            return super().block
+
     def __init__(self, integrations, db_path="validator.db", config=None):
         bt.logging.info("Validator __init__ start")
         start_time = time.time()
@@ -83,14 +98,18 @@ class Validator(BaseValidatorNeuron):
         self.event_provider = None
         self.SEND_LOGS_INTERVAL = 60 * 60
         self.SEND_MINER_LOGS_INTERVAL = 60 * 60 * 4
-        self.is_test = self.subtensor.network == "test"
         self.integrations = integrations
         self.db_path = db_path
         self.last_log_block = 0
-        self.is_test = "subtensor.networktest" in ("".join(sys.argv))
+        # TODO: fix this messy check; second conditions should work
+        self.is_test = "subtensor.networktest" in ("".join(sys.argv)) or self.subtensor.network == "test"
         self.base_api_url = "https://stage.ifgames.win" if self.is_test else "https://ifgames.win"
         if self.is_test:
-            bt.logging.info(f"Using provider in test mode with base url: {self.base_api_url}")
+            log_msg = (
+                f"Using provider in test mode with base url: {self.base_api_url};"
+                f" Subtensor network: {self.subtensor.network}"
+            )
+            bt.logging.info(log_msg)
         end_time = time.time()
         bt.logging.info(f"Validator __init__ completed in {end_time - start_time:.2f} seconds")
 
@@ -376,6 +395,7 @@ class Validator(BaseValidatorNeuron):
         return False
 
     def export_scores(self, p_event: ProviderEvent, miner_score_data):
+        start_time = time.time()
         if os.environ.get("ENV") != "pytest":
             try:
                 v_uid = self.metagraph.hotkeys.index(self.wallet.get_hotkey().ss58_address)
@@ -432,6 +452,7 @@ class Validator(BaseValidatorNeuron):
                 bt.logging.error(traceback.format_exc())
         else:
             bt.logging.info("Skip export scores in test")
+        bt.logging.info(f"export_scores completed in {time.time() - start_time:.2f} seconds")
 
     async def forward(self):
         """
@@ -439,6 +460,7 @@ class Validator(BaseValidatorNeuron):
 
         """
         try:
+            start_time = time.time()
             await self.initialize_provider()
             self.reset_daily_average_scores()
             self.print_info()
@@ -467,6 +489,7 @@ class Validator(BaseValidatorNeuron):
             interval_start_minutes = minutes_since_epoch - (
                 minutes_since_epoch % (CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES)
             )
+            bt.logging.info(f"Forward pre-loop done in {time.time() - start_time:.2f} seconds")
 
             any_miner_processed = False
             success_count = 0
