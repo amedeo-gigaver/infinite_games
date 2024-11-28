@@ -492,40 +492,6 @@ class BaseValidatorNeuron(BaseNeuron):
             bt.logging.error(traceback.format_exc())
 
     @backoff.on_exception(backoff.expo, Exception, max_tries=6)
-    def send_event_scores(self, miner_scores=None):
-        if not self.GRAFANA_API_KEY:
-            return
-        miner_logs = ""
-        measurement = os.environ.get("EVENT_MEASUREMENT_NAME", "miners_event_scores")
-        if miner_scores:
-            for miner_id, market_type, event_id, brier_score, effective_score in miner_scores:
-                # bt.logging.debug(f'Miner {miner_id} {brier_score}')
-                miner_logs += f"{measurement},source={miner_id},vali={self.wallet.hotkey.ss58_address} score={brier_score},effective_score={effective_score}\n"
-                miner_logs += f"{measurement}_event,source={miner_id},vali={self.wallet.hotkey.ss58_address},market_type={market_type},event_id={event_id} score={brier_score},effective_score={effective_score}\n"
-
-        body = f"""
-        {miner_logs}
-        """
-
-        try:
-            response = requests.post(
-                "https://influx-prod-24-prod-eu-west-2.grafana.net/api/v1/push/influx/write",
-                headers={
-                    "Content-Type": "text/plain",
-                },
-                data=str(body),
-                auth=(self.USER_ID, self.GRAFANA_API_KEY),
-            )
-            status_code = response.status_code
-            if status_code != 204:
-                bt.logging.error(f'*** Error sending logs! {response.content.decode("utf8")}')
-            else:
-                bt.logging.debug("*** Grafana logs sent")
-        except Exception as e:
-            bt.logging.error(f"Error sending event scores: {repr(e)}")
-            bt.logging.error(traceback.format_exc())
-
-    @backoff.on_exception(backoff.expo, Exception, max_tries=6)
     def send_interval_data(self, miner_data):
         if os.environ.get("ENV") != "pytest":
             try:
