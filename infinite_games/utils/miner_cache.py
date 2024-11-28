@@ -31,6 +31,7 @@ class MarketType(enum.Enum):
     UMA = 6
     FRED = 7
     CRYPTO = 8
+    LLM = 9
 
 
 class Event(BaseModel):
