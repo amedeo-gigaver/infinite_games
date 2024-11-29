@@ -18,10 +18,15 @@
 
 import asyncio
 import json
+import os
+import sqlite3
 import sys
 import unittest
+from collections import Counter
+from copy import deepcopy
 from datetime import datetime, timedelta, timezone
 from time import sleep
+from unittest.mock import patch
 
 import bittensor as bt
 import torch
@@ -127,11 +132,20 @@ class TestTemplateValidatorNeuronTestCase:
                 "dbcba93a-fe3b-4092-b918-8231b23f2faa"
             )
 
+            assert test_event.market_type == "ifgames"
             test_event.status = EventStatus.SETTLED
             test_event.answer = 1
-            v.event_provider.register_or_update_event(test_event)
+            # not a new event
+            is_new = v.event_provider.register_or_update_event(test_event)
+            assert is_new is False
 
             await self.next_run(v)
+
+        actual_event = v.event_provider.get_event(f"{test_event.market_type}-{test_event.event_id}")
+        assert actual_event.event_id == test_event.event_id
+        assert actual_event.market_type == test_event.market_type
+        assert actual_event.status == EventStatus.SETTLED
+        assert actual_event.answer == 1
 
         assert (round(v.scores[3].item(), 4), round(v.scores[4].item(), 4)) == (0.4, 0.4)
 
@@ -157,7 +171,8 @@ class TestTemplateValidatorNeuronTestCase:
         print("First run")
         initial_date = datetime(year=2024, month=1, day=3)
         with freeze_time(initial_date, tick=True):
-            await self.next_run(v)
+            await v.initialize_provider()
+
             # await restarted_vali.initialize_provider()
             # sleep(4)
             # v.stop_run_thread()
@@ -182,13 +197,18 @@ class TestTemplateValidatorNeuronTestCase:
             # assert v.event_provider.registered_events.get(f'{test_event.market_type}-{test_event.event_id}')
             # assert len(v.event_provider.registered_events) == 1
             assert v.event_provider.integrations
+
             mock_response = fake_synapse_response(v.event_provider.get_events_for_submission())
+            monkeypatch.setattr("neurons.validator.query_miners", lambda a, b, c: mock_response)
+            await self.next_run(v)
+
             mock_response[3].events[f"{test_event.market_type}-{test_event.event_id}"][
                 "probability"
             ] = 0.7
             mock_response[4].events[f"{test_event.market_type}-{test_event.event_id}"][
                 "probability"
             ] = 0.5
+
             monkeypatch.setattr("neurons.validator.query_miners", lambda a, b, c: mock_response)
             print("Second run")
             await self.next_run(v)
@@ -199,6 +219,7 @@ class TestTemplateValidatorNeuronTestCase:
             mock_response[4].events[f"{test_event.market_type}-{test_event.event_id}"][
                 "probability"
             ] = 0.9
+
             monkeypatch.setattr("neurons.validator.query_miners", lambda a, b, c: mock_response)
             await self.next_run(v)
 
@@ -827,3 +848,175 @@ class TestTemplateValidatorNeuronTestCase:
         #                  ]
         #             )
         #     v.send_interval_data(miner_data)
+
+    def get_all_records_table(self, table_name):
+        with sqlite3.connect("test.db") as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                f"SELECT * FROM {table_name}",
+            )
+            return cursor.fetchall()
+
+    async def test_miner_predict_to_db(
+        self, mock_miner_reg_time, mock_network, caplog, monkeypatch, disable_event_updates
+    ):
+        wallet, subtensor = mock_network
+        v = Validator(
+            integrations=[
+                MockAzuroProviderIntegration(max_pending_events=6),
+                MockPolymarketProviderIntegration(),
+                MockIFGamesProviderIntegration(),
+            ],
+            db_path="test.db",
+        )
+
+        initial_date = datetime(year=2024, month=1, day=3)
+        with freeze_time(initial_date, tick=True):
+            await v.initialize_provider()
+            # await self.next_run(v)
+
+            test_event = ProviderEvent(
+                "0x8f3f3f19c4e4015fd9db2f22e653c766154091ef_100100000000000015927404810000000000000365390949_2000",
+                datetime.now(timezone.utc),
+                "ifgames",
+                "Test event 1",
+                None,
+                after(hours=12),
+                None,
+                datetime.now(timezone.utc),
+                EventStatus.PENDING,
+                {},
+                {},
+            )
+
+            test_event_2 = deepcopy(test_event)
+            test_event_2.market_type = "polymarket"
+
+            test_event_3 = deepcopy(test_event)
+            test_event_3.market_type = "azuro"
+            test_event_3.starts = after(hours=12)
+            test_event_3.resolve_date = None
+            test_event_3.metadata = {
+                "market_type": "azuro",
+            }
+
+            all_events = [test_event, test_event_2, test_event_3]
+            for event in all_events:
+                assert v.event_provider.register_or_update_event(event) is True
+            assert v.event_provider.integrations
+
+            # no run, just register events
+            actual_events = self.get_all_records_table("events")
+            actual_miners = self.get_all_records_table("miners")
+            actual_predictions = self.get_all_records_table("predictions")
+
+            assert len(actual_events) == 3
+            assert set([event[0] for event in actual_events]) == {
+                f"{event.market_type}-{event.event_id}" for event in all_events
+            }
+            assert len(actual_miners) == 0
+            assert len(actual_predictions) == 0
+
+            # first run, register miners but None predictions
+            mock_response = fake_synapse_response(v.event_provider.get_events_for_submission())
+            monkeypatch.setattr("neurons.validator.query_miners", lambda a, b, c: mock_response)
+            await self.next_run(v)
+
+            actual_events = self.get_all_records_table("events")
+            actual_miners = self.get_all_records_table("miners")
+            actual_predictions = self.get_all_records_table("predictions")
+
+            assert len(actual_events) == 3
+            assert set([event[0] for event in actual_events]) == {
+                f"{event.market_type}-{event.event_id}" for event in all_events
+            }
+
+            assert len(actual_miners) == 256
+            assert set([miner[1] for miner in actual_miners]) == set(str(i) for i in range(256))
+
+            # second run, set the predictions first time
+            mock_response = fake_synapse_response(v.event_provider.get_events_for_submission())
+            for event in all_events:
+                for miner_uid in range(1, 253):
+                    mock_response[miner_uid].events[f"{event.market_type}-{event.event_id}"][
+                        "probability"
+                    ] = 0.5
+                mock_response[0].events[f"{event.market_type}-{event.event_id}"][
+                    "probability"
+                ] = 0.7
+                mock_response[253].events[f"{event.market_type}-{event.event_id}"][
+                    "probability"
+                ] = None
+                mock_response[254].events[f"{event.market_type}-{event.event_id}"][
+                    "probability"
+                ] = None
+                mock_response[255].events[f"{event.market_type}-{event.event_id}"][
+                    "probability"
+                ] = 0.3
+            monkeypatch.setattr("neurons.validator.query_miners", lambda a, b, c: mock_response)
+            await self.next_run(v)
+
+            actual_events = self.get_all_records_table("events")
+            actual_miners = self.get_all_records_table("miners")
+            actual_predictions = self.get_all_records_table("predictions")
+
+            assert len(actual_events) == 3
+            assert set([event[0] for event in actual_events]) == {
+                f"{event.market_type}-{event.event_id}" for event in all_events
+            }
+
+            assert len(actual_miners) == 256
+            assert set([miner[1] for miner in actual_miners]) == set(str(i) for i in range(256))
+            assert len(actual_predictions) == 762  # missing 2 miners None * 3 events
+            prediction_counter = Counter([pred[7] for pred in actual_predictions])
+            count_counter = Counter([pred[8] for pred in actual_predictions])
+            assert prediction_counter[0.5] == 756
+            assert prediction_counter[0.7] == 3
+            assert prediction_counter[0.3] == 3
+            assert count_counter == {1: 762}
+
+            # third run, set or update the predictions
+            mock_response = fake_synapse_response(v.event_provider.get_events_for_submission())
+            for event in all_events:
+                for miner_uid in range(1, 253):
+                    mock_response[miner_uid].events[f"{event.market_type}-{event.event_id}"][
+                        "probability"
+                    ] = 0.1
+                mock_response[0].events[f"{event.market_type}-{event.event_id}"][
+                    "probability"
+                ] = 0.9
+                mock_response[253].events[f"{event.market_type}-{event.event_id}"][
+                    "probability"
+                ] = 0.5
+                mock_response[254].events[f"{event.market_type}-{event.event_id}"][
+                    "probability"
+                ] = None
+                mock_response[255].events[f"{event.market_type}-{event.event_id}"][
+                    "probability"
+                ] = 0.4
+            monkeypatch.setattr("neurons.validator.query_miners", lambda a, b, c: mock_response)
+            await self.next_run(v)
+
+            actual_events = self.get_all_records_table("events")
+            actual_miners = self.get_all_records_table("miners")
+            actual_predictions = self.get_all_records_table("predictions")
+
+            assert len(actual_miners) == 256
+            assert set([miner[1] for miner in actual_miners]) == set(str(i) for i in range(256))
+            assert len(actual_predictions) == 765  # missing 1 miner None * 3 events
+            prediction_counter = Counter([pred[7] for pred in actual_predictions])
+            count_counter = Counter([pred[8] for pred in actual_predictions])
+            assert prediction_counter[0.3] == 756  # updated with average
+            assert prediction_counter[0.8] == 3
+            assert prediction_counter[0.35] == 3
+            assert prediction_counter[0.5] == 3
+            assert count_counter[1] == 3  # the one which had None in the previous run
+            assert count_counter[2] == 762
+
+    def tearDown(self):
+        # clean the sqlite DB
+        try:
+            os.remove("test.db")
+        except FileNotFoundError:
+            pass
+        return

@@ -95,3 +95,18 @@ def mock_miner_reg_time(monkeypatch):
     )
 
     yield reg_time
+
+
+@fixture(autouse=True, scope="function")
+def clean_db():
+    # Setup: clean the sqlite DB
+    try:
+        os.remove("test.db")
+    except FileNotFoundError:
+        pass
+    yield
+    # Teardown: clean the sqlite DB again after the test
+    try:
+        os.remove("test.db")
+    except FileNotFoundError:
+        pass

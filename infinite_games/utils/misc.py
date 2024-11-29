@@ -98,13 +98,15 @@ def _ttl_hash_gen(seconds: int):
 @backoff.on_exception(
     backoff.constant,
     Exception,
-    interval=0.1,
-    max_time=1,
-    max_tries=3,
+    interval=0.5,
+    max_time=10,
+    max_tries=10,
     on_backoff=lambda details: bt.logging.warning(
-        f"Retrying due to exception: {details['exception']}"
+        f"Retrying get block due to exception: {details['exception']}"
     ),
-    on_giveup=lambda details: bt.logging.error(f"Giving up after {details['tries']} attempts"),
+    on_giveup=lambda details: bt.logging.error(
+        f"Giving up get block after {details['tries']} attempts"
+    ),
 )
 @ttl_cache(maxsize=1, ttl=12)
 def ttl_get_block(self) -> int:

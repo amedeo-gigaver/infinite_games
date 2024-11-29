@@ -21,7 +21,10 @@ from typing import (
     Type,
 )
 
+import backoff
 import bittensor as bt
+import numpy as np
+import pandas as pd
 from bittensor.chain_data import AxonInfo
 
 from infinite_games.utils.misc import split_chunks
@@ -870,57 +873,6 @@ class EventAggregator:
         conn.close()
         return True
 
-    def update_cluster_prediction(
-        self,
-        pe: ProviderEvent,
-        uid: int,
-        blocktime: int,
-        interval_start_minutes: int,
-        new_prediction,
-    ):
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-        tries = 4
-        tried = 0
-        while tried < tries:
-            try:
-                cursor.execute(
-                    """
-                    INSERT into predictions ( unique_event_id, minerHotkey, minerUid, predictedOutcome,interval_start_minutes,interval_agg_prediction,interval_count,submitted,blocktime)
-                    Values (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    ON CONFLICT(unique_event_id,  interval_start_minutes, minerUid)
-                    DO UPDATE set interval_agg_prediction = (interval_agg_prediction * interval_count + ?) / (interval_count + 1), interval_count = interval_count + 1""",
-                    (
-                        self.event_key(pe.market_type, event_id=pe.event_id),
-                        None,
-                        uid,
-                        None,
-                        interval_start_minutes,
-                        new_prediction,
-                        1,
-                        datetime.now(tz=timezone.utc),
-                        blocktime,
-                        new_prediction,
-                    ),
-                )
-                conn.execute("COMMIT")
-                break
-            except sqlite3.OperationalError as e:
-                if "locked" in str(e):
-                    bt.logging.warning(f"Database locked, retry {tried + 1}..")
-                    time.sleep(1 + (2 * tried))
-                    # tried += 1
-                else:
-                    bt.logging.error(f"Error updating cluster prediction {repr(pe)}: {repr(e)}")
-                    bt.logging.error(traceback.format_exc())
-                    break
-            except Exception as e:
-                bt.logging.error(f"Error updating cluster prediction {repr(pe)}: {repr(e)}")
-                bt.logging.error(traceback.format_exc())
-                break
-            tried += 1
-        conn.close()
-
     def get_event_predictions(self, pe: ProviderEvent):
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
@@ -1007,23 +959,108 @@ class EventAggregator:
         output = result
         return output
 
-    async def miner_predict(
-        self,
-        pe: ProviderEvent,
-        uid: int,
-        answer: float,
-        interval_start_minutes: int,
-        blocktime: int,
-    ) -> Submission:
-        # bt.logging.info(f'{uid=} retrieving submission..')
-        submission: Submission = pe.miner_predictions.get(uid)
-        market_type = pe.metadata.get("market_type", pe.market_type)
-        if market_type == "azuro":
-            self.update_cluster_prediction(pe, uid, blocktime, 0, answer)
-        else:
-            # aggregate all previous intervals if not yet
-            # self._resolve_previous_intervals(pe, uid, interval_start_minutes)
-            # bt.logging.info(f"{uid=} identifying interval for {interval_start_minutes=} {repr(pe)}")
-            self.update_cluster_prediction(pe, uid, blocktime, interval_start_minutes, answer)
+    def miner_predict_payload_process(self, payload: pd.DataFrame):
+        details_stats = json.dumps(payload["details"].value_counts().to_dict())
+        bt.logging.info(f"New batch of miner predictions to be inserted: {details_stats}")
 
-        return submission
+        # keep only details = valid, drop the rest
+        payload = payload[payload["details"] == "valid"].copy()
+
+        # Extract 'market_type' from 'provider_event'
+        payload["meta_market_type"] = [
+            pe.metadata.get("market_type", pe.market_type) for pe in payload["provider_event"]
+        ]
+
+        # if metadata market is 'azuro' overwrite interval_start_minutes with 0
+        payload.loc[payload["meta_market_type"] == "azuro", "interval_start_minutes"] = 0
+
+        payload["market_type"] = [pe.market_type for pe in payload["provider_event"]]
+        payload["event_id"] = [pe.event_id for pe in payload["provider_event"]]
+        payload["unique_event_id"] = [
+            self.event_key(market_type, event_id)
+            for market_type, event_id in zip(payload["market_type"], payload["event_id"])
+        ]
+
+        # drop unnecessary columns
+        payload.drop(
+            columns=["provider_event", "details", "event_id", "meta_market_type"], inplace=True
+        )
+
+        payload = payload.astype(
+            {
+                "unique_event_id": "str",
+                "minerUid": "str",  # minerUid is string in the database
+                "interval_start_minutes": "Int64",  # use nullable integer, not 'int'
+                "answer": "float",
+                "blocktime": "Int64",
+            }
+        )
+
+        payload = payload.where(pd.notnull(payload), None)
+        return payload
+
+    @backoff.on_exception(
+        backoff.expo,
+        sqlite3.OperationalError,
+        max_time=60,
+        on_giveup=lambda details: bt.logging.error(
+            f"Giving up batch DB insert for miners after {details['tries']} attempts"
+        ),
+    )
+    def miner_batch_update_predictions(self, payload: pd.DataFrame):
+        payload_processed = self.miner_predict_payload_process(payload)
+
+        if payload_processed.empty:
+            bt.logging.warning("No valid predictions to insert.")
+            return
+
+        update_time = datetime.now(tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+
+        payload_values = [
+            (
+                row["unique_event_id"],
+                None,
+                row["minerUid"],
+                None,
+                row["interval_start_minutes"],
+                row["answer"],
+                1,
+                update_time,
+                row["blocktime"],
+                row["answer"],
+            )
+            for _, row in payload_processed.iterrows()
+        ]
+
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+
+            sql_statement = """
+                INSERT INTO predictions (
+                    unique_event_id,
+                    minerHotkey,
+                    minerUid,
+                    predictedOutcome,
+                    interval_start_minutes,
+                    interval_agg_prediction,
+                    interval_count,
+                    submitted,
+                    blocktime
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(unique_event_id,  interval_start_minutes, minerUid)
+                DO UPDATE SET
+                    interval_agg_prediction = (interval_agg_prediction * interval_count + ?) / (interval_count + 1),
+                    interval_count = interval_count + 1
+            """
+
+            bt.logging.debug(f"Inserting a batch of {len(payload_values)} predictions")
+            cursor.executemany(sql_statement, payload_values)
+            conn.commit()
+        except Exception as e:
+            bt.logging.error(f"Error updating miner batch prediction: {repr(e)}", exc_info=True)
+            # for backoff retry only of the DB operation
+            raise sqlite3.OperationalError("Error updating miner batch prediction")
+        finally:
+            conn.close()

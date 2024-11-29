@@ -25,6 +25,7 @@ import sys
 import traceback
 from datetime import datetime, timedelta, timezone
 
+import pandas as pd
 import requests
 
 from infinite_games.events.ifgames import IFGamesProviderIntegration
@@ -86,10 +87,7 @@ class Validator(BaseValidatorNeuron):
         self.integrations = integrations
         self.db_path = db_path
         self.last_log_block = 0
-        # TODO: fix this messy check; second conditions should work
-        self.is_test = (
-            "subtensor.networktest" in ("".join(sys.argv)) or self.subtensor.network == "test"
-        )
+        self.is_test = self.subtensor.network in ["test", "mock", "local"]
         self.base_api_url = "https://stage.ifgames.win" if self.is_test else "https://ifgames.win"
         if self.is_test:
             log_msg = (
@@ -478,12 +476,6 @@ class Validator(BaseValidatorNeuron):
             )
             bt.logging.info(f"Forward pre-loop done in {time.time() - start_time:.2f} seconds")
 
-            any_miner_processed = False
-            success_count = 0
-            else_count = 0
-            total_count = 0
-            err_count = 0
-            start_time = time.time()
         except Exception as e:
             bt.logging.error(f"Error in validator forward pre-loop: {repr(e)}", exc_info=True)
             raise e
@@ -493,47 +485,51 @@ class Validator(BaseValidatorNeuron):
             f"{len(responses)} responses received."
         )
         bt.logging.info(loop_msg)
+
+        err_count = 0
+        start_time = time.time()
+        provider_events = []
+        minerUids = []
+        answers = []
+        details = []
         for uid, resp in zip(miner_uids, responses):
             for unique_event_id, event_data in resp.events.items():
                 try:
-                    total_count += 1
                     score = event_data.get("probability")
                     provider_event = self.event_provider.get_registered_event(unique_event_id)
+                    answers.append(score)
+                    minerUids.append(uid.item())
+                    provider_events.append(provider_event)
+
                     if not provider_event:
+                        details.append("non-registered-event")
                         bt.logging.trace(
                             f"Miner submission for non registered event detected  {uid=} {unique_event_id=}"
                         )
-                        else_count += 1
                         continue
                     if score is None:
+                        details.append("no-prediction")
                         bt.logging.trace(
                             f"uid: {uid.item()} no prediction for {unique_event_id} sent, skip.."
                         )
-                        else_count += 1
                         continue
                     integration = self.event_provider.integrations.get(provider_event.market_type)
                     if not integration:
+                        details.append("no-integration")
                         bt.logging.error(
                             f"No integration found to register miner submission {uid=} {unique_event_id=} {score=}"
                         )
-                        else_count += 1
                         continue
                     if integration.available_for_submission(provider_event):
+                        details.append("valid")
                         bt.logging.trace(
                             f"Submission {uid=} for {interval_start_minutes} {unique_event_id}"
                         )
-                        any_miner_processed = True
-
-                        await self.event_provider.miner_predict(
-                            provider_event, uid.item(), score, interval_start_minutes, self.block
-                        )
-                        success_count += 1
-
                     else:
+                        details.append("not-open")
                         bt.logging.trace(
                             f"Submission received, but this event is not open for submissions miner {uid=} {unique_event_id=} {score=}"
                         )
-                        else_count += 1
                         continue
 
                 except Exception as e:
@@ -549,17 +545,28 @@ class Validator(BaseValidatorNeuron):
                         )
                     err_count += 1
 
-        elapsed = time.time() - start_time
-        log_msg = (
-            f"Processed {success_count}/{total_count} miner submissions in {elapsed:.2f} seconds; "
-            f"Skipped {else_count} submissions and had {err_count} errors"
-        )
-        bt.logging.info(log_msg)
+        if len(minerUids) > 0:
+            try:
+                miners_payload = pd.DataFrame()
+                miners_payload["provider_event"] = provider_events
+                miners_payload["minerUid"] = minerUids
+                miners_payload["blocktime"] = self.block
+                miners_payload["interval_start_minutes"] = interval_start_minutes
+                miners_payload["answer"] = answers
+                miners_payload["details"] = details
 
-        if any_miner_processed:
-            bt.logging.info("Processed at least one miner response.")
+                self.event_provider.miner_batch_update_predictions(miners_payload)
+
+                elapsed = time.time() - start_time
+                bt.logging.info(f"Miners submissions uploaded to DB in {elapsed:.2f} seconds")
+
+            except Exception as e:
+                bt.logging.error(f"Error creating miners payload: {repr(e)}", exc_info=True)
+                raise e
+
         else:
             bt.logging.info("No miner submissions received")
+
         self.blocktime += 1
         if os.environ.get("ENV") != "pytest":
             try:
