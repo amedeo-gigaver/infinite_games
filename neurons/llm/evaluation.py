@@ -6,12 +6,7 @@ import alignment
 import ensemble
 import ranking
 import summarize
-from config.constants import (
-    DEFAULT_REASONING_CONFIG,
-    DEFAULT_RETRIEVAL_CONFIG,
-    S3,
-    S3_BUCKET_NAME,
-)
+from config.constants import DEFAULT_REASONING_CONFIG, DEFAULT_RETRIEVAL_CONFIG, S3, S3_BUCKET_NAME
 from utils import db_utils
 
 # Set up logging

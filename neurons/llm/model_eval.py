@@ -10,12 +10,7 @@ import google.generativeai as google_ai
 import openai
 
 # Local application/library-specific imports
-from .config.constants import (
-    ANTHROPIC_SOURCE,
-    GOOGLE_SOURCE,
-    OAI_SOURCE,
-    TOGETHER_AI_SOURCE,
-)
+from .config.constants import ANTHROPIC_SOURCE, GOOGLE_SOURCE, OAI_SOURCE, TOGETHER_AI_SOURCE
 from .config.keys import ANTHROPIC_KEY, GOOGLE_AI_KEY, OPENAI_KEY, TOGETHER_KEY
 from .utils import model_utils, string_utils
 
