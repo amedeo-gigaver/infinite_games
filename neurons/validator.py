@@ -492,6 +492,7 @@ class Validator(BaseValidatorNeuron):
         minerUids = []
         answers = []
         details = []
+        resp_logs = 0
         for uid, resp in zip(miner_uids, responses):
             for unique_event_id, event_data in resp.events.items():
                 try:
@@ -500,7 +501,11 @@ class Validator(BaseValidatorNeuron):
                     answers.append(score)
                     minerUids.append(uid.item())
                     provider_events.append(provider_event)
-
+                    resp_logs += 1
+                    if resp_logs <= 10:
+                        bt.logging.info(
+                            f"First 10 miners responseuid: {uid.item()} {unique_event_id=} {score=} {event_data=} {provider_event=}"
+                        )
                     if not provider_event:
                         details.append("non-registered-event")
                         bt.logging.trace(
