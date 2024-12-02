@@ -16,12 +16,17 @@ class PolymarketProviderIntegration(ProviderIntegration):
     def __init__(self, max_pending_events=None) -> None:
         super().__init__(max_pending_events=max_pending_events)
         self.base_url = "https://clob.polymarket.com"
-        self.session = aiohttp.ClientSession()
         self.lock = asyncio.Lock()
-        self.loop = asyncio.get_event_loop()
+        self.loop = None
 
     async def _ainit(self) -> "PolymarketProviderIntegration":
+        self.session = aiohttp.ClientSession()
+        self.loop = asyncio.get_running_loop()
         return self
+
+    async def close(self):
+        if self.session:
+            await self.session.close()
 
     def provider_name(self):
         return "polymarket"

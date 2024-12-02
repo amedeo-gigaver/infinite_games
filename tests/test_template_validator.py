@@ -30,6 +30,7 @@ from time import sleep
 from unittest.mock import patch
 
 import bittensor as bt
+import pytest
 import torch
 from bittensor.mock import wallet_mock
 from bittensor.mock.wallet_mock import MockWallet
@@ -52,6 +53,7 @@ from tests.providers import (
 from tests.utils import after, before, fake_synapse_response
 
 
+@pytest.mark.asyncio
 class TestTemplateValidatorNeuronTestCase:
     async def next_run(self, v: Validator):
         """Imitate Validator.run with 1 step"""
@@ -97,17 +99,15 @@ class TestTemplateValidatorNeuronTestCase:
         self, mock_miner_reg_time, mock_network, caplog, monkeypatch
     ):
         wallet, subtensor = mock_network
-        iggames_provider = MockIFGamesProviderIntegration()
-        v = Validator(integrations=[iggames_provider], db_path="test.db")
+        provider = MockIFGamesProviderIntegration()
+        v = Validator(integrations=[provider], db_path="test.db")
 
         print("First run")
         initial_date = datetime(year=2024, month=1, day=3)
         with freeze_time(initial_date, tick=True):
             await v.initialize_provider()
 
-            test_event = await iggames_provider.get_single_event(
-                "dbcba93a-fe3b-4092-b918-8231b23f2faa"
-            )
+            test_event = await provider.get_single_event("dbcba93a-fe3b-4092-b918-8231b23f2faa")
             assert v.event_provider.register_or_update_event(test_event) is True
             assert v.event_provider.integrations
 
@@ -131,9 +131,7 @@ class TestTemplateValidatorNeuronTestCase:
         # based on providers.py hardcode values
         settle_date = initial_date + timedelta(days=7)
         with freeze_time(settle_date, tick=True):
-            test_event = await iggames_provider.get_single_event(
-                "dbcba93a-fe3b-4092-b918-8231b23f2faa"
-            )
+            test_event = await provider.get_single_event("dbcba93a-fe3b-4092-b918-8231b23f2faa")
 
             assert test_event.market_type == "ifgames"
             test_event.status = EventStatus.SETTLED
@@ -156,6 +154,8 @@ class TestTemplateValidatorNeuronTestCase:
             0.5,
             0.5,
         )
+
+        await provider.close()
 
     async def test_validator_settled_event_scores_polymarket_aggregation_interval(
         self, mock_miner_reg_time, mock_network, caplog, monkeypatch, disable_event_updates

@@ -3,6 +3,7 @@ import os
 import shutil
 from datetime import datetime
 
+import aiohttp
 import bittensor as bt
 from bittensor.mock import MockSubtensor
 from bittensor.mock.wallet_mock import MockWallet, get_mock_wallet
@@ -110,3 +111,16 @@ def clean_db():
         os.remove("test.db")
     except FileNotFoundError:
         pass
+
+
+@fixture(autouse=True, scope="function")
+async def cleanup_event_loop():
+    yield
+    # Cleanup tasks after the test completes
+    tasks = [t for t in asyncio.all_tasks() if not t.done()]
+    for task in tasks:
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
