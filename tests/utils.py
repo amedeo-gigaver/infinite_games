@@ -17,7 +17,7 @@ def fake_synapse_response(events: List[ProviderEvent]):
     uid_responses = []
     for uid in range(0, 256):
         synapse = EventPredictionSynapse()
-        synapse.init(events)
+        synapse.initWithError(events)
         uid_responses.append(synapse)
 
     return uid_responses

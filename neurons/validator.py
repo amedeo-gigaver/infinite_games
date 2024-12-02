@@ -456,7 +456,7 @@ class Validator(BaseValidatorNeuron):
             synapse = infinite_games.protocol.EventPredictionSynapse()
             events_available_for_submission = self.event_provider.get_events_for_submission()
             bt.logging.info(f"Event for submission: {len(events_available_for_submission)}")
-            synapse.init(events_available_for_submission)
+            synapse.initWithError(events_available_for_submission)
             bt.logging.info(f"Axons: {len(self.metagraph.axons)}")
             for axon in self.metagraph.axons:
                 bt.logging.trace(f"IP: {axon.ip}, hotkey id: {axon.hotkey}")
@@ -493,10 +493,16 @@ class Validator(BaseValidatorNeuron):
         answers = []
         details = []
         resp_logs = 0
+        no_updates_count = 0
         for uid, resp in zip(miner_uids, responses):
             for unique_event_id, event_data in resp.events.items():
                 try:
                     score = event_data.get("probability")
+
+                    if isinstance(score, BaseException):
+                        no_updates_count += 1
+                        score = None
+
                     provider_event = self.event_provider.get_registered_event(unique_event_id)
                     answers.append(score)
                     minerUids.append(uid.item())
@@ -549,6 +555,11 @@ class Validator(BaseValidatorNeuron):
                             f"Error processing miner prediction for uid {uid}: {repr(e)}"
                         )
                     err_count += 1
+
+        if no_updates_count > 0:
+            bt.logging.warning(
+                f"Count predictions which were not updated from the init ValueError: {no_updates_count}"
+            )
 
         if len(minerUids) > 0:
             try:
