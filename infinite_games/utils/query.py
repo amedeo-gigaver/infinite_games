@@ -21,4 +21,5 @@ def query_miners(
         deserialize=False,
         timeout=float(os.environ.get("QUERY_TIMEOUT_SEC", "60")),
     )
+
     return responses

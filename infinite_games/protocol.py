@@ -26,7 +26,7 @@ from infinite_games.events.base import ProviderEvent
 class EventPredictionSynapse(bt.Synapse):
     events: dict = {}
 
-    def initWithError(self, events: List[ProviderEvent]):
+    def init_with_error(self, events: List[ProviderEvent]):
         self.events = {}
         for event in events:
             market_type = (event.metadata.get("market_type", event.market_type) or "").lower()

@@ -456,7 +456,7 @@ class Validator(BaseValidatorNeuron):
             synapse = infinite_games.protocol.EventPredictionSynapse()
             events_available_for_submission = self.event_provider.get_events_for_submission()
             bt.logging.info(f"Event for submission: {len(events_available_for_submission)}")
-            synapse.initWithError(events_available_for_submission)
+            synapse.init_with_error(events_available_for_submission)
             bt.logging.info(f"Axons: {len(self.metagraph.axons)}")
             for axon in self.metagraph.axons:
                 bt.logging.trace(f"IP: {axon.ip}, hotkey id: {axon.hotkey}")

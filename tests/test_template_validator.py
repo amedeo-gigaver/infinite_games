@@ -18,6 +18,7 @@
 
 import asyncio
 import json
+import logging
 import os
 import sqlite3
 import sys
@@ -99,15 +100,17 @@ class TestTemplateValidatorNeuronTestCase:
         iggames_provider = MockIFGamesProviderIntegration()
         v = Validator(integrations=[iggames_provider], db_path="test.db")
 
-        # await v.forward()
         print("First run")
         initial_date = datetime(year=2024, month=1, day=3)
         with freeze_time(initial_date, tick=True):
-            await self.next_run(v)
-            # await restarted_vali.initialize_provider()
-            # sleep(4)
-            # v.stop_run_thread()
-            sleep(2)
+            await v.initialize_provider()
+
+            test_event = await iggames_provider.get_single_event(
+                "dbcba93a-fe3b-4092-b918-8231b23f2faa"
+            )
+            assert v.event_provider.register_or_update_event(test_event) is True
+            assert v.event_provider.integrations
+
             print("Second run")
             mock_response = fake_synapse_response(v.event_provider.get_events_for_submission())
             mock_response[3].events["ifgames-dbcba93a-fe3b-4092-b918-8231b23f2faa"][
@@ -117,7 +120,7 @@ class TestTemplateValidatorNeuronTestCase:
                 "probability"
             ] = 1
             monkeypatch.setattr("neurons.validator.query_miners", lambda a, b, c: mock_response)
-            self.next_run(v)
+            await self.next_run(v)
         for window in range(1, 42):
             window_time = initial_date + timedelta(
                 minutes=CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES * window
@@ -253,15 +256,17 @@ class TestTemplateValidatorNeuronTestCase:
         iggames_provider = MockIFGamesProviderIntegration()
         v = Validator(integrations=[iggames_provider], db_path="test.db")
 
-        # await v.forward()
         print("First run")
         initial_date = datetime(year=2024, month=1, day=3)
         with freeze_time(initial_date, tick=True):
-            await self.next_run(v)
-            # await restarted_vali.initialize_provider()
-            # sleep(4)
-            # v.stop_run_thread()
-            sleep(2)
+            await v.initialize_provider()
+
+            test_event = await iggames_provider.get_single_event(
+                "cbcba93a-fe3b-4092-b918-8231b23f2faa"
+            )
+            assert v.event_provider.register_or_update_event(test_event) is True
+            assert v.event_provider.integrations
+
             print("Second run")
             mock_response = fake_synapse_response(v.event_provider.get_events_for_submission())
             mock_response[3].events["ifgames-cbcba93a-fe3b-4092-b918-8231b23f2faa"][

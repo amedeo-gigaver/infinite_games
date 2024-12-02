@@ -72,7 +72,7 @@ class MockPolymarketProviderIntegration(PolymarketProviderIntegration):
 
 
 class MockIFGamesProviderIntegration(IFGamesProviderIntegration):
-    async def _request(self, url, max_retries=3, expo_backoff=2):
+    async def _request(self, url, max_retries=1, expo_backoff=2):
         # last date return empty page
         # if '1822462600' in url:
         #     return {
