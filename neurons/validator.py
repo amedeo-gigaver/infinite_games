@@ -57,6 +57,9 @@ from infinite_games.events.base import (
 from infinite_games.events.polymarket import PolymarketProviderIntegration
 from infinite_games.utils.query import query_miners
 
+# The minimum time between querying miners in seconds - avoid spamming miners
+MIN_TIME_BETWEEN_QUERY_MINERS = 300
+
 
 class Validator(BaseValidatorNeuron):
     """
@@ -96,6 +99,8 @@ class Validator(BaseValidatorNeuron):
             )
             bt.logging.info(log_msg)
         end_time = time.time()
+
+        self.last_query_time = end_time
         bt.logging.info(f"Validator __init__ completed in {end_time - start_time:.2f} seconds")
 
     async def initialize_provider(self):
@@ -585,20 +590,22 @@ class Validator(BaseValidatorNeuron):
             bt.logging.info("No miner submissions received")
 
         self.blocktime += 1
-        if os.environ.get("ENV") != "pytest":
-            try:
-                while block_start == self.block:
-                    bt.logging.debug(
-                        f"FORWARD INTERVAL: {float(os.environ.get('VALIDATOR_FORWARD_INTERVAL_SEC', '10'))}"
-                    )
-                    await asyncio.sleep(
-                        float(os.environ.get("VALIDATOR_FORWARD_INTERVAL_SEC", "10"))
-                    )
-            except Exception as e:
-                bt.logging.error(f"Error in validator forward post-loop: {repr(e)}", exc_info=True)
-                raise e
-        # else:
-        # await asyncio.sleep(float(os.environ.get('VALIDATOR_FORWARD_INTERVAL_SEC', '10')))
+        try:
+            since_last_query = time.time() - self.last_query_time
+            if (
+                since_last_query < MIN_TIME_BETWEEN_QUERY_MINERS
+                and os.environ.get("PYTEST_CURRENT_TEST") is None
+            ):
+                wait_time = MIN_TIME_BETWEEN_QUERY_MINERS - since_last_query
+                bt.logging.info(
+                    f"Wait {wait_time:.2f} seconds before query miners again, not enough time elapsed"
+                )
+                await asyncio.sleep(wait_time)
+        except Exception as e:
+            bt.logging.error(f"Error in validator forward post-loop: {repr(e)}", exc_info=True)
+            raise e
+        finally:
+            self.last_query_time = time.time()
 
     def save_state(self):
         super().save_state()
