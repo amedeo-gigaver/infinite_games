@@ -11,7 +11,8 @@ def query_miners(
     dendrite: bt.dendrite, axons: List[AxonInfo], synapse: EventPredictionSynapse
 ) -> List[Union[AsyncGenerator[Any, Any], EventPredictionSynapse]]:
     """Function that sends a query to miners and gets response"""
-    bt.logging.debug(f"Query Timeout {float(os.environ.get('QUERY_TIMEOUT_SEC', '60'))}")
+    timeout = float(os.environ.get("QUERY_TIMEOUT_SEC", "120"))
+    bt.logging.debug(f"Query Timeout {timeout} seconds")
     responses = dendrite.query(
         # Send the query to selected miner axons in the network.
         axons=axons,
@@ -19,7 +20,7 @@ def query_miners(
         synapse=synapse,
         # Do not deserialize the response so that we have access to the raw response.
         deserialize=False,
-        timeout=float(os.environ.get("QUERY_TIMEOUT_SEC", "60")),
+        timeout=timeout,
     )
 
     return responses

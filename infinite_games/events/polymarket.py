@@ -21,7 +21,7 @@ class PolymarketProviderIntegration(ProviderIntegration):
 
     async def _ainit(self) -> "PolymarketProviderIntegration":
         self.session = aiohttp.ClientSession()
-        self.loop = asyncio.get_running_loop()
+        self.loop = asyncio.get_event_loop()
         return self
 
     async def close(self):

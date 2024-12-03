@@ -29,6 +29,7 @@ class MarketType(enum.Enum):
     UMA = 6
     FRED = 7
     CRYPTO = 8
+    LLM = 9
 
 
 class Event(BaseModel):
@@ -73,7 +74,7 @@ class MinerCacheObject(BaseModel):
     status: MinerCacheStatus
 
     def to_dict(self) -> dict:
-        output = self.dict()
+        output = self.model_dump()
         output["event"]["market_type"] = self.event.market_type.name
         output["status"] = self.status.name
         return output

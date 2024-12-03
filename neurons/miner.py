@@ -1,6 +1,7 @@
 # The MIT License (MIT)
 # Copyright © 2023 Yuma Rao
 import os
+import random
 import time
 import typing
 from datetime import datetime
@@ -75,12 +76,22 @@ class Miner(BaseMinerNeuron):
         self.cache = MinerCache()
         self.cache.initialize_cache()
         self.llm = Forecaster() if os.getenv("OPENAI_KEY") else None
+        self.is_testnet = self.metagraph.network == "test"
+        bt.logging.info(
+            "Miner initialized on network: {}: testnet {}".format(
+                self.metagraph.network, self.is_testnet
+            )
+        )
 
     async def initialize_providers(self):
         self.azuro = await AzuroProviderIntegration()._ainit()
         self.polymarket = await PolymarketProviderIntegration()._ainit()
 
     async def _generate_prediction(self, market: MinerCacheObject) -> None:
+        if self.is_testnet:
+            # in testnet, we just assign a random probability; do not make real API calls
+            market.event.probability = random.random()
+            return
         try:
             llm_prediction = None
             # Polymarket
@@ -111,7 +122,7 @@ class Miner(BaseMinerNeuron):
                 )
             )
         except Exception as e:
-            bt.logging.error("Failed to assign, probability, {}".format(e))
+            bt.logging.error("Failed to assign, probability, {}".format(repr(e)), exc_info=True)
 
     async def forward(
         self, synapse: infinite_games.protocol.EventPredictionSynapse
@@ -119,6 +130,7 @@ class Miner(BaseMinerNeuron):
         """
         Processes the incoming synapse and attaches the response to the synapse.
         """
+        start_time = time.time()
         if not self.providers_set:
             self.providers_set = True
             await self.initialize_providers()
@@ -127,41 +139,47 @@ class Miner(BaseMinerNeuron):
         bt.logging.info("[{}] Incoming Events {}".format(today, len(synapse.events.items())))
 
         for cid, market in synapse.events.items():
-            cached_market: typing.Optional[MinerCacheObject] = await self.cache.get(cid)
-            if cached_market is not None:
-                if cached_market.status == MinerCacheStatus.COMPLETED:
-                    # Check IF it is time for a re-calculation of the probability.
-                    if cached_market.event.retries > 0 and cached_market.event.next_try <= int(
-                        today.timestamp()
-                    ):
-                        # Set the stored object in a rerun state.
-                        cached_market.set_for_rerun()
+            try:
+                cached_market: typing.Optional[MinerCacheObject] = await self.cache.get(cid)
+                if cached_market is not None:
+                    if cached_market.status == MinerCacheStatus.COMPLETED:
+                        # Check IF it is time for a re-calculation of the probability.
+                        if cached_market.event.retries > 0 and cached_market.event.next_try <= int(
+                            today.timestamp()
+                        ):
+                            # Set the stored object in a rerun state.
+                            cached_market.set_for_rerun()
 
-                        # After this re-run, set the next.
-                        (
-                            cached_market.event.retries,
-                            cached_market.event.next_try,
-                        ) = await _calculate_next_try(cached_market)
+                            # After this re-run, set the next.
+                            (
+                                cached_market.event.retries,
+                                cached_market.event.next_try,
+                            ) = await _calculate_next_try(cached_market)
 
-                        await self.cache.add(cid, self._generate_prediction, cached_market)
-                    else:
-                        market["probability"] = cached_market.event.probability
-                        bt.logging.info(
-                            "Assign cache {} prob to {} event {}".format(
-                                cached_market.event.probability,
-                                cached_market.event.market_type.name,
-                                cached_market.event.event_id,
+                            await self.cache.add(cid, self._generate_prediction, cached_market)
+                        else:
+                            market["probability"] = cached_market.event.probability
+                            bt.logging.info(
+                                "Assign cache {} prob to {} event {}".format(
+                                    cached_market.event.probability,
+                                    cached_market.event.market_type.name,
+                                    cached_market.event.event_id,
+                                )
                             )
-                        )
-            else:
-                new_market = MinerCacheObject.init_from_market(market)
-                new_market.event.retries, new_market.event.next_try = await _calculate_next_try(
-                    new_market
+                else:
+                    new_market = MinerCacheObject.init_from_market(market)
+                    new_market.event.retries, new_market.event.next_try = await _calculate_next_try(
+                        new_market
+                    )
+                    await self.cache.add(cid, self._generate_prediction, new_market)
+
+                market["miner_answered"] = True
+            except Exception as e:
+                bt.logging.error(
+                    "Failed to process event {} {}".format(cid, repr(e)), exc_info=True
                 )
-                await self.cache.add(cid, self._generate_prediction, new_market)
 
-            market["miner_answered"] = True
-
+        bt.logging.info(f"Miner answered in {time.time() - start_time:.2f} seconds")
         return synapse
 
     async def blacklist(

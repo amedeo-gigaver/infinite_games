@@ -171,10 +171,13 @@ venv-6.11/
 venv-testnet
 Dockerfile
 docker-compose*
-test.db
 
 # macOS stuff
 .DS_Store
 
 # bittensor test wallets
 .bittensor
+
+# local dbs
+validator.db
+test.db
