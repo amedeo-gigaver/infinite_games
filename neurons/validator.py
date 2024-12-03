@@ -456,7 +456,7 @@ class Validator(BaseValidatorNeuron):
             synapse = infinite_games.protocol.EventPredictionSynapse()
             events_available_for_submission = self.event_provider.get_events_for_submission()
             bt.logging.info(f"Event for submission: {len(events_available_for_submission)}")
-            synapse.init_with_error(events_available_for_submission)
+            synapse.init(events_available_for_submission)
             bt.logging.info(f"Axons: {len(self.metagraph.axons)}")
             for axon in self.metagraph.axons:
                 bt.logging.trace(f"IP: {axon.ip}, hotkey id: {axon.hotkey}")
@@ -494,24 +494,25 @@ class Validator(BaseValidatorNeuron):
         details = []
         resp_logs = 0
         no_updates_count = 0
+        current_uid = -1
         for uid, resp in zip(miner_uids, responses):
             for unique_event_id, event_data in resp.events.items():
                 try:
                     score = event_data.get("probability")
-
-                    if isinstance(score, BaseException):
+                    miner_answered = event_data.get("miner_answered")
+                    if miner_answered is False and score is None:
                         no_updates_count += 1
-                        score = None
 
                     provider_event = self.event_provider.get_registered_event(unique_event_id)
                     answers.append(score)
                     minerUids.append(uid.item())
                     provider_events.append(provider_event)
                     resp_logs += 1
-                    if resp_logs <= 10:
+                    if resp_logs <= 5 and uid.item() != current_uid:
                         bt.logging.info(
-                            f"First 10 miners responseuid: {uid.item()} {unique_event_id=} {score=} {event_data=} {provider_event=}"
+                            f"First 5 miners responseuid: {uid.item()} {unique_event_id=} {score=} {event_data=} {provider_event=}"
                         )
+                        current_uid = uid.item()
                     if not provider_event:
                         details.append("non-registered-event")
                         bt.logging.trace(

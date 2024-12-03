@@ -160,6 +160,8 @@ class Miner(BaseMinerNeuron):
                 )
                 await self.cache.add(cid, self._generate_prediction, new_market)
 
+            market["miner_answered"] = True
+
         return synapse
 
     async def blacklist(

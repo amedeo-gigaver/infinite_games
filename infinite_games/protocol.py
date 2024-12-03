@@ -26,7 +26,7 @@ from infinite_games.events.base import ProviderEvent
 class EventPredictionSynapse(bt.Synapse):
     events: dict = {}
 
-    def init_with_error(self, events: List[ProviderEvent]):
+    def init(self, events: List[ProviderEvent]):
         self.events = {}
         for event in events:
             market_type = (event.metadata.get("market_type", event.market_type) or "").lower()
@@ -34,7 +34,8 @@ class EventPredictionSynapse(bt.Synapse):
             self.events[f"{event.market_type}-{event.event_id}"] = {
                 "event_id": event.event_id,
                 "market_type": market_type,
-                "probability": ValueError("No probability"),
+                "probability": None,
+                "miner_answered": False,
                 "description": event.description,
                 "cutoff": cutoff,
                 "starts": int(cutoff) if (cutoff and market_type == "azuro") else None,

@@ -16,8 +16,7 @@
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 
-import hashlib as rpccheckhealth
-import math
+import json
 import time
 from datetime import datetime
 from functools import lru_cache, update_wrapper
@@ -145,3 +144,19 @@ def ttl_get_block(self) -> int:
 async def split_chunks(l, n):
     for i in range(0, len(l), n):
         yield l[i : i + n]
+
+
+class CustomJSONEncoder(json.JSONEncoder):
+    # use it to print dataclasses
+    # print(json.dumps(my_obj, cls=CustomJSONEncoder, indent=2))
+    def default(self, obj):
+        if isinstance(obj, datetime):
+            return obj.isoformat()
+        elif hasattr(obj, "to_dict"):
+            return obj.to_dict()
+        elif isinstance(obj, Exception):
+            return {
+                "type": type(obj).__name__,
+                "message": str(obj),
+            }
+        return super().default(obj)

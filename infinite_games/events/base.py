@@ -1,24 +1,22 @@
 import asyncio
 import json
 import os
-import pickle
 import shutil
 import sqlite3
 import time
 import traceback
 from collections import defaultdict
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Any, AsyncIterator, Callable, Dict, Iterator, List, Optional, Tuple, Type
 
 import backoff
 import bittensor as bt
-import numpy as np
 import pandas as pd
 from bittensor.chain_data import AxonInfo
 
 from infinite_games.utils.misc import split_chunks
-from infinite_games.utils.uids import get_miner_data_by_uid, miner_count_in_db
+from infinite_games.utils.uids import miner_count_in_db
 
 # defines a time window for grouping submissions based on a specified number of minutes
 CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES = 60 * 4
@@ -259,7 +257,7 @@ class EventAggregator:
                             *[self.check_event(event_data) for event_data in events]
                         )
                         await asyncio.sleep(self.WATCH_EVENTS_DELAY)
-                        self.log(f"Updating events..")
+                        self.log("Updating events..")
                 except Exception as e:
                     self.error(f"Failed to get event: {repr(e)}")
                     self.error(traceback.format_exc())
