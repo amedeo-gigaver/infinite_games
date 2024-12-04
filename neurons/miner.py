@@ -36,6 +36,8 @@ from infinite_games.utils.miner_cache import (
 # DEALINGS IN THE SOFTWARE.
 
 
+DEV_MINER_UID = 93
+
 if os.getenv("OPENAI_KEY"):
     from llm.forecasting import Forecaster
 
@@ -78,8 +80,8 @@ class Miner(BaseMinerNeuron):
         self.llm = Forecaster() if os.getenv("OPENAI_KEY") else None
         self.is_testnet = self.metagraph.network == "test"
         bt.logging.info(
-            "Miner initialized on network: {}: testnet {}".format(
-                self.metagraph.network, self.is_testnet
+            "Miner {} initialized on network: {}: testnet {}".format(
+                self.uid, self.metagraph.network, self.is_testnet
             )
         )
 
@@ -88,8 +90,9 @@ class Miner(BaseMinerNeuron):
         self.polymarket = await PolymarketProviderIntegration()._ainit()
 
     async def _generate_prediction(self, market: MinerCacheObject) -> None:
-        if self.is_testnet:
+        if self.is_testnet and self.uid != DEV_MINER_UID:
             # in testnet, we just assign a random probability; do not make real API calls
+            # but keep real calls for the dev miner for testing purposes
             market.event.probability = random.random()
             return
         try:
