@@ -194,7 +194,7 @@ class EventAggregator:
                 bt.logging.error(traceback.format_exc())
 
     def log(self, msg):
-        bt.logging.info(f"{self.__class__.__name__} {msg}")
+        bt.logging.debug(f"{self.__class__.__name__} {msg}")
 
     def error(self, msg):
         bt.logging.error(f"{self.__class__.__name__} {msg}")
@@ -295,9 +295,9 @@ class EventAggregator:
                     elif event.metadata.get("processed", False) is True:
                         bt.logging.warning(f"Tried to process already processed {event} event!")
                 except Exception as e:
-                    bt.logging.error(f"Failed to call update hook for event {key}: {repr(e)}")
-                    bt.logging.error(traceback.format_exc())
-                    print(traceback.format_exc())
+                    bt.logging.error(
+                        f"Failed to call update hook for event {key}: {repr(e)}", exc_info=True
+                    )
         else:
             self.log(f"New event:  {key} {pe.description} - {pe.status} ")
 

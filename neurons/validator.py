@@ -512,12 +512,19 @@ class Validator(BaseValidatorNeuron):
                     answers.append(score)
                     minerUids.append(uid.item())
                     provider_events.append(provider_event)
-                    resp_logs += 1
-                    if resp_logs <= 5 and uid.item() != current_uid:
-                        bt.logging.info(
-                            f"First 5 miners responseuid: {uid.item()} {unique_event_id=} {score=} {event_data=} {provider_event=}"
+
+                    if (
+                        resp_logs <= 5
+                        and uid.item() != current_uid
+                        and score is not None
+                        and score > 0
+                    ):
+                        resp_logs += 1
+                        bt.logging.debug(
+                            f"Sample of valid responses from 5 miners: {uid.item()} {unique_event_id=} {score=} {event_data=} {provider_event=}"
                         )
                         current_uid = uid.item()
+
                     if not provider_event:
                         details.append("non-registered-event")
                         bt.logging.trace(

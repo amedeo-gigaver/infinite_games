@@ -261,7 +261,8 @@ bt.debug(True)
 
 # This is the main function, which runs the miner.
 if __name__ == "__main__":
+    start_time = time.time()
     with Miner() as miner:
         while True:
-            bt.logging.info("Miner running...", time.time())
+            bt.logging.debug(f"Miner running for {time.time() - start_time:.1f} seconds")
             time.sleep(5)

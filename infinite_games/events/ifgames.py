@@ -109,7 +109,7 @@ class IFGamesProviderIntegration(ProviderIntegration):
         if not payload:
             return None
         pe = self.construct_provider_event(event_id, payload)
-        bittensor.logging.info(f"Retrieved event: {pe} {pe.status} {pe.starts}")
+        bittensor.logging.debug(f"Retrieved event: {pe} {pe.status} {pe.starts}")
         return pe
 
     async def _request(self, url, max_retries=3, expo_backoff=2):
