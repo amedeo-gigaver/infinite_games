@@ -1,18 +1,9 @@
 import asyncio
 import time
-from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Callable, Literal
 
-
-class Logger(ABC):
-    @abstractmethod
-    def info(self, message: str) -> None:
-        pass
-
-    @abstractmethod
-    def error(self, message: str) -> None:
-        pass
+from infinite_games.sandbox.validator.utils.logger import AbstractLogger
 
 
 @dataclass
@@ -47,7 +38,7 @@ class TasksScheduler:
     Scheduler for managing and running multiple asynchronous tasks.
     """
 
-    def __init__(self, logger: Logger):
+    def __init__(self, logger: AbstractLogger):
         self.__tasks: list[Task] = []  # List to store tasks
         self.__logger = logger  # Logger
 

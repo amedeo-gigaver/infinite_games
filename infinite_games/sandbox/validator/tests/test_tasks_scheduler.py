@@ -3,6 +3,7 @@ import asyncio
 import pytest
 
 from infinite_games.sandbox.validator.tasks_scheduler import Task, TasksScheduler
+from infinite_games.sandbox.validator.utils.logger import AbstractLogger
 
 
 class TestTasksScheduler:
@@ -18,11 +19,14 @@ class TestTasksScheduler:
 
     @pytest.fixture(scope="function")
     def scheduler(self):
-        class TestLogger:
+        class TestLogger(AbstractLogger):
             def info(self, _):
                 pass
 
             def error(self, _):
+                pass
+
+            def warning(self, _):
                 pass
 
         return TasksScheduler(logger=TestLogger())

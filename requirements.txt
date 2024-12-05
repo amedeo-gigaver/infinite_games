@@ -22,3 +22,4 @@ tiktoken==0.7.0
 torch==2.3.0
 wandb==0.17.0
 websockets==14.1
+aiosqlite==0.20.0
