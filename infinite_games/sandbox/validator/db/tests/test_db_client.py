@@ -53,6 +53,17 @@ class TestDbClient:
         assert result == [("test_delete",)]
         logger.info.assert_called()  # Ensure logger was called
 
+    async def test_update(self, client, logger):
+        # Insert a row to update
+        await client.insert("INSERT INTO test_table (name) VALUES ('test_update_1')")
+
+        sql = "UPDATE test_table SET name = ? WHERE name = ? returning name"
+        params = ("test_update_2", "test_update_1")
+        result = await client.update(sql, params)
+
+        assert result == [("test_update_2",)]
+        logger.info.assert_called()  # Ensure logger was called
+
     async def test_one(self, client, logger):
         # Insert a row for querying
         await client.insert("INSERT INTO test_table (name) VALUES ('test_one')")

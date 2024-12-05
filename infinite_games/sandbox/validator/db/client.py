@@ -56,6 +56,18 @@ class Client:
 
         return await self.__wrap_execution(execute)
 
+    async def update(self, sql: str, parameters: Optional[Iterable[Any]] = None):
+        async def execute(connection: aiosqlite.Connection):
+            cursor = await connection.execute(sql=sql, parameters=parameters)
+            updated = await cursor.fetchall()
+
+            await cursor.close()
+            await connection.commit()
+
+            return updated
+
+        return await self.__wrap_execution(execute)
+
     async def one(self, sql: str, parameters: Optional[Iterable[Any]] = None):
         async def execute(connection: aiosqlite.Connection):
             cursor = await connection.execute(sql=sql, parameters=parameters)

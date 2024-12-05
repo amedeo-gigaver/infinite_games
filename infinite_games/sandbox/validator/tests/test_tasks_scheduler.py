@@ -1,4 +1,5 @@
 import asyncio
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -19,17 +20,9 @@ class TestTasksScheduler:
 
     @pytest.fixture(scope="function")
     def scheduler(self):
-        class TestLogger(AbstractLogger):
-            def info(self, _):
-                pass
+        test_logger = MagicMock(spec=AbstractLogger)
 
-            def error(self, _):
-                pass
-
-            def warning(self, _):
-                pass
-
-        return TasksScheduler(logger=TestLogger())
+        return TasksScheduler(logger=test_logger)
 
     async def test_scheduler_no_tasks(self, scheduler):
         # Test that the scheduler doesn't crash when no tasks are added
