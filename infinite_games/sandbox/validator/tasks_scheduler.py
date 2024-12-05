@@ -13,7 +13,7 @@ class Task:
     """
 
     name: str  # Name of the task
-    interval_seconds: int  # Interval between task executions
+    interval_seconds: float  # Interval between task executions
     task_function: Callable[[], asyncio.Future]  # Async function representing the task
     status: Literal["unscheduled", "idle", "running"] = field(
         init=False, default="unscheduled"
@@ -26,9 +26,10 @@ class Task:
         """
         if (
             not self.name
+            or not isinstance(self.name, str)
             or not callable(self.task_function)
-            or not self.interval_seconds
-            or self.interval_seconds < 0
+            or not isinstance(self.interval_seconds, float)
+            or self.interval_seconds < 0.0
         ):
             raise ValueError("Invalid arguments.")
 

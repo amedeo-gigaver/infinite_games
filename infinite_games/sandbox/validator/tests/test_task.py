@@ -10,10 +10,10 @@ class TestTask:
         async def dummy_function():
             pass
 
-        task = Task(name="Test Task", interval_seconds=5, task_function=dummy_function)
+        task = Task(name="Test Task", interval_seconds=5.0, task_function=dummy_function)
 
         assert task.name == "Test Task"
-        assert task.interval_seconds == 5
+        assert task.interval_seconds == 5.0
         assert task.status == "unscheduled"
         assert callable(task.task_function)
 
@@ -22,10 +22,10 @@ class TestTask:
             Task(name=None, interval_seconds=5, task_function=lambda: asyncio.Future())
 
         with pytest.raises(ValueError):
-            Task(name="Test Task", interval_seconds=-1, task_function=lambda: asyncio.Future())
+            Task(name="Test Task", interval_seconds=-1.0, task_function=lambda: asyncio.Future())
 
         with pytest.raises(ValueError):
-            Task(name="Test Task", interval_seconds=5, task_function=None)
+            Task(name="Test Task", interval_seconds=5.0, task_function=None)
 
         with pytest.raises(ValueError):
-            Task(name="Test Task", interval_seconds=None, task_function=lambda: asyncio.Future())
+            Task(name="Test Task", interval_seconds=5, task_function=lambda: asyncio.Future())

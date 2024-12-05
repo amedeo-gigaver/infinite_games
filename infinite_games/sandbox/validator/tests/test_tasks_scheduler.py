@@ -39,7 +39,7 @@ class TestTasksScheduler:
         async def dummy_task():
             pass
 
-        task = Task(name="Test Task", interval_seconds=5, task_function=dummy_task)
+        task = Task(name="Test Task", interval_seconds=5.0, task_function=dummy_task)
         scheduler.add(task)
 
         assert len(scheduler._TasksScheduler__tasks) == 1
