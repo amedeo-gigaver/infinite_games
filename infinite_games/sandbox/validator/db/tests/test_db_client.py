@@ -101,3 +101,13 @@ class TestDbClient:
 
         assert len(result) == 101  # Verify returned rows
         logger.warning.assert_called_with("Query returning 101 rows")  # Ensure warning logged
+
+    async def test_migrate(self, client):
+        await client.migrate()
+
+        for table_name in ["events", "miners", "predictions"]:
+            table = await client.one(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name = ?", (table_name,)
+            )
+
+            assert table is not None  # Check table was created
