@@ -3,6 +3,7 @@ pytest
 pytest-mock
 pytest-env
 pytest-asyncio
+pytest-socket==0.7.0
 freezegun==1.5.1
 coverage==7.6.7
 black>=23,<24

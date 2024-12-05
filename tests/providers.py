@@ -8,6 +8,9 @@ from tests.utils import after
 
 
 class MockAzuroProviderIntegration(AzuroProviderIntegration):
+    async def _ainit(self) -> "AzuroProviderIntegration":
+        return self
+
     def latest_submit_date(self, pe: ProviderEvent):
         return pe.starts
 
