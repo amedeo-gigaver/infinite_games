@@ -101,12 +101,13 @@ class Validator(BaseValidatorNeuron):
         now = datetime.now(timezone.utc)
         minutes_since_epoch = int((now - CLUSTER_EPOCH_2024).total_seconds()) // 60
         # previous interval from current one filled already, sending it.
-        interval_prev_start_minutes = minutes_since_epoch - (minutes_since_epoch % (CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES)) - CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES
+        previous_interval_start_minutes = minutes_since_epoch - (minutes_since_epoch % (CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES)) - (CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES)
+        since_interval_start_minutes = minutes_since_epoch - (minutes_since_epoch % (CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES)) - (CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES * 20)
         # all_uids = [uid for uid in range(self.metagraph.n.item())]
-        interval_date = CLUSTER_EPOCH_2024 + timedelta(minutes=interval_prev_start_minutes)
-        bt.logging.debug(f"Sending interval data: {interval_prev_start_minutes} -> {interval_date}")
+        interval_date = CLUSTER_EPOCH_2024 + timedelta(minutes=since_interval_start_minutes)
+        bt.logging.debug(f"Sending interval data since: {since_interval_start_minutes} -> {previous_interval_start_minutes} now {interval_date}")
         metrics = []
-        predictions_data = self.event_provider.get_all_non_exported_event_predictions(interval_prev_start_minutes)
+        predictions_data = self.event_provider.get_all_non_exported_event_predictions(since_interval_start_minutes, previous_interval_start_minutes)
         bt.logging.debug(f'Loaded {len(predictions_data)} submissions..')
         for metadata, unique_event_id, _, uid, _, interval_minutes, agg_prediction, count, _, _ in predictions_data:
             market_type = unique_event_id.split('-')[0]
@@ -120,11 +121,17 @@ class Validator(BaseValidatorNeuron):
         if metrics and len(metrics) > 0:
             bt.logging.info(f'Total submission to export: {len(metrics)}')
             chunk_metrics = split_chunks(list(metrics), 15000)
-            async for metrics in chunk_metrics:
-                self.send_interval_data(miner_data=metrics)
-                bt.logging.info(f'chunk submissions processed {len(metrics)}')
-                await asyncio.sleep(4)
-            self.event_provider.mark_submissions_as_exported()
+            try:
+                async for metrics in chunk_metrics:
+                    intervals = [metric[3] for metric in metrics]
+                    if not self.send_interval_data(miner_data=metrics):
+                        bt.logging.error('Interrupting the stream, due to backend error..')
+                        return
+                    bt.logging.info(f'chunk submissions exported {len(metrics)} intervals: {set(intervals)}')
+                    await asyncio.sleep(4)
+                self.event_provider.mark_submissions_as_exported(since_interval_start_minutes, previous_interval_start_minutes)
+            except Exception as e:
+                bt.logging.error(f'Error processing interval data.. ')
 
     async def track_interval_stats(self):
         bt.logging.info('Scheduling sending interval stats.')
@@ -344,9 +351,13 @@ class Validator(BaseValidatorNeuron):
         interval_start_minutes = minutes_since_epoch - (minutes_since_epoch % (CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES))
 
         any_miner_processed = False
+        miner_data = []
         for (uid, resp) in zip(miner_uids, responses):
             for (unique_event_id, event_data) in resp.events.items():
                 score = event_data.get('probability')
+                miner_data.append(
+                    (uid, unique_event_id, event_data.get('market_type'), interval_start_minutes, score, 1)
+                )
                 provider_event = self.event_provider.get_registered_event(unique_event_id)
                 if not provider_event:
                     bt.logging.trace(f'Miner submission for non registered event detected  {uid=} {unique_event_id=}')
@@ -366,6 +377,12 @@ class Validator(BaseValidatorNeuron):
                     bt.logging.trace(f'Submission received, but this event is not open for submissions miner {uid=} {unique_event_id=} {score=}')
                     continue
 
+        if miner_data and len(miner_data) > 0:
+            try:
+                bt.logging.info('Gets called 1234!!')
+                self.loop.create_task(self.submit_event_probabilities(block_start, miner_data), name='submit_event_probabilities')
+            except Exception:
+                bt.logging.error('Error processing miner data.', exc_info=True)
         if any_miner_processed:
             bt.logging.info("Processed miner responses.")
         else:

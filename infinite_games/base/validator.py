@@ -30,7 +30,6 @@ import torch
 import asyncio
 import threading
 import bittensor as bt
-
 from typing import List
 from traceback import print_exception
 
@@ -40,6 +39,7 @@ import wandb
 from infinite_games.base.neuron import BaseNeuron
 from infinite_games import __version__
 from infinite_games.events.base import CLUSTER_EPOCH_2024
+from infinite_games.utils.misc import split_chunks
 
 
 class BaseValidatorNeuron(BaseNeuron):
@@ -498,48 +498,107 @@ class BaseValidatorNeuron(BaseNeuron):
 
     @backoff.on_exception(backoff.expo, Exception, max_tries=6)
     def send_interval_data(self, miner_data):
-        if os.environ.get('ENV') != 'pytest':
-            try:
-                v_uid = self.metagraph.hotkeys.index(self.wallet.get_hotkey().ss58_address)
-                body = {
+        try:
+            v_uid = self.metagraph.hotkeys.index(self.wallet.get_hotkey().ss58_address)
+            body = {
 
-                    "submissions": [{
-                        "unique_event_id": unique_event_id,
-                        "provider_type": market_type,
-                        "title": None,
-                        "prediction": agg_prediction,
-                        "outcome": None,
-                        "interval_start_minutes": interval_minutes,
-                        "interval_agg_prediction": agg_prediction,
-                        "interval_agg_count": count,
-                        "interval_datetime": (CLUSTER_EPOCH_2024 + timedelta(minutes=interval_minutes)).isoformat(),
-                        "miner_hotkey": self.metagraph.hotkeys[int(miner_uid)],
-                        "miner_uid": int(miner_uid),
-                        "validator_hotkey": self.wallet.get_hotkey().ss58_address,
-                        "validator_uid": int(v_uid)
-                    } for miner_uid, unique_event_id, market_type,  interval_minutes, agg_prediction, count in miner_data],
-                    "events": None
-                }
-                hk = self.wallet.get_hotkey()
-                signed = base64.b64encode(hk.sign(json.dumps(body))).decode('utf-8')
-                res = requests.post(
-                    f'{self.base_api_url}/api/v1/validators/data',
-                    headers={
-                        'Authorization': f'Bearer {signed}',
-                        'Validator': self.wallet.get_hotkey().ss58_address,
-                    },
-                    json=body
-                )
-                if not res.status_code == 200:
-                    bt.logging.warning(f'Error processing submission {res.content}')
-                else:
-                    return True
-                time.sleep(1)
-            except Exception as e:
-                bt.logging.error(e)
-                bt.logging.error(traceback.format_exc())
-        else:
-            bt.logging.info('Skip export submissions in test')
+                "submissions": [{
+                    "unique_event_id": unique_event_id,
+                    "provider_type": market_type,
+                    "title": None,
+                    "prediction": agg_prediction,
+                    "outcome": None,
+                    "interval_start_minutes": interval_minutes,
+                    "interval_agg_prediction": agg_prediction,
+                    "interval_agg_count": count,
+                    "interval_datetime": (CLUSTER_EPOCH_2024 + timedelta(minutes=interval_minutes)).isoformat(),
+                    # we cannot rely on that anymore specially since we send multiple past windows,
+                    # miners can change
+                    "miner_hotkey": self.metagraph.hotkeys[int(miner_uid)],
+                    "miner_uid": int(miner_uid),
+                    "validator_hotkey": self.wallet.get_hotkey().ss58_address,
+                    "validator_uid": int(v_uid)
+                } for miner_uid, unique_event_id, market_type,  interval_minutes, agg_prediction, count in miner_data],
+                "events": None
+            }
+            hk = self.wallet.get_hotkey()
+            signed = base64.b64encode(hk.sign(json.dumps(body))).decode('utf-8')
+            res = requests.post(
+                f'{self.base_api_url}/api/v1/validators/data',
+                headers={
+                    'Authorization': f'Bearer {signed}',
+                    'Validator': self.wallet.get_hotkey().ss58_address,
+                },
+                json=body
+            )
+            if not res.status_code == 200:
+                bt.logging.error(f'Error processing submission {res.content}')
+                return False
+            else:
+                return True
+        except Exception as e:
+            bt.logging.error(e)
+            bt.logging.error(traceback.format_exc())
+            raise e
+
+    @backoff.on_exception(backoff.expo, Exception, max_tries=6)
+    async def submit_event_probabilities(self, block, miner_data):
+        unique_miners = set([miner_uid for miner_uid, _, _, _, _, _ in miner_data])
+        miner_data = (miner_data or []) * 4
+        bt.logging.info(f"Submitting live event probabilities for block {block}, {len(miner_data)} records for {len(unique_miners)} miners")
+        chunk_metrics = split_chunks(list(miner_data), 8000)
+        try:
+            async for metrics in chunk_metrics:
+                intervals = [metric[3] for metric in metrics]
+                self.send_live_data(block, metrics)
+                bt.logging.info(f'chunk submissions exported {len(metrics)} intervals: {set(intervals)}')
+                await asyncio.sleep(3)
+        except Exception:
+            bt.logging.error('Error processing live submissins data.', exc_info=True)
+
+    @backoff.on_exception(backoff.expo, Exception, max_tries=3)
+    def send_live_data(self, block, miner_data):
+        unique_miners = set([miner_uid for miner_uid, _, _, _, _, _ in miner_data])
+        bt.logging.info(f'Sending live data block:  {len(miner_data)} records for {len(unique_miners)} miners')
+        try:
+            v_uid = self.metagraph.hotkeys.index(self.wallet.get_hotkey().ss58_address)
+            body = {
+
+                "submissions": [{
+                    "unique_event_id": unique_event_id,
+                    "provider_type": market_type,
+                    "title": None,
+                    "prediction": agg_prediction,
+                    "block": block,
+                    "interval_start_minutes": interval_minutes,
+                    "interval_agg_prediction": agg_prediction,
+                    "interval_agg_count": count,
+                    "interval_datetime": (CLUSTER_EPOCH_2024 + timedelta(minutes=interval_minutes)).isoformat(),
+                    "miner_hotkey": self.metagraph.hotkeys[int(miner_uid)],
+                    "miner_uid": int(miner_uid),
+                    "validator_hotkey": self.wallet.get_hotkey().ss58_address,
+                    "validator_uid": int(v_uid)
+                } for miner_uid, unique_event_id, market_type,  interval_minutes, agg_prediction, count in miner_data],
+                "events": None
+            }
+            hk = self.wallet.get_hotkey()
+            signed = base64.b64encode(hk.sign(json.dumps(body))).decode('utf-8')
+            res = requests.post(
+                f'{self.base_api_url}/api/v1/validators/live-stream',
+                headers={
+                    'Authorization': f'Bearer {signed}',
+                    'Validator': self.wallet.get_hotkey().ss58_address,
+                },
+                json=body
+            )
+            if not res.status_code == 200:
+                bt.logging.error(f'Error processing submission {res.content}')
+                return False
+            else:
+                return True
+        except Exception as e:
+            bt.logging.error(f"Could not process live data batch for {block=} records: {len(miner_data)} ", exc_info=True)
+            raise e
 
     def save_state(self):
         """Saves the state of the validator to a file."""

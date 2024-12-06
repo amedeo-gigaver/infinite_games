@@ -1,13 +1,12 @@
-import asyncio
-from datetime import datetime
 import os
 
-from bittensor.mock.wallet_mock import MockWallet, get_mock_wallet
+from bittensor.mock.wallet_mock import get_mock_wallet
 from bittensor.mock import MockSubtensor
 from pytest import fixture
 import shutil
 
 import bittensor as bt
+import requests_mock
 
 bt.debug(True)
 
@@ -94,3 +93,17 @@ def mock_miner_reg_time(monkeypatch):
                         lambda validator, _: {'registered_date': reg_time})
 
     yield reg_time
+
+
+@fixture
+def mock_interval_submission_request():
+    with requests_mock.Mocker() as m:
+        adapter = m.post('https://ifgames.win/api/v1/validators/data', json={'message': 'Okay'})
+        yield adapter
+
+
+@fixture
+def mock_live_submission_request():
+    with requests_mock.Mocker() as m:
+        adapter = m.post('https://ifgames.win/api/v1/validators/live-stream', json={'message': 'Okay'})
+        yield adapter
