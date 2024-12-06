@@ -10,3 +10,4 @@ black>=23,<24
 isort>=5,<6
 flake8>=7,<8
 flake8-isort==6.1.1
+aioresponses==0.7.7
