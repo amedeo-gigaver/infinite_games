@@ -20,13 +20,11 @@ class PolymarketProviderIntegration(ProviderIntegration):
         self.loop = None
 
     async def _ainit(self) -> "PolymarketProviderIntegration":
-        self.session = aiohttp.ClientSession()
         self.loop = asyncio.get_event_loop()
         return self
 
     async def close(self):
-        if self.session:
-            await self.session.close()
+        pass
 
     def provider_name(self):
         return "polymarket"
@@ -155,17 +153,18 @@ class PolymarketProviderIntegration(ProviderIntegration):
             # to keep up/better sync with lock of other requests
             await asyncio.sleep(0.1)
             try:
-                async with self.session.get(url) as resp:
-                    if resp.status != 200:
-                        error_response = resp.content
-                        if retried >= max_retries:
-                            return
-                        if resp.status == 429:
-                            await self._handle_429(resp)
-                        # self.log(f'Retry {url}.. {retried + 1}')
-                    else:
-                        payload = await resp.json()
-                        return payload
+                async with aiohttp.ClientSession() as session:
+                    async with session.get(url) as resp:
+                        if resp.status != 200:
+                            error_response = resp.content
+                            if retried >= max_retries:
+                                return
+                            if resp.status == 429:
+                                await self._handle_429(resp)
+                            # self.log(f'Retry {url}.. {retried + 1}')
+                        else:
+                            payload = await resp.json()
+                            return payload
             except Exception as e:
                 error_response = str(e)
                 if retried >= max_retries:
