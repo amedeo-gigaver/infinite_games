@@ -3,7 +3,7 @@ from typing import Any, Awaitable, Callable, Iterable, Optional
 
 import aiosqlite
 
-from infinite_games.sandbox.validator.utils.logger import AbstractLogger
+from infinite_games.sandbox.validator.utils.logger.logger import AbstractLogger
 
 
 class Client:

@@ -4,7 +4,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from infinite_games.sandbox.validator.tasks_scheduler import Task, TasksScheduler
-from infinite_games.sandbox.validator.utils.logger import AbstractLogger
+from infinite_games.sandbox.validator.utils.logger.logger import AbstractLogger
 
 
 class TestTasksScheduler:
@@ -18,11 +18,13 @@ class TestTasksScheduler:
 
         return _await_start_with_timeout
 
-    @pytest.fixture(scope="function")
-    def scheduler(self):
-        test_logger = MagicMock(spec=AbstractLogger)
+    @pytest.fixture
+    def logger(self):
+        return MagicMock(spec=AbstractLogger)
 
-        return TasksScheduler(logger=test_logger)
+    @pytest.fixture(scope="function")
+    def scheduler(self, logger):
+        return TasksScheduler(logger=logger)
 
     async def test_scheduler_no_tasks(self, scheduler):
         # Test that the scheduler doesn't crash when no tasks are added
@@ -38,7 +40,7 @@ class TestTasksScheduler:
         assert len(scheduler._TasksScheduler__tasks) == 1
         assert scheduler._TasksScheduler__tasks[0].name == "Test Task"
 
-    async def test_schedule_task_execution(self, scheduler, await_start_with_timeout):
+    async def test_schedule_task_execution(self, logger, scheduler, await_start_with_timeout):
         runs = 0
 
         interval_seconds = 0.5
@@ -55,10 +57,13 @@ class TestTasksScheduler:
             start_future=scheduler.start(), timeout=interval_seconds * 2.1
         )
 
-        # Ensure that the task was executed
+        # Ensure that task iterated 3 times
+        assert logger.start_trace.call_count == 3
         assert runs == 3
 
-    async def test_tasks_run_concurrently_at_intervals(self, scheduler, await_start_with_timeout):
+    async def test_tasks_run_concurrently_at_intervals(
+        self, logger, scheduler, await_start_with_timeout
+    ):
         interval_task = 0.5
 
         runs_task_1 = 0
@@ -89,6 +94,7 @@ class TestTasksScheduler:
         # Ensure that the tasks were executed N times
         assert runs_task_1 == 3
         assert runs_task_2 == 3
+        assert logger.start_trace.call_count == 6
 
     async def test_task_execution_error(self, scheduler, await_start_with_timeout):
         runs = 0

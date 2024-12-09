@@ -13,6 +13,7 @@
         "ifgames",
         "isort",
         "iterrows",
+        "levelname",
         "Opentensor",
         "polymarket",
         "pytest",

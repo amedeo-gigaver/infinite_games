@@ -5,7 +5,7 @@ import aiosqlite
 import pytest
 
 from infinite_games.sandbox.validator.db.client import Client
-from infinite_games.sandbox.validator.utils.logger import AbstractLogger
+from infinite_games.sandbox.validator.utils.logger.logger import AbstractLogger
 
 
 class TestDbClient:

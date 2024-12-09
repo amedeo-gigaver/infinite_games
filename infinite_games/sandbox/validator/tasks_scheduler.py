@@ -3,7 +3,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Callable, Literal
 
-from infinite_games.sandbox.validator.utils.logger import AbstractLogger
+from infinite_games.sandbox.validator.utils.logger.logger import AbstractLogger
 
 
 @dataclass
@@ -51,22 +51,27 @@ class TasksScheduler:
         while True:  # Continuously execute the task at the specified interval
             start_time = time.time()
 
+            # Start a new trace
+            self.__logger.start_trace()
+
             task.status = "running"  # Mark the task as running
 
-            self.__logger.info(f"Task started: {task.name}")
+            self.__logger.info("Task started", extra={"task_name": task.name})
 
             try:
                 # Execute the task's async function
                 await task.task_function()
-            except Exception as e:
+            except Exception:
                 # Log any exceptions that occur during task execution
-                self.__logger.error(f"Task errored: {task.name}. {e}")
+                self.__logger.exception("Task errored", extra={"task_name": task.name})
 
             task.status = "idle"  # Mark the task as idle after completion
 
             elapsed_time = time.time() - start_time
 
-            self.__logger.info(f"Task finished: {task.name}. {elapsed_time:.3f} seconds")
+            self.__logger.info(
+                "Task finished", extra={"task_name": task.name, "elapsed_time": elapsed_time}
+            )
 
             # Wait for the specified interval before the next execution
             await asyncio.sleep(task.interval_seconds)
