@@ -571,7 +571,7 @@ class Validator(BaseValidatorNeuron):
 
         if no_updates_count > 0:
             bt.logging.warning(
-                f"Count predictions which were not updated from the init ValueError: {no_updates_count}"
+                f"Count predictions which were not updated from the init value: {no_updates_count}"
             )
 
         if len(minerUids) > 0:
@@ -579,7 +579,7 @@ class Validator(BaseValidatorNeuron):
                 miners_payload = pd.DataFrame()
                 miners_payload["provider_event"] = provider_events
                 miners_payload["minerUid"] = minerUids
-                miners_payload["blocktime"] = self.block
+                miners_payload["blocktime"] = block_start
                 miners_payload["interval_start_minutes"] = interval_start_minutes
                 miners_payload["answer"] = answers
                 miners_payload["details"] = details
