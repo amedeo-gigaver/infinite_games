@@ -1,19 +1,19 @@
-
+import json
+from datetime import datetime, timedelta, timezone
 from typing import AsyncIterator
 
 import backoff
 import bittensor as bt
-
-from datetime import datetime, timedelta, timezone
-import json
-from gql import gql, Client
-from gql.transport.aiohttp import AIOHTTPTransport
 import websockets
+from gql import Client, gql
+from gql.transport.aiohttp import AIOHTTPTransport
 
 from infinite_games.azurodictionaries.outcomes import OUTCOMES
-
 from infinite_games.events.base import (
-    EventAggregator, EventStatus, ProviderEvent, ProviderIntegration
+    EventAggregator,
+    EventStatus,
+    ProviderEvent,
+    ProviderIntegration,
 )
 
 
@@ -25,16 +25,16 @@ class AzuroProviderIntegration(ProviderIntegration):
         )
         self.client = Client(transport=self.transport, fetch_schema_from_transport=True)
         self.session = None
-        self._listen_stream_url = 'wss://streams.azuro.org/v1/streams/conditions'
+        self._listen_stream_url = "wss://streams.azuro.org/v1/streams/conditions"
         # self.ws_connection = None
         # asyncio.create_task()
 
-    async def _ainit(self) -> 'AzuroProviderIntegration':
+    async def _ainit(self) -> "AzuroProviderIntegration":
         await self._connect()
         return self
 
     def provider_name(self):
-        return 'azuro'
+        return "azuro"
 
     async def _connect(self):
         self.session = await self.client.connect_async(reconnecting=True)
@@ -47,20 +47,23 @@ class AzuroProviderIntegration(ProviderIntegration):
 
     def available_for_submission(self, pe: ProviderEvent) -> bool:
         # self.log(f'Can submit? {pe} {pe.starts} > {datetime.now()} {pe.starts > datetime.now()}')
-        return self.latest_submit_date(pe) > datetime.now(timezone.utc) and pe.status != EventStatus.DISCARDED
+        return (
+            self.latest_submit_date(pe) > datetime.now(timezone.utc)
+            and pe.status != EventStatus.DISCARDED
+        )
 
     def convert_status(self, azuro_status):
         return {
-            'Created': EventStatus.PENDING,
-            'Resolved': EventStatus.SETTLED,
-            'Canceled': EventStatus.DISCARDED,
-            'Paused': EventStatus.PENDING
+            "Created": EventStatus.PENDING,
+            "Resolved": EventStatus.SETTLED,
+            "Canceled": EventStatus.DISCARDED,
+            "Paused": EventStatus.PENDING,
         }.get(azuro_status, EventStatus.PENDING)
 
     async def on_update(self, ws):
         try:
             async for message in ws:
-                self.log(f'Websocket {message=}')
+                self.log(f"Websocket {message=}")
         except websockets.ConnectionClosed:
             self.ws_connection = None
 
@@ -68,16 +71,18 @@ class AzuroProviderIntegration(ProviderIntegration):
         # TODO with websocket
         if self.ws_connection:
             if cids:
-                self.ws_connection.send(json.dumps(
-                    {
-                        "action": 'subscribe',
-                        "conditionIds": cids,
-                    }
-                ))
+                self.ws_connection.send(
+                    json.dumps(
+                        {
+                            "action": "subscribe",
+                            "conditionIds": cids,
+                        }
+                    )
+                )
             else:
-                bt.logging.warning('Azuro: Empty CID passed for ws subscribe')
+                bt.logging.warning("Azuro: Empty CID passed for ws subscribe")
         else:
-            bt.logging.error('Azuro: Could not subscribe to event no WS connection found!')
+            bt.logging.error("Azuro: Could not subscribe to event no WS connection found!")
 
     # async def listen_for_updates(self):
     #     async for websocket in websockets.connect(
@@ -87,9 +92,9 @@ class AzuroProviderIntegration(ProviderIntegration):
     #         asyncio.create_task(self.on_update(self, websocket))
 
     def _get_answer(self, status):
-        if status == 'Won':
+        if status == "Won":
             return 1
-        elif status == 'Lost':
+        elif status == "Lost":
             return 0
         else:
             return None
@@ -144,14 +149,9 @@ class AzuroProviderIntegration(ProviderIntegration):
         """
         )
 
-        result = await self.session.execute(
-            query,
-            {
-                "id": event_id
-            }
-        )
+        result = await self.session.execute(query, {"id": event_id})
         if not result:
-            bt.logging.error(f'Azuro: Could not fetch event by id  {event_id}')
+            bt.logging.error(f"Azuro: Could not fetch event by id  {event_id}")
             return None
 
         return result
@@ -161,17 +161,17 @@ class AzuroProviderIntegration(ProviderIntegration):
         if result is None:
             return None
 
-        outcome = result['outcome']
+        outcome = result["outcome"]
 
         if not outcome:
-            bt.logging.error(f'Azuro: Could not fetch event by id  {event_id}')
+            bt.logging.error(f"Azuro: Could not fetch event by id  {event_id}")
             return None
-        condition = outcome['condition']
-        game = condition['game']
+        condition = outcome["condition"]
+        game = condition["game"]
         start_date = datetime.fromtimestamp(int(game["startsAt"]), tz=timezone.utc)
-        event_status = condition.get('status')
+        event_status = condition.get("status")
         effective_status = self.convert_status(event_status)
-        answer = self._get_answer(outcome.get('result'))
+        answer = self._get_answer(outcome.get("result"))
 
         # if event_id == '0x7f3f3f19c4e4015fd9db2f22e653c766154091ef_100100000000000015927405030000000000000357953524_142':
         #     effective_status = EventStatus.SETTLED
@@ -181,7 +181,7 @@ class AzuroProviderIntegration(ProviderIntegration):
             event_id,
             now,
             self.provider_name(),
-            game.get('title') + ' ,' + OUTCOMES[outcome['outcomeId']].get('_comment'),
+            game.get("title") + " ," + OUTCOMES[outcome["outcomeId"]].get("_comment"),
             start_date,
             None,
             answer,
@@ -189,10 +189,10 @@ class AzuroProviderIntegration(ProviderIntegration):
             effective_status,
             None,
             {
-                'conditionId': condition['conditionId'],
-                'slug': game.get('slug'),
-                'league': game.get('league')
-            }
+                "conditionId": condition["conditionId"],
+                "slug": game.get("slug"),
+                "league": game.get("league"),
+            },
         )
         return pe
 
@@ -203,17 +203,16 @@ class AzuroProviderIntegration(ProviderIntegration):
         now = datetime.now(tz=timezone.utc)
 
         if not (now.hour > 7 and now.hour < 14):
-            self.log(f'Skip sync h:{now.hour}')
+            self.log(f"Skip sync h:{now.hour}")
             return
         if not start_from:
             DAILY_EVENT_START_HOURS_UTC = 8
             # if we started this day already register events for tomorrow
             now = now + timedelta(days=1)
             now = now.replace(hour=DAILY_EVENT_START_HOURS_UTC, minute=0, second=0, microsecond=0)
-            self.log(f'Syncing events from {now}')
+            self.log(f"Syncing events from {now}")
             start_from = int(now.timestamp())
         else:
-
             self.log(f"Syncing events {start_from=} ")
         query = gql(
             """
@@ -271,12 +270,11 @@ class AzuroProviderIntegration(ProviderIntegration):
                 "where": {
                     "status": "Created",
                     "hasActiveConditions": True,
-                    "sport_": {
-                        "name_in": ["Football", "Tennis", "Basketball"]
-                    },
-                    "startsAt_gt": start_from
+                    "sport_": {"name_in": ["Football", "Tennis", "Basketball"]},
+                    "startsAt_gt": start_from,
                 },
-                "start": 0, "per_page": MAX_DAILY_EVENTS
+                "start": 0,
+                "per_page": MAX_DAILY_EVENTS,
             },
         )
         # self.log(f'Fetched games: {len(result["games"])}')
@@ -286,33 +284,39 @@ class AzuroProviderIntegration(ProviderIntegration):
         for game in result["games"]:
             game_events = 0
             start_date = datetime.fromtimestamp(int(game["startsAt"]), tz=timezone.utc)
-            if not game.get('startsAt'):
-                bt.logging.warning(f"Azuro game {game.get('slug')} doesnt have start time, skipping..")
+            if not game.get("startsAt"):
+                bt.logging.warning(
+                    f"Azuro game {game.get('slug')} doesnt have start time, skipping.."
+                )
                 continue
-            for condition in game['conditions']:
+            for condition in game["conditions"]:
                 if game_events >= max_outcome_per_game:
                     break
-                event_status = condition.get('status')
+                event_status = condition.get("status")
                 # if not event_status != 'Canceled':
                 #     bt.logging.debug(f"Azuro condition for game {game.get('slug')} condition id {condition.get('conditionId')} is {condition.get('status')}, skipping..")
                 #     continue
-                if event_status == 'Canceled':
+                if event_status == "Canceled":
                     continue
-                for outcome in condition['outcomes']:
+                for outcome in condition["outcomes"]:
                     if game_events >= max_outcome_per_game:
                         break
                     game_events += 1
-                    if outcome.get('id') is None:
-                        bt.logging.error(f"{game.get('slug')} cid: {condition.get('conditionId')} outcome {outcome.get('outcomeId')} does not have id, skip..")
+                    if outcome.get("id") is None:
+                        bt.logging.error(
+                            f"{game.get('slug')} cid: {condition.get('conditionId')} outcome {outcome.get('outcomeId')} does not have id, skip.."
+                        )
                         continue
-                    if outcome.get('result') is not None:
-                        bt.logging.debug(f"{game.get('slug')} cid: {condition.get('conditionId')} outcome {outcome.get('outcomeId')} resolved, skipping..")
+                    if outcome.get("result") is not None:
+                        bt.logging.debug(
+                            f"{game.get('slug')} cid: {condition.get('conditionId')} outcome {outcome.get('outcomeId')} resolved, skipping.."
+                        )
                         continue
                     yield ProviderEvent(
-                        outcome.get('id'),
+                        outcome.get("id"),
                         datetime.now(timezone.utc),
                         self.provider_name(),
-                        game.get('title') + ' ,' + OUTCOMES[outcome['outcomeId']].get('_comment'),
+                        game.get("title") + " ," + OUTCOMES[outcome["outcomeId"]].get("_comment"),
                         start_date,
                         resolve_date=None,
                         answer=None,
@@ -320,10 +324,10 @@ class AzuroProviderIntegration(ProviderIntegration):
                         status=self.convert_status(event_status),
                         miner_predictions={},
                         metadata={
-                            'conditionId': condition['conditionId'],
-                            'slug': game.get('slug'),
-                            'league': game.get('league')
-                            },
+                            "conditionId": condition["conditionId"],
+                            "slug": game.get("slug"),
+                            "league": game.get("league"),
+                        },
                     )
                 # TODO test websocket
                 # self.subscribe_to_condition(condition.get('conditionId'))

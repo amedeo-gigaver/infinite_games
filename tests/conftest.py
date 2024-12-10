@@ -1,13 +1,13 @@
 import asyncio
-from datetime import datetime
 import os
-
-from bittensor.mock.wallet_mock import MockWallet, get_mock_wallet
-from bittensor.mock import MockSubtensor
-from pytest import fixture
 import shutil
+from datetime import datetime
 
+import aiohttp
 import bittensor as bt
+from bittensor.mock import MockSubtensor
+from bittensor.mock.wallet_mock import MockWallet, get_mock_wallet
+from pytest import fixture
 
 bt.debug(True)
 
@@ -19,14 +19,14 @@ bt.debug(True)
 #     loop.close()
 
 
-@fixture(scope='session')
+@fixture(scope="session")
 def netuid():
     try:
-        netuid = int(os.environ.get('NETUID'))
+        netuid = int(os.environ.get("NETUID"))
         if netuid < 255:
-            raise Exception('Please set netuid higher than 255')
+            raise Exception("Please set netuid higher than 255")
     except ValueError:
-        raise Exception('Environment variable NETUID should be set as integer > 255')
+        raise Exception("Environment variable NETUID should be set as integer > 255")
     return netuid
 
 
@@ -41,18 +41,18 @@ def netuid():
 #         return super().get_current_block()
 
 
-@fixture(scope='session')
+@fixture(scope="session")
 def test_network(netuid):
     w = get_mock_wallet()
     s = MockSubtensor()
     s.create_subnet(netuid)
     uid = s.force_register_neuron(netuid, w.hotkey.ss58_address, w.coldkey.ss58_address, 20, 20)
-    print(f'Main neuron {w.hotkey.ss58_address} registered')
-    assert uid is not None, f'Failed to register {w} in {netuid}'
+    print(f"Main neuron {w.hotkey.ss58_address} registered")
+    assert uid is not None, f"Failed to register {w} in {netuid}"
     remaining_wallets = [get_mock_wallet() for uid in range(1, 256)]
     for w in remaining_wallets:
         uid = s.force_register_neuron(netuid, w.hotkey.ss58_address, w.coldkey.ss58_address, 20, 20)
-    print('All subnet neurons registered')
+    print("All subnet neurons registered")
 
     yield w, s
 
@@ -60,21 +60,21 @@ def test_network(netuid):
 @fixture
 def mock_network(monkeypatch, test_network, netuid):
     w, s = test_network
-    monkeypatch.setattr('infinite_games.base.neuron.get_wallet', lambda a: w)
-    monkeypatch.setattr('infinite_games.base.neuron.get_subtensor', lambda a: s)
+    monkeypatch.setattr("infinite_games.base.neuron.get_wallet", lambda a: w)
+    monkeypatch.setattr("infinite_games.base.neuron.get_subtensor", lambda a: s)
     neuron_path = os.path.expanduser(
         "{}/{}/{}/netuid{}/{}".format(
-            '~/.bittensor/miners',  # TODO: change from ~/.bittensor/miners to ~/.bittensor/neurons
-            'default',
-            'default',
+            "~/.bittensor/miners",  # TODO: change from ~/.bittensor/miners to ~/.bittensor/neurons
+            "default",
+            "default",
             netuid,
-            'validator',
+            "validator",
         )
     )
-    print('Reset neuron path: ', neuron_path)
+    print("Reset neuron path: ", neuron_path)
     try:
         shutil.rmtree(neuron_path)
-        os.remove('test.db')
+        os.remove("test.db")
     except FileNotFoundError:
         pass
     yield w, s
@@ -82,15 +82,45 @@ def mock_network(monkeypatch, test_network, netuid):
 
 @fixture
 def disable_event_updates():
-    os.environ['VALIDATOR_WATCH_EVENTS_DISABLED'] = '1'
+    os.environ["VALIDATOR_WATCH_EVENTS_DISABLED"] = "1"
     yield
-    os.environ['VALIDATOR_WATCH_EVENTS_DISABLED'] = '0'
+    os.environ["VALIDATOR_WATCH_EVENTS_DISABLED"] = "0"
 
 
 @fixture
 def mock_miner_reg_time(monkeypatch):
-    reg_time = '2024-01-01 00:00'
-    monkeypatch.setattr('neurons.validator.get_miner_data_by_uid',
-                        lambda validator, _: {'registered_date': reg_time})
+    reg_time = "2024-01-01 00:00"
+    monkeypatch.setattr(
+        "neurons.validator.get_miner_data_by_uid",
+        lambda validator, _: {"registered_date": reg_time},
+    )
 
     yield reg_time
+
+
+@fixture(autouse=True, scope="function")
+def clean_db():
+    # Setup: clean the sqlite DB
+    try:
+        os.remove("test.db")
+    except FileNotFoundError:
+        pass
+    yield
+    # Teardown: clean the sqlite DB again after the test
+    try:
+        os.remove("test.db")
+    except FileNotFoundError:
+        pass
+
+
+@fixture(autouse=True, scope="function")
+async def cleanup_event_loop():
+    yield
+    # Cleanup tasks after the test completes
+    tasks = [t for t in asyncio.all_tasks() if not t.done()]
+    for task in tasks:
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass

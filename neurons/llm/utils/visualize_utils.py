@@ -1,12 +1,13 @@
 # Standard library imports
 import datetime
 
-# Related third-party imports
-from IPython.core.display import HTML
 import markdown2
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+
+# Related third-party imports
+from IPython.core.display import HTML
 from scipy.stats import logistic
 from utils import utils
 
@@ -307,8 +308,7 @@ def visualize_all(
     )
     html += "<h2>3. Summaries </h2>" + all_summaries.replace("\n", "<br>")
     html += (
-        "<h2>4. Forecasts (Models, Prompts, Reasonings, Predictions)  </h2>"
-        + vis_forecasts.data
+        "<h2>4. Forecasts (Models, Prompts, Reasonings, Predictions)  </h2>" + vis_forecasts.data
     )
     return html
 

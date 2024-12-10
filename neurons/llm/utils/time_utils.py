@@ -1,7 +1,8 @@
 # Related third-party imports
-from datetime import datetime, timedelta
-import pandas as pd
 import math
+from datetime import datetime, timedelta
+
+import pandas as pd
 
 
 def extract_date(datetime):
@@ -212,9 +213,7 @@ def find_pred_with_closest_date(date_str, date_pred_list):
     return closest_date
 
 
-def get_retrieval_date(
-    retrieval_index, num_retrievals, date_begin, date_close, resolve_date
-):
+def get_retrieval_date(retrieval_index, num_retrievals, date_begin, date_close, resolve_date):
     """
     Calculate a specific retrieval date within a given time range.
 
@@ -253,9 +252,7 @@ def get_retrieval_date(
 
     # Check against the previous retrieval date
     if retrieval_index > 1:
-        previous_days = math.exp(
-            (math.log(total_days) / num_retrievals) * (retrieval_index - 1)
-        )
+        previous_days = math.exp((math.log(total_days) / num_retrievals) * (retrieval_index - 1))
         previous_date_obj = date_begin_obj + timedelta(days=previous_days)
         if retrieval_date_obj <= previous_date_obj:
             return None

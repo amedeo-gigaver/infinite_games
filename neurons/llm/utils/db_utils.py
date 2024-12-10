@@ -1,10 +1,10 @@
 # Standard library imports
-from io import StringIO
 import logging
 import os
 import pickle
 import random
 import string
+from io import StringIO
 
 # Related third-party imports
 import boto3

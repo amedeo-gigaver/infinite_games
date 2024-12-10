@@ -16,19 +16,17 @@
 # DEALINGS IN THE SOFTWARE.
 
 import copy
+from abc import ABC, abstractmethod
 
 import bittensor as bt
 
-from abc import ABC, abstractmethod
-
-
-# Sync calls set weights and also resyncs the metagraph.
-from infinite_games.utils.config import check_config, add_args, config
-from infinite_games.utils.misc import ttl_get_block
 from infinite_games import __spec_version__ as spec_version
 
+# Sync calls set weights and also resyncs the metagraph.
+from infinite_games.utils.config import add_args, check_config, config
+from infinite_games.utils.misc import ttl_get_block
 
-bt.logging.info(f'Subnet weight version:  {spec_version}')
+bt.logging.info(f"Subnet weight version:  {spec_version}")
 
 
 def get_wallet(config: "bt.Config"):
@@ -102,9 +100,7 @@ class BaseNeuron(ABC):
         self.check_registered()
 
         # Each miner gets a unique identity (UID) in the network for differentiation.
-        self.uid = self.metagraph.hotkeys.index(
-            self.wallet.hotkey.ss58_address
-        )
+        self.uid = self.metagraph.hotkeys.index(self.wallet.hotkey.ss58_address)
         bt.logging.info(
             f"Running neuron on subnet: {self.config.netuid} with uid {self.uid} using network: {self.subtensor.chain_endpoint}"
         )
@@ -123,16 +119,16 @@ class BaseNeuron(ABC):
         Wrapper for synchronizing the state of the network for the given miner or validator.
         """
         # Ensure miner or validator hotkey is still registered on the network.
-        bt.logging.info('Check neuron registration..')
+        bt.logging.info("Check neuron registration..")
         self.check_registered()
-        bt.logging.info('Check if need to sync metagraph...')
+        bt.logging.info("Check if need to sync metagraph...")
 
         if self.should_sync_metagraph():
             self.resync_metagraph()
-        bt.logging.info('Check if need to set weights..')
+        bt.logging.info("Check if need to set weights..")
 
         if set_weights_enabled and self.should_set_weights():
-            bt.logging.info('********* SUBMIT WEIGHTS *********')
+            bt.logging.info("********* SUBMIT WEIGHTS *********")
             self.set_weights()
         # Initial sync should not save state
         if save_state:
@@ -154,9 +150,7 @@ class BaseNeuron(ABC):
         """
         Check if enough epoch blocks have elapsed since the last checkpoint to sync.
         """
-        return (
-            self.block - self.metagraph.last_update[self.uid]
-        ) > self.config.neuron.epoch_length
+        return (self.block - self.metagraph.last_update[self.uid]) > self.config.neuron.epoch_length
 
     def should_set_weights(self) -> bool:
         # Don't set weights on initialization.
@@ -165,12 +159,18 @@ class BaseNeuron(ABC):
 
         # Check if enough epoch blocks have elapsed since the last epoch.
         if self.config.neuron.disable_set_weights:
-            bt.logging.info('self.config.neuron.disable_set_weights enabled from cli: skip set weight')
+            bt.logging.info(
+                "self.config.neuron.disable_set_weights enabled from cli: skip set weight"
+            )
             return False
 
         # Define appropriate logic for when set weights.
-        should_set_weight = (self.block - self.metagraph.last_update[self.uid]) > self.config.neuron.epoch_length
-        bt.logging.info(f'Weight / Current: {self.block}, Last : {self.metagraph.last_update[self.uid]} Epoch length: {self.config.neuron.epoch_length}, should set: {should_set_weight}')
+        should_set_weight = (
+            self.block - self.metagraph.last_update[self.uid]
+        ) > self.config.neuron.epoch_length
+        bt.logging.info(
+            f"Weight / Current: {self.block}, Last : {self.metagraph.last_update[self.uid]} Epoch length: {self.config.neuron.epoch_length}, should set: {should_set_weight}"
+        )
         return should_set_weight
 
     def save_state(self):

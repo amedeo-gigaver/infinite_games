@@ -16,12 +16,15 @@
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 
+import json
 import time
-import math
-import hashlib as rpccheckhealth
-from math import floor
-from typing import Callable, Any
+from datetime import datetime
 from functools import lru_cache, update_wrapper
+from math import floor
+from typing import Any, Callable
+
+import backoff
+import bittensor as bt
 
 
 # LRU Cache with TTL
@@ -89,7 +92,21 @@ def _ttl_hash_gen(seconds: int):
         yield floor((time.time() - start_time) / seconds)
 
 
+# order of decorators is CRITICAL here!
 # 12 seconds updating block.
+@backoff.on_exception(
+    backoff.constant,
+    Exception,
+    interval=0.5,
+    max_time=10,
+    max_tries=10,
+    on_backoff=lambda details: bt.logging.warning(
+        f"Retrying get block due to exception: {details['exception']}"
+    ),
+    on_giveup=lambda details: bt.logging.error(
+        f"Giving up get block after {details['tries']} attempts"
+    ),
+)
 @ttl_cache(maxsize=1, ttl=12)
 def ttl_get_block(self) -> int:
     """
@@ -109,9 +126,37 @@ def ttl_get_block(self) -> int:
 
     Note: self here is the miner or validator instance
     """
-    return self.subtensor.get_current_block()
+
+    # get_current_block often errors in testnet, so we override it here
+    if self.subtensor.network in ["test", "mock"]:
+        # seen in logs
+        # 2024-11-26 18:21:05.770 |  Validator starting at block: 3322388
+        start_ts_str = "2024-11-26 18:21:05"
+        start_ts = datetime.strptime(start_ts_str, "%Y-%m-%d %H:%M:%S")
+        time_diff = datetime.now() - start_ts
+        n_blocks = int(time_diff.total_seconds() / 12)
+        start_block = 3322388
+        return start_block + n_blocks
+    else:
+        return self.subtensor.get_current_block()
 
 
 async def split_chunks(l, n):
     for i in range(0, len(l), n):
-        yield l[i:i + n]
+        yield l[i : i + n]
+
+
+class CustomJSONEncoder(json.JSONEncoder):
+    # use it to print dataclasses
+    # print(json.dumps(my_obj, cls=CustomJSONEncoder, indent=2))
+    def default(self, obj):
+        if isinstance(obj, datetime):
+            return obj.isoformat()
+        elif hasattr(obj, "to_dict"):
+            return obj.to_dict()
+        elif isinstance(obj, Exception):
+            return {
+                "type": type(obj).__name__,
+                "message": str(obj),
+            }
+        return super().default(obj)

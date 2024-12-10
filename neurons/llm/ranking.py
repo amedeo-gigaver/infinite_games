@@ -1,16 +1,17 @@
 # Standard library imports
 import asyncio
-from datetime import datetime
 import logging
+from datetime import datetime
 
 # Related third-party imports
 import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
+from . import information_retrieval, model_eval, summarize
+
 # Local application/library-specific imports
 from .config.constants import CHARS_PER_TOKEN, DEFAULT_RETRIEVAL_CONFIG
-from . import information_retrieval, model_eval, summarize
 from .prompts.prompts import PROMPT_DICT
 from .utils import metrics_utils, string_utils, utils
 
@@ -116,9 +117,7 @@ async def get_relevance_ratings(
                 article="\n---\nTitle: {title}\n\n{text}\n---\n".format(
                     title=article.title,
                     text=(
-                        article.text_cleaned[:40000]
-                        if not use_summary
-                        else article.summary[:40000]
+                        article.text_cleaned[:40000] if not use_summary else article.summary[:40000]
                     ),
                 ),
             )
@@ -206,9 +205,7 @@ def _sort_and_filter_articles(articles, default_date, threshold=4, sort_by="date
         for article in filtered_articles:
             if not article.publish_date:
                 article.publish_date = datetime.strptime(default_date, "%Y-%m-%d")
-        return sorted(
-            filtered_articles, key=lambda x: x.publish_date.date(), reverse=True
-        )
+        return sorted(filtered_articles, key=lambda x: x.publish_date.date(), reverse=True)
     logger.error(f"Not a valid sorting criterion: {sort_by}")
     return filtered_articles
 
@@ -277,9 +274,7 @@ async def rank_articles(
         for i, rating in enumerate(ratings):
             articles[i].relevance_rating = rating
             logger.info(
-                "Article {} gets rating: {}".format(
-                    articles[i].title, articles[i].relevance_rating
-                )
+                "Article {} gets rating: {}".format(articles[i].title, articles[i].relevance_rating)
             )
         # Sort and filter the articles
         if sort_and_filter:
@@ -292,9 +287,7 @@ async def rank_articles(
     elif method == "embedding":
         # question and background are concatenated, then embedded; this is a
         # list of Embedding objects (with one element)
-        q_embedding, a_embeddings = get_question_article_embeddings(
-            articles, question, background
-        )
+        q_embedding, a_embeddings = get_question_article_embeddings(articles, question, background)
         # Compute the cosine similarity between the question and each article
         for i, a_embedding in enumerate(
             a_embeddings
@@ -367,9 +360,7 @@ async def retrieve_summarize_and_rank_articles(
     """
     # Step 1: Extract search query terms, including the question itself
     logger.info(
-        "Finding {} search query keywords via LLM...".format(
-            config["NUM_SEARCH_QUERY_KEYWORDS"]
-        )
+        "Finding {} search query keywords via LLM...".format(config["NUM_SEARCH_QUERY_KEYWORDS"])
     )
     (
         search_queries_list_nc,
@@ -385,7 +376,7 @@ async def retrieve_summarize_and_rank_articles(
         question,
         background_info=background_info,
         resolution_criteria=resolution_criteria,
-        model=config["SEARCH_QUERY_MODEL_NAME"]
+        model=config["SEARCH_QUERY_MODEL_NAME"],
     )
     # Flatten and deduplicate the search queries
     search_queries_list_nc = utils.flatten_list(search_queries_list_nc)
@@ -417,22 +408,16 @@ async def retrieve_summarize_and_rank_articles(
         # each a_embedding is an Embedding object, with a_embedding.embedding being a list of floats
         for a_embedding in a_embeddings:
             cos_sim.append(
-                metrics_utils.cosine_similarity(
-                    q_embedding[0].embedding, a_embedding.embedding
-                )
+                metrics_utils.cosine_similarity(q_embedding[0].embedding, a_embedding.embedding)
             )
-        logger.info(
-            f"Get {len(cos_sim)} cosine similarities for {len(articles)} articles."
-        )
+        logger.info(f"Get {len(cos_sim)} cosine similarities for {len(articles)} articles.")
         sim_threshold = config["PRE_FILTER_WITH_EMBEDDING_THRESHOLD"]
         # If there are too many articles, use a higher threshold
         if len(articles) >= 100:
             sim_threshold = 0.36
         logger.info(f"Using {sim_threshold} as the cosine similarity threshold.")
         # filter articles with cosine similarity below threshold
-        articles = [
-            article for i, article in enumerate(articles) if cos_sim[i] > sim_threshold
-        ]
+        articles = [article for i, article in enumerate(articles) if cos_sim[i] > sim_threshold]
         logger.info(f"{len(articles)} articles survived the embedding filtering.")
     # Step 3: Filter irrelevant articles and rank the remaining articles (by
     # recency or relevance)
@@ -448,9 +433,7 @@ async def retrieve_summarize_and_rank_articles(
         background=background_info,
         sort_by=config["SORT_BY"],
         relevance_rating_threshold=config["RANKING_RELEVANCE_THRESHOLD"],
-        cosine_similarity_threshold=config.get(
-            "RANKING_COSINE_SIMILARITY_THRESHOLD", 0.5
-        ),
+        cosine_similarity_threshold=config.get("RANKING_COSINE_SIMILARITY_THRESHOLD", 0.5),
         model_name=config["RANKING_MODEL_NAME"],
         temperature=config["RANKING_TEMPERATURE"],
     )
@@ -463,9 +446,7 @@ async def retrieve_summarize_and_rank_articles(
             # If the link is not already in the ranked articles, extract the
             # webpage text and add it to the list of articles
             if link not in [article.canonical_link for article in ranked_articles]:
-                article = information_retrieval.retrieve_webpage_text(
-                    link, date_range[1]
-                )
+                article = information_retrieval.retrieve_webpage_text(link, date_range[1])
                 # If the article is retrieved fully, add it to the list of articles
                 if article and article.text_cleaned and len(article.text_cleaned) > 200:
                     article.search_term = "additional-url"
@@ -485,9 +466,7 @@ async def retrieve_summarize_and_rank_articles(
     # If a threshold NUM_SUMMARIES_THRESHOLD is given, only summarize
     # the top NUM_SUMMARIES_THRESHOLD articles
     if config.get("NUM_SUMMARIES_THRESHOLD"):
-        logger.info(
-            f"Summarizing the top {config['NUM_SUMMARIES_THRESHOLD']} articles."
-        )
+        logger.info(f"Summarizing the top {config['NUM_SUMMARIES_THRESHOLD']} articles.")
         ranked_articles = ranked_articles[: config["NUM_SUMMARIES_THRESHOLD"]]
     await summarize.summarize_articles(
         ranked_articles,
@@ -533,15 +512,13 @@ async def all_retrieve_summarize_rank_articles(
     """
     articles_by_question = {}
     for index in range(len(questions)):
-        articles_by_question[questions[index]] = (
-            await retrieve_summarize_and_rank_articles(
-                questions[index],
-                background_infos[index],
-                date_ranges[index],
-                num_articles,
-                use_newscatcher,
-                return_intermediates,
-                config,
-            )
+        articles_by_question[questions[index]] = await retrieve_summarize_and_rank_articles(
+            questions[index],
+            background_infos[index],
+            date_ranges[index],
+            num_articles,
+            use_newscatcher,
+            return_intermediates,
+            config,
         )
     return articles_by_question

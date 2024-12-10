@@ -16,13 +16,13 @@
 # DEALINGS IN THE SOFTWARE.
 
 
-import time
-import torch
 import asyncio
 import threading
+import time
 import traceback
 
 import bittensor as bt
+import torch
 
 from infinite_games.base.neuron import BaseNeuron
 
@@ -183,9 +183,7 @@ class BaseMinerNeuron(BaseNeuron):
         """
         try:
             # --- query the chain for the most current number of peers on the network
-            chain_weights = torch.zeros(
-                self.subtensor.subnetwork_n(netuid=self.metagraph.netuid)
-            )
+            chain_weights = torch.zeros(self.subtensor.subnetwork_n(netuid=self.metagraph.netuid))
             chain_weights[self.uid] = 1
 
             # --- Set weights.
@@ -199,9 +197,7 @@ class BaseMinerNeuron(BaseNeuron):
             )
 
         except Exception as e:
-            bt.logging.error(
-                f"Failed to set weights on chain with exception: { e }"
-            )
+            bt.logging.error(f"Failed to set weights on chain with exception: { e }")
 
         bt.logging.info(f"Set weights: {chain_weights}")
 

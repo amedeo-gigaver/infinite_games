@@ -4,9 +4,10 @@ import logging
 # Related third-party imports
 import numpy as np
 
+from . import model_eval
+
 # Local application/library-specific imports
 from .config.constants import TOKENS_TO_PROBS_DICT
-from . import model_eval
 from .prompts.prompts import PROMPT_DICT
 from .utils import string_utils, utils
 
@@ -201,15 +202,11 @@ def aggregate_base_reasonings(
     all_base_predictions = []  # list of lists of floats
     for base_reasonings_list in base_reasonings:
         base_predictions = [  # for one model; list of floats
-            string_utils.extract_prediction(
-                reasoning, answer_type=answer_type, end_words=end_words
-            )
+            string_utils.extract_prediction(reasoning, answer_type=answer_type, end_words=end_words)
             for reasoning in base_reasonings_list
         ]
         all_base_predictions.append(base_predictions)
-    flattened_all_base_predictions = [
-        item for sublist in all_base_predictions for item in sublist
-    ]
+    flattened_all_base_predictions = [item for sublist in all_base_predictions for item in sublist]
     if len(flattened_all_base_predictions) == 1:  # no aggregation needed
         return {
             "base_reasonings": base_reasonings,
@@ -224,13 +221,9 @@ def aggregate_base_reasonings(
         if aggregation_method == "vote-or-median":
             meta_prediction = np.median(flattened_all_base_predictions)
         if aggregation_method == "weighted-mean":
-            meta_prediction = np.average(
-                flattened_all_base_predictions, weights=weights
-            )
+            meta_prediction = np.average(flattened_all_base_predictions, weights=weights)
         if meta_prediction is None or meta_prediction < 0.0 or meta_prediction > 1.0:
-            logger.debug(
-                "final_answer {} is not between 0 and 1".format(meta_prediction)
-            )
+            logger.debug("final_answer {} is not between 0 and 1".format(meta_prediction))
             meta_prediction = 0.5  # default to 0.5
         return {
             "base_reasonings": base_reasonings,
@@ -240,9 +233,7 @@ def aggregate_base_reasonings(
             "meta_reasoning": None,
         }
     elif answer_type == "tokens" and aggregation_method == "vote-or-median":
-        meta_prediction = utils.most_frequent_item(
-            flattened_all_base_predictions
-        )  # majority vote
+        meta_prediction = utils.most_frequent_item(flattened_all_base_predictions)  # majority vote
         if meta_prediction is None or not string_utils.is_string_in_list(
             meta_prediction, end_words
         ):
@@ -259,9 +250,7 @@ def aggregate_base_reasonings(
     # If aggregation_method is 'meta', elicit a meta-reasoning using the
     # meta_prompt_template
     prompt, fields = meta_prompt_template
-    flattened_base_reasonings = [
-        item for sublist in base_reasonings for item in sublist
-    ]
+    flattened_base_reasonings = [item for sublist in base_reasonings for item in sublist]
     meta_full_prompt = string_utils.get_prompt(
         prompt,
         fields,
@@ -282,9 +271,7 @@ def aggregate_base_reasonings(
         # Get the probability from the meta-reasoning
         meta_prediction = string_utils.extract_probability_with_stars(meta_reasoning)
         if meta_prediction is None or meta_prediction < 0.0 or meta_prediction > 1.0:
-            logger.debug(
-                "final_answer {} is not between 0 and 1".format(meta_prediction)
-            )
+            logger.debug("final_answer {} is not between 0 and 1".format(meta_prediction))
             meta_prediction = 0.5
     elif answer_type == "tokens":
         # Get the final token answer from the meta-reasoning

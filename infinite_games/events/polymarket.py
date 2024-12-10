@@ -1,12 +1,12 @@
-
+import asyncio
 import os
 import traceback
+from datetime import datetime, timedelta, timezone
 from typing import AsyncIterator, Optional
+
 import aiohttp
 import backoff
 import bittensor as bt
-import asyncio
-from datetime import datetime, timedelta, timezone
 import requests
 
 from infinite_games.events.base import EventStatus, ProviderEvent, ProviderIntegration
@@ -15,16 +15,21 @@ from infinite_games.events.base import EventStatus, ProviderEvent, ProviderInteg
 class PolymarketProviderIntegration(ProviderIntegration):
     def __init__(self, max_pending_events=None) -> None:
         super().__init__(max_pending_events=max_pending_events)
-        self.base_url = 'https://clob.polymarket.com'
-        self.session = aiohttp.ClientSession()
+        self.base_url = "https://clob.polymarket.com"
         self.lock = asyncio.Lock()
-        self.loop = asyncio.get_event_loop()
+        self.loop = None
 
-    async def _ainit(self) -> 'PolymarketProviderIntegration':
+    async def _ainit(self) -> "PolymarketProviderIntegration":
+        self.session = aiohttp.ClientSession()
+        self.loop = asyncio.get_event_loop()
         return self
 
+    async def close(self):
+        if self.session:
+            await self.session.close()
+
     def provider_name(self):
-        return 'polymarket'
+        return "polymarket"
 
     def latest_submit_date(self, pe: ProviderEvent):
         return pe.resolve_date - timedelta(seconds=86400)
@@ -32,7 +37,10 @@ class PolymarketProviderIntegration(ProviderIntegration):
     def available_for_submission(self, pe: ProviderEvent):
         max_date_for_submission = self.latest_submit_date(pe)
         # self.log(f'Can submit? {pe} resolve date: {pe.resolve_date} , condition: {datetime.now().date()} < {one_day_before_resolve.date()} {datetime.now().date() < one_day_before_resolve.date()}')
-        return datetime.now(timezone.utc) < max_date_for_submission and pe.status != EventStatus.DISCARDED
+        return (
+            datetime.now(timezone.utc) < max_date_for_submission
+            and pe.status != EventStatus.DISCARDED
+        )
 
     def convert_status(self, closed_bool):
         return {
@@ -64,18 +72,20 @@ class PolymarketProviderIntegration(ProviderIntegration):
 
     def construct_provider_event(self, event_id, market):
         payload = market
-        if not payload.get('end_date_iso'):
+        if not payload.get("end_date_iso"):
             self.log(f'Skip event without end date: {market["market_slug"]}!')
             # pprint(payload)
             return
-        end_date_iso = payload.get('end_date_iso')
+        end_date_iso = payload.get("end_date_iso")
         if end_date_iso:
-            end_date_iso = end_date_iso.replace('Z', '+00:00')
+            end_date_iso = end_date_iso.replace("Z", "+00:00")
         resolve_date = datetime.fromisoformat(end_date_iso).replace(tzinfo=timezone.utc)
         start_date = None
 
-        if payload['game_start_time']:
-            start_date = datetime.fromisoformat(payload['game_start_time'].replace('Z', '+00:00')).replace(tzinfo=timezone.utc)
+        if payload["game_start_time"]:
+            start_date = datetime.fromisoformat(
+                payload["game_start_time"].replace("Z", "+00:00")
+            ).replace(tzinfo=timezone.utc)
         # from pprint import pprint
         # pprint(market)
         # if 'will-scottie-scheffler-win-the-us-open' in market.get('market_slug'):
@@ -87,47 +97,47 @@ class PolymarketProviderIntegration(ProviderIntegration):
             event_id,
             datetime.now(timezone.utc),
             self.provider_name(),
-            payload.get('question') + '.' + payload.get('description'),
+            payload.get("question") + "." + payload.get("description"),
             start_date,
             resolve_date,
             self._get_answer(payload),
             datetime.now(timezone.utc),
-            self.convert_status(payload.get('closed')),
+            self.convert_status(payload.get("closed")),
             {},
             {
-                'description': payload.get('description'),
-                'category': payload.get('category'),
-                'active': payload.get('active'),
-                'slug': payload.get('market_slug'),
-            }
+                "description": payload.get("description"),
+                "category": payload.get("category"),
+                "active": payload.get("active"),
+                "slug": payload.get("market_slug"),
+            },
         )
 
     async def _lock(self, seconds, error_resp):
         if not self.lock.locked():
-            self.log(f'Hit limit for {error_resp.url} polymarket waiting for {seconds} seconds..')
+            self.log(f"Hit limit for {error_resp.url} polymarket waiting for {seconds} seconds..")
             return await self.lock.acquire()
 
     async def _wait_for_retry(self, retry_seconds, resp):
         self.loop.create_task(self._lock(retry_seconds, resp))
         await asyncio.sleep(int(retry_seconds) + 1)
-        self.log('Continue requests..')
+        self.log("Continue requests..")
         try:
             self.lock.release()
         except RuntimeError:
             pass
 
     async def _handle_429(self, request_resp):
-        retry_timeout = request_resp.headers.get('Retry-After')
+        retry_timeout = request_resp.headers.get("Retry-After")
         if retry_timeout:
             if not self.lock.locked():
                 await self._wait_for_retry(retry_timeout, request_resp)
             await asyncio.sleep(int(retry_timeout) + 1)
         else:
-            self.log('got 429 for {request_resp} but no retry after header present.')
+            self.log("got 429 for {request_resp} but no retry after header present.")
         return
 
     async def get_event_by_id(self, event_id) -> Optional[dict]:
-        return await self._request(self.base_url + '/markets/{}'.format(event_id))
+        return await self._request(self.base_url + "/markets/{}".format(event_id))
 
     async def get_single_event(self, event_id) -> Optional[ProviderEvent]:
         payload: Optional[dict] = await self.get_event_by_id(event_id)
@@ -140,7 +150,7 @@ class PolymarketProviderIntegration(ProviderIntegration):
         while self.lock.locked():
             await asyncio.sleep(1)
         retried = 0
-        error_response = ''
+        error_response = ""
         while retried < max_retries:
             # to keep up/better sync with lock of other requests
             await asyncio.sleep(0.1)
@@ -154,7 +164,6 @@ class PolymarketProviderIntegration(ProviderIntegration):
                             await self._handle_429(resp)
                         # self.log(f'Retry {url}.. {retried + 1}')
                     else:
-
                         payload = await resp.json()
                         return payload
             except Exception as e:
@@ -167,7 +176,7 @@ class PolymarketProviderIntegration(ProviderIntegration):
                 retried += 1
                 await asyncio.sleep(1 + retried * expo_backoff)
 
-        self.error(f'Unable to get response {url} {error_response}')
+        self.error(f"Unable to get response {url} {error_response}")
 
     async def sync_events(self, start_from: int = None) -> AsyncIterator[ProviderEvent]:
         self.log(f"syncing events {start_from=} ")
@@ -189,23 +198,24 @@ class PolymarketProviderIntegration(ProviderIntegration):
                     self.error(str(e))
             else:
                 try:
-                    resp = await self._request("https://clob.polymarket.com/sampling-markets?next_cursor={}".format(cursor))
+                    resp = await self._request(
+                        "https://clob.polymarket.com/sampling-markets?next_cursor={}".format(cursor)
+                    )
                     nxt = resp
                 except Exception as e:
                     self.error(str(e))
 
             if resp:
-
                 cursor = nxt["next_cursor"]
                 for market in nxt["data"]:
                     if count > max_events:
                         return
                     count += 1
-                    if not market.get('condition_id'):
-                        self.error('No market id provided for event {market}')
+                    if not market.get("condition_id"):
+                        self.error("No market id provided for event {market}")
                         continue
                     try:
-                        pe = self.construct_provider_event(market.get('condition_id'), market)
+                        pe = self.construct_provider_event(market.get("condition_id"), market)
                         if not pe:
                             continue
                         if not self.available_for_submission(pe):
@@ -213,11 +223,13 @@ class PolymarketProviderIntegration(ProviderIntegration):
                             continue
                         # for Polymarket we only fetch next 2-3 days events
                         # self.log(f'{pe.resolve_date.date()} limited to? {datetime.now().date() + timedelta(days=3)} {datetime.now().date() + timedelta(days=3) > pe.resolve_date.date()}')
-                        if datetime.now(timezone.utc).date() + timedelta(days=14) < pe.resolve_date.date():
+                        if (
+                            datetime.now(timezone.utc).date() + timedelta(days=14)
+                            < pe.resolve_date.date()
+                        ):
                             continue
                         yield pe
                     except Exception as e:
-
                         self.error(f"Error parse market {market.get('market_slug')} {e} {market}")
                         self.error(traceback.format_exc())
             else:

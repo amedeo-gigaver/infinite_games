@@ -1,15 +1,14 @@
 import datetime
-import requests
 import logging
 
+import requests
+from config.constants import S3, S3_BUCKET_NAME
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
-
-from config.constants import S3, S3_BUCKET_NAME
 from utils import db_utils
 
 logger = logging.getLogger(__name__)
@@ -126,12 +125,8 @@ def get_source_links(driver, url):
     try:
         driver.get(url)  # Make sure to navigate to the page first
         driver.find_element(By.XPATH, '//a[text() = "Source Links"]').click()
-        WebDriverWait(driver, 2).until(
-            EC.visibility_of_element_located((By.ID, "links-table"))
-        )
-        rows = driver.find_elements(
-            By.XPATH, '//table[contains(@id, "links-table")]/tbody/tr'
-        )
+        WebDriverWait(driver, 2).until(EC.visibility_of_element_located((By.ID, "links-table")))
+        rows = driver.find_elements(By.XPATH, '//table[contains(@id, "links-table")]/tbody/tr')
         for entry in rows:
             try:
                 url_elem = entry.find_element(By.TAG_NAME, "a")

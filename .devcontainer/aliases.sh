@@ -4,6 +4,7 @@ alias gaa="git add ."
 alias gcm="git commit -m"
 alias gacm="git add . && git commit -m"
 
+export PATH="/usr/local/bin:$PATH"
 
 # this is to simplify setting up the git ssh key for local devcontainers
 # this is not needed for codespaces

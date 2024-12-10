@@ -16,28 +16,31 @@
 # DEALINGS IN THE SOFTWARE.
 
 
-import bittensor as bt
 from typing import List
+
+import bittensor as bt
 
 from infinite_games.events.base import ProviderEvent
 
 
 class EventPredictionSynapse(bt.Synapse):
-
     events: dict = {}
 
     def init(self, events: List[ProviderEvent]):
         self.events = {}
         for event in events:
-            market_type = (event.metadata.get('market_type', event.market_type) or '').lower()
-            cutoff = event.metadata.get('cutoff')
-            self.events[f'{event.market_type}-{event.event_id}'] = {
+            market_type = (event.metadata.get("market_type", event.market_type) or "").lower()
+            cutoff = event.metadata.get("cutoff")
+            self.events[f"{event.market_type}-{event.event_id}"] = {
                 "event_id": event.event_id,
                 "market_type": market_type,
-                'probability': None,
+                "probability": None,
+                "miner_answered": False,
                 "description": event.description,
                 "cutoff": cutoff,
-                "starts": int(cutoff) if (cutoff and market_type == 'azuro') else None,
+                "starts": int(cutoff) if (cutoff and market_type == "azuro") else None,
                 "resolve_date": int(event.resolve_date.timestamp()) if event.resolve_date else None,
-                "end_date": int(event.metadata['end_date']) if event.metadata.get('end_date') else None,
+                "end_date": (
+                    int(event.metadata["end_date"]) if event.metadata.get("end_date") else None
+                ),
             }

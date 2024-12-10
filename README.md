@@ -28,7 +28,7 @@
 
 # Forecasting of Future Events
 
-##  Introduction
+###  Introduction
 
 
 We incentivize the prediction of future events. The prediction space is based on binary future events such as the one listed on [Polymarket](https://polymarket.com/) and on [Azuro](https://azuro.org/). We are always actively expanding to new markets and providers. We are focused on *judgemental forecasting* rather than *statistical forecasting*. We hence expect the models used by miners to be LLMs. 
@@ -114,7 +114,7 @@ We also want to incorporate a progress or stability component in the scoring rul
 
 See [here](docs/mechanism.md) for a discussion of our mechanism. -->
 
-## Roadmap
+### Roadmap
 
 - Scoring with exponentially decreasing weights until settlement date and linear differentiation mechanism - July 25th 
 - Synthetic event generation with central resolution using ACLED data - early August
@@ -151,7 +151,7 @@ A detailed explanation of how to set up a wallet can be found [here](https://doc
 We also provide some indications [here](docs/wallet-setup.md).
 
 
-## References
+### References
 
 | Reference ID | Author(s) | Year | Title |
 |--------------|-----------|------|-------|

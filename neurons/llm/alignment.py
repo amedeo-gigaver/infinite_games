@@ -4,8 +4,8 @@ import logging
 # Local application/library-specific imports
 import model_eval
 import ranking
-from utils import string_utils
 from prompts.prompts import PROMPT_DICT
+from utils import string_utils
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -58,9 +58,7 @@ def get_alignment_scores(
                     max_tokens=2000,
                     temperature=temperature,
                 )
-                alignment_score = ranking.extract_rating_from_response(
-                    alignment_response
-                )
+                alignment_score = ranking.extract_rating_from_response(alignment_response)
                 alignment_scores_.append(alignment_score)
             except Exception as e:
                 logger.error(f"Error message: {e}")

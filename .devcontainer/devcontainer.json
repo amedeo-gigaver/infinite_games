@@ -22,9 +22,7 @@
                         "source.organizeImports": true
                     }
                 },
-                "python.pythonPath": "/usr/local/bin/python3.10",
-                "python.formatting.blackArgs": ["-l", "100"],
-                "isort.args": ["--profile", "black"]
+                "python.pythonPath": "/usr/local/bin/python3.10"
             },
             "extensions": [
                 "streetsidesoftware.code-spell-checker",
@@ -38,7 +36,9 @@
                 "timonwong.shellcheck",
                 "EditorConfig.EditorConfig",
                 "ms-python.black-formatter",
-                "ms-python.isort"
+                "ms-python.isort",
+                "ms-python.flake8",
+                "qwtel.sqlite-viewer"
             ]
         }
     },

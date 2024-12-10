@@ -16,10 +16,11 @@
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 
-import os
-import torch
 import argparse
+import os
+
 import bittensor as bt
+import torch
 from loguru import logger
 
 
@@ -41,7 +42,7 @@ def check_config(cls, config: "bt.Config"):
     if not os.path.exists(config.neuron.full_path):
         os.makedirs(config.neuron.full_path, exist_ok=True)
 
-    if not config.neuron.dont_save_events and os.environ.get('ENV') != 'pytest':
+    if not config.neuron.dont_save_events and os.environ.get("ENV") != "pytest":
         # Add custom event logger for the events.
         logger.level("EVENTS", no=38, icon="📝")
         logger.add(
@@ -63,9 +64,7 @@ def add_args(cls, parser):
     # Netuid Arg: The netuid of the subnet to connect to.
     parser.add_argument("--netuid", type=int, help="Subnet netuid", default=os.getenv("NETUID", 1))
 
-    neuron_type = (
-        "validator" if "miner" not in cls.__name__.lower() else "miner"
-    )
+    neuron_type = "validator" if "miner" not in cls.__name__.lower() else "miner"
 
     parser.add_argument(
         "--neuron.name",

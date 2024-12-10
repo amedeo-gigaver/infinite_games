@@ -258,9 +258,7 @@ def concat_summaries_from_fields(summary_texts, titles, publish_dates):
     logger.info(
         f"Concatenating summaries from {len(summary_texts)} articles ({len(titles)} titles and {len(publish_dates)} dates)."
     )
-    if (len(summary_texts) != len(titles)) or (
-        len(summary_texts) != len(publish_dates)
-    ):
+    if (len(summary_texts) != len(titles)) or (len(summary_texts) != len(publish_dates)):
         logger.error(
             f"Lengths of summary_texts, titles, and publish_dates should be the same. Got {len(summary_texts)}, {len(titles)}, and {len(publish_dates)}."
         )
@@ -269,7 +267,5 @@ def concat_summaries_from_fields(summary_texts, titles, publish_dates):
         f"[{i+1}] {titles[i]} (published on {(publish_dates[i] if publish_dates[i] else 'unknown date')})\nSummary: {article_summary}\n"
         for i, article_summary in enumerate(summary_texts)
     ]
-    concatenated_summaries_str = (
-        "---\nARTICLES\n" + "\n".join(article_summaries) + "----"
-    )
+    concatenated_summaries_str = "---\nARTICLES\n" + "\n".join(article_summaries) + "----"
     return concatenated_summaries_str
