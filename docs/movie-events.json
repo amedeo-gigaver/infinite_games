@@ -1,0 +1,67 @@
+{
+    "items": [
+        {
+            "title": "Woman of the Hour",
+            "score": "75%",
+            "question": "Will Woman of the Hour movie make an Audience score below 75% in rotten tomatoes after 2024-10-15 00:00:00?",
+            "cutoff": "2024-10-11 00:00:00",
+            "resolution_date": "2024-10-15 00:00:00",
+            "description": "This market resolves to YES if at any point after 2024-10-15 00:00:00 UTC, the audience score is strictly below 75%. The only source of truth is rotten tomatoes (https://www.rottentomatoes.com/m/woman_of_the_hour)",
+            "reasons": "The film 'Woman of the Hour' is based on a compelling true story and stars Anna Kendrick, which may attract interest. However, as audience preferences can vary widely and depend on execution, an estimated score of 75% reflects positive but cautious expectations."
+        },
+        {
+            "title": "Uprising",
+            "score": "80%",
+            "question": "Will Uprising movie make an Audience score below 80% in rotten tomatoes after 2024-10-15 00:00:00?",
+            "cutoff": "2024-10-11 00:00:00",
+            "resolution_date": "2024-10-15 00:00:00",
+            "description": "This market resolves to YES if at any point after 2024-10-15 00:00:00 UTC, the audience score is strictly below 80%. The only source of truth is rotten tomatoes (https://www.rottentomatoes.com/m/uprising)",
+            "reasons": "The film 'Uprising' is praised for its emotional performances, historical significance, and strong production quality, suggesting it will resonate well with audiences. An estimated score of 80% reflects high expectations based on positive thematic and artistic elements."
+        },
+        {
+            "title": "Lonely Planet (2024)",
+            "score": "85%",
+            "question": "Will Lonely Planet (2024) movie make an Audience score below 85% in rotten tomatoes after 2024-10-15 00:00:00?",
+            "cutoff": "2024-10-11 00:00:00",
+            "resolution_date": "2024-10-15 00:00:00",
+            "description": "This market resolves to YES if at any point after 2024-10-15 00:00:00 UTC, the audience score is strictly below 85%. The only source of truth is rotten tomatoes (https://www.rottentomatoes.com/m/lonely_planet_2024)",
+            "reasons": "The film 'Lonely Planet' is noted for its poignant storytelling, strong performances, and beautiful cinematography. These elements generally lead to positive audience reactions, which is reflected in the estimated score of 85%."
+        },
+        {
+            "title": "The Last of the Sea Women",
+            "score": "90%",
+            "question": "Will The Last of the Sea Women movie make an Audience score below 90% in rotten tomatoes after 2024-10-15 00:00:00?",
+            "cutoff": "2024-10-11 00:00:00",
+            "resolution_date": "2024-10-15 00:00:00",
+            "description": "This market resolves to YES if at any point after 2024-10-15 00:00:00 UTC, the audience score is strictly below 90%. The only source of truth is rotten tomatoes (https://www.rottentomatoes.com/m/the_last_of_the_sea_women)",
+            "reasons": "The film 'The Last of the Sea Women' has received positive audience reception for its emotional depth, stunning cinematography, and compelling storytelling about the haenyeo divers and their endangered way of life. This suggests a strong chance of high audience scores, reflected in the estimated score of 90%."
+        },
+        {
+            "title": "In Her Place (2024)",
+            "score": "70%",
+            "question": "Will In Her Place (2024) movie make an Audience score below 70% in rotten tomatoes after 2024-10-15 00:00:00?",
+            "cutoff": "2024-10-11 00:00:00",
+            "resolution_date": "2024-10-15 00:00:00",
+            "description": "This market resolves to YES if at any point after 2024-10-15 00:00:00 UTC, the audience score is strictly below 70%. The only source of truth is rotten tomatoes (https://www.rottentomatoes.com/m/in_her_place_2024)",
+            "reasons": "While specific audience reception details are unclear, the film's themes and character dynamics suggest it may resonate with viewers. However, the lack of prominent buzz or critical acclaim leads to a cautious estimate of a 70% audience score."
+        },
+        {
+            "title": "Terrifier 3",
+            "score": "80%",
+            "question": "Will Terrifier 3 movie make an Audience score below 80% in rotten tomatoes after 2024-10-15 00:00:00?",
+            "cutoff": "2024-10-11 00:00:00",
+            "resolution_date": "2024-10-15 00:00:00",
+            "description": "This market resolves to YES if at any point after 2024-10-15 00:00:00 UTC, the audience score is strictly below 80%. The only source of truth is rotten tomatoes (https://www.rottentomatoes.com/m/terrifier_3)",
+            "reasons": "While 'Terrifier 3' has received an encouraging early score of 88% on Rotten Tomatoes, it has also generated controversy due to its graphic content, which may polarize audiences. Thus, an estimated score of 80% reflects a cautious view of its potential audience reception."
+        },
+        {
+            "title": "Caddo Lake",
+            "score": "70%",
+            "question": "Will Caddo Lake movie make an Audience score below 70% in rotten tomatoes after 2024-10-14 00:00:00?",
+            "cutoff": "2024-10-10 00:00:00",
+            "resolution_date": "2024-10-14 00:00:00",
+            "description": "This market resolves to YES if at any point after 2024-10-14 00:00:00 UTC, the audience score is strictly below 70%. The only source of truth is rotten tomatoes (https://www.rottentomatoes.com/m/caddo_lake)",
+            "reasons": "The film 'Caddo Lake' revolves around a compelling narrative, dealing with themes of loss and family history, which may resonate with some audiences. However, due to the lack of specific critical acclaim or buzz, an estimated score of 70% reflects a cautious assessment of its potential audience reception."
+        }
+    ]
+}

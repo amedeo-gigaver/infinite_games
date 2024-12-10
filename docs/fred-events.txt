@@ -1,0 +1,180 @@
+{
+        "event_id": "0e31650f-5ac1-4233-9f36-9a2fb53256a5",
+        "cutoff": 1729112400,
+        "title": "Will the value of `4-Week Treasury Bill Secondary Market Rate, Discount Basis` be strictly greater than 4.75 % at 2024-10-17",
+        "description": "Resolves to YES if the price at 2024-10-17 is above the price: 4.75 %. For resolution we will use the data provided by FRED (https://api.stlouisfed.org/fred/series?series_id=DTB4WK) as soon as they are published.",
+        "market_type": "FRED",
+        "start_date": 1729112400,
+        "end_date": 1729198799,
+        "answer": null
+    },
+    {
+        "event_id": "217fd307-d257-422f-b24c-fb7450f267fd",
+        "cutoff": 1729112400,
+        "title": "Will the value of `Market Yield on U.S. Treasury Securities at 30-Year Constant Maturity, Quoted on an Investment Basis, Inflation-Indexed` be strictly greater than 2.09 % at 2024-10-17",
+        "description": "Resolves to YES if the price at 2024-10-17 is above the price: 2.09 %. For resolution we will use the data provided by FRED (https://api.stlouisfed.org/fred/series?series_id=DFII30) as soon as they are published.",
+        "market_type": "FRED",
+        "start_date": 1729112400,
+        "end_date": 1729198799,
+        "answer": null
+    },
+    {
+        "event_id": "32b85f8a-e055-4a1f-bf46-836b917ecdca",
+        "cutoff": 1729112400,
+        "title": "Will the value of `Market Yield on U.S. Treasury Securities at 10-Year Constant Maturity, Quoted on an Investment Basis, Inflation-Indexed` be strictly greater than 1.75 % at 2024-10-17",
+        "description": "Resolves to YES if the price at 2024-10-17 is above the price: 1.75 %. For resolution we will use the data provided by FRED (https://api.stlouisfed.org/fred/series?series_id=DFII10) as soon as they are published.",
+        "market_type": "FRED",
+        "start_date": 1729112400,
+        "end_date": 1729198799,
+        "answer": null
+    },
+    {
+        "event_id": "334cbad2-57d3-44db-9676-6319d5dc2589",
+        "cutoff": 1729112400,
+        "title": "Will the value of `Market Yield on U.S. Treasury Securities at 3-Month Constant Maturity, Quoted on an Investment Basis` be strictly greater than 4.73 % at 2024-10-17",
+        "description": "Resolves to YES if the price at 2024-10-17 is above the price: 4.73 %. For resolution we will use the data provided by FRED (https://api.stlouisfed.org/fred/series?series_id=DGS3MO) as soon as they are published.",
+        "market_type": "FRED",
+        "start_date": 1729112400,
+        "end_date": 1729198799,
+        "answer": null
+    },
+    {
+        "event_id": "5309a2f8-1b96-46db-a1d7-a1e74b2f839a",
+        "cutoff": 1729112400,
+        "title": "Will the value of `Market Yield on U.S. Treasury Securities at 20-Year Constant Maturity, Quoted on an Investment Basis, Inflation-Indexed` be strictly greater than 1.96 % at 2024-10-17",
+        "description": "Resolves to YES if the price at 2024-10-17 is above the price: 1.96 %. For resolution we will use the data provided by FRED (https://api.stlouisfed.org/fred/series?series_id=DFII20) as soon as they are published.",
+        "market_type": "FRED",
+        "start_date": 1729112400,
+        "end_date": 1729198799,
+        "answer": null
+    },
+    {
+        "event_id": "5680e7e2-b317-4d31-bb18-7e2f658383ea",
+        "cutoff": 1729112400,
+        "title": "Will the value of `Market Yield on U.S. Treasury Securities at 1-Month Constant Maturity, Quoted on an Investment Basis` be strictly greater than 4.97 % at 2024-10-17",
+        "description": "Resolves to YES if the price at 2024-10-17 is above the price: 4.97 %. For resolution we will use the data provided by FRED (https://api.stlouisfed.org/fred/series?series_id=DGS1MO) as soon as they are published.",
+        "market_type": "FRED",
+        "start_date": 1729112400,
+        "end_date": 1729198799,
+        "answer": null
+    },
+    {
+        "event_id": "72b2abbb-1b84-4519-9918-d702b3fff5da",
+        "cutoff": 1729112400,
+        "title": "Will the value of `1-Year Treasury Bill Secondary Market Rate, Discount Basis` be strictly greater than 4.01 % at 2024-10-17",
+        "description": "Resolves to YES if the price at 2024-10-17 is above the price: 4.01 %. For resolution we will use the data provided by FRED (https://api.stlouisfed.org/fred/series?series_id=DTB1YR) as soon as they are published.",
+        "market_type": "FRED",
+        "start_date": 1729112400,
+        "end_date": 1729198799,
+        "answer": null
+    },
+    {
+        "event_id": "7f54530d-f924-420d-9a70-ffcca8d5f7bc",
+        "cutoff": 1729112400,
+        "title": "Will the value of `3-Month Treasury Bill Secondary Market Rate, Discount Basis` be strictly greater than 4.53 % at 2024-10-17",
+        "description": "Resolves to YES if the price at 2024-10-17 is above the price: 4.53 %. For resolution we will use the data provided by FRED (https://api.stlouisfed.org/fred/series?series_id=DTB3) as soon as they are published.",
+        "market_type": "FRED",
+        "start_date": 1729112400,
+        "end_date": 1729198799,
+        "answer": null
+    },
+    {
+        "event_id": "82440c63-48e1-4bbc-a98b-761a651e212a",
+        "cutoff": 1729112400,
+        "title": "Will the value of `Market Yield on U.S. Treasury Securities at 2-Year Constant Maturity, Quoted on an Investment Basis` be strictly greater than 3.95 % at 2024-10-17",
+        "description": "Resolves to YES if the price at 2024-10-17 is above the price: 3.95 %. For resolution we will use the data provided by FRED (https://api.stlouisfed.org/fred/series?series_id=DGS2) as soon as they are published.",
+        "market_type": "FRED",
+        "start_date": 1729112400,
+        "end_date": 1729198799,
+        "answer": null
+    },
+    {
+        "event_id": "83434707-c217-4ce8-9deb-d23daa4529b4",
+        "cutoff": 1729112400,
+        "title": "Will the value of `Market Yield on U.S. Treasury Securities at 3-Year Constant Maturity, Quoted on an Investment Basis` be strictly greater than 3.85 % at 2024-10-17",
+        "description": "Resolves to YES if the price at 2024-10-17 is above the price: 3.85 %. For resolution we will use the data provided by FRED (https://api.stlouisfed.org/fred/series?series_id=DGS3) as soon as they are published.",
+        "market_type": "FRED",
+        "start_date": 1729112400,
+        "end_date": 1729198799,
+        "answer": null
+    },
+    {
+        "event_id": "8a288661-80cb-4e55-a713-3800e5186c95",
+        "cutoff": 1729112400,
+        "title": "Will the value of `Market Yield on U.S. Treasury Securities at 20-Year Constant Maturity, Quoted on an Investment Basis` be strictly greater than 4.44 % at 2024-10-17",
+        "description": "Resolves to YES if the price at 2024-10-17 is above the price: 4.44 %. For resolution we will use the data provided by FRED (https://api.stlouisfed.org/fred/series?series_id=DGS20) as soon as they are published.",
+        "market_type": "FRED",
+        "start_date": 1729112400,
+        "end_date": 1729198799,
+        "answer": null
+    },
+    {
+        "event_id": "af415c0a-0a0b-4c94-bf93-bd8778b3fba3",
+        "cutoff": 1729112400,
+        "title": "Will the value of `Market Yield on U.S. Treasury Securities at 5-Year Constant Maturity, Quoted on an Investment Basis, Inflation-Indexed` be strictly greater than 1.63 % at 2024-10-17",
+        "description": "Resolves to YES if the price at 2024-10-17 is above the price: 1.63 %. For resolution we will use the data provided by FRED (https://api.stlouisfed.org/fred/series?series_id=DFII5) as soon as they are published.",
+        "market_type": "FRED",
+        "start_date": 1729112400,
+        "end_date": 1729198799,
+        "answer": null
+    },
+    {
+        "event_id": "b96be491-b84f-466a-8db3-78d3ebb68d3a",
+        "cutoff": 1729112400,
+        "title": "Will the value of `Market Yield on U.S. Treasury Securities at 1-Year Constant Maturity, Quoted on an Investment Basis` be strictly greater than 4.18 % at 2024-10-17",
+        "description": "Resolves to YES if the price at 2024-10-17 is above the price: 4.18 %. For resolution we will use the data provided by FRED (https://api.stlouisfed.org/fred/series?series_id=DGS1) as soon as they are published.",
+        "market_type": "FRED",
+        "start_date": 1729112400,
+        "end_date": 1729198799,
+        "answer": null
+    },
+    {
+        "event_id": "ba983d96-42dd-44f3-bf9e-e15f13b2032a",
+        "cutoff": 1729112400,
+        "title": "Will the value of `Market Yield on U.S. Treasury Securities at 7-Year Constant Maturity, Quoted on an Investment Basis` be strictly greater than 3.97 % at 2024-10-17",
+        "description": "Resolves to YES if the price at 2024-10-17 is above the price: 3.97 %. For resolution we will use the data provided by FRED (https://api.stlouisfed.org/fred/series?series_id=DGS7) as soon as they are published.",
+        "market_type": "FRED",
+        "start_date": 1729112400,
+        "end_date": 1729198799,
+        "answer": null
+    },
+    {
+        "event_id": "cc871597-3013-4562-b837-952fca511c27",
+        "cutoff": 1729112400,
+        "title": "Will the value of `Market Yield on U.S. Treasury Securities at 5-Year Constant Maturity, Quoted on an Investment Basis` be strictly greater than 3.88 % at 2024-10-17",
+        "description": "Resolves to YES if the price at 2024-10-17 is above the price: 3.88 %. For resolution we will use the data provided by FRED (https://api.stlouisfed.org/fred/series?series_id=DGS5) as soon as they are published.",
+        "market_type": "FRED",
+        "start_date": 1729112400,
+        "end_date": 1729198799,
+        "answer": null
+    },
+    {
+        "event_id": "d164a144-cee5-4ee2-ba05-820cfac96021",
+        "cutoff": 1729112400,
+        "title": "Will the value of `Market Yield on U.S. Treasury Securities at 6-Month Constant Maturity, Quoted on an Investment Basis` be strictly greater than 4.44 % at 2024-10-17",
+        "description": "Resolves to YES if the price at 2024-10-17 is above the price: 4.44 %. For resolution we will use the data provided by FRED (https://api.stlouisfed.org/fred/series?series_id=DGS6MO) as soon as they are published.",
+        "market_type": "FRED",
+        "start_date": 1729112400,
+        "end_date": 1729198799,
+        "answer": null
+    },
+    {
+        "event_id": "e05ae55a-92c5-49b2-b135-15feac26a473",
+        "cutoff": 1729112400,
+        "title": "Will the value of `Market Yield on U.S. Treasury Securities at 30-Year Constant Maturity, Quoted on an Investment Basis` be strictly greater than 4.39 % at 2024-10-17",
+        "description": "Resolves to YES if the price at 2024-10-17 is above the price: 4.39 %. For resolution we will use the data provided by FRED (https://api.stlouisfed.org/fred/series?series_id=DGS30) as soon as they are published.",
+        "market_type": "FRED",
+        "start_date": 1729112400,
+        "end_date": 1729198799,
+        "answer": null
+    },
+    {
+        "event_id": "e32251b4-6efd-42c5-a2b7-9cffb4c9ddae",
+        "cutoff": 1729112400,
+        "title": "Will the value of `Market Yield on U.S. Treasury Securities at 10-Year Constant Maturity, Quoted on an Investment Basis` be strictly greater than 4.08 % at 2024-10-17",
+        "description": "Resolves to YES if the price at 2024-10-17 is above the price: 4.08 %. For resolution we will use the data provided by FRED (https://api.stlouisfed.org/fred/series?series_id=DGS10) as soon as they are published.",
+        "market_type": "FRED",
+        "start_date": 1729112400,
+        "end_date": 1729198799,
+        "answer": null
+    },
