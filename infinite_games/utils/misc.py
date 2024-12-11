@@ -97,8 +97,8 @@ def _ttl_hash_gen(seconds: int):
 @backoff.on_exception(
     backoff.constant,
     Exception,
-    interval=0.5,
-    max_time=10,
+    interval=1,
+    max_time=20,
     max_tries=10,
     on_backoff=lambda details: bt.logging.warning(
         f"Retrying get block due to exception: {details['exception']}"

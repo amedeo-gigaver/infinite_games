@@ -16,41 +16,28 @@
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 
-import asyncio
-import json
-import logging
 import os
 import sqlite3
-import sys
-import unittest
 from collections import Counter
 from copy import deepcopy
 from datetime import datetime, timedelta, timezone
-from time import sleep
-from unittest.mock import patch
 
 import bittensor as bt
 import pytest
-import torch
-from bittensor.mock import wallet_mock
-from bittensor.mock.wallet_mock import MockWallet
 from freezegun import freeze_time
 
-from infinite_games.events.azuro import AzuroProviderIntegration
 from infinite_games.events.base import (
     CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES,
     EventStatus,
     ProviderEvent,
 )
-from infinite_games.events.polymarket import PolymarketProviderIntegration
-from infinite_games.protocol import EventPredictionSynapse
 from neurons.validator import Validator
 from tests.providers import (
     MockAzuroProviderIntegration,
     MockIFGamesProviderIntegration,
     MockPolymarketProviderIntegration,
 )
-from tests.utils import after, before, fake_synapse_response
+from tests.utils import after, fake_synapse_response
 
 
 @pytest.mark.asyncio

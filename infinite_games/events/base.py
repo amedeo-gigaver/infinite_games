@@ -13,7 +13,7 @@ from typing import Any, AsyncIterator, Callable, Dict, Iterator, List, Optional,
 import backoff
 import bittensor as bt
 import pandas as pd
-from bittensor.chain_data import AxonInfo
+from bittensor import AxonInfo
 
 from infinite_games.utils.misc import split_chunks
 from infinite_games.utils.uids import miner_count_in_db
@@ -299,7 +299,7 @@ class EventAggregator:
                         f"Failed to call update hook for event {key}: {repr(e)}", exc_info=True
                     )
         else:
-            self.log(f"New event:  {key} {pe.description} - {pe.status} ")
+            self.log(f"New event:  {key} {pe.description} - {pe.status=} ")
 
         return is_new
 

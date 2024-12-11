@@ -431,7 +431,7 @@ class Validator(BaseValidatorNeuron):
                 )
                 if not res.status_code == 200:
                     bt.logging.warning(
-                        f"Error processing scores for event {p_event}: {res.content}"
+                        f"Error processing scores for event {p_event}: {res.status_code=} {res.content=}"
                     )
                 else:
                     bt.logging.info(f"Scores processed {res.status_code} {res.content}")

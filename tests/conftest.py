@@ -5,9 +5,10 @@ from datetime import datetime
 
 import aiohttp
 import bittensor as bt
-from bittensor.mock import MockSubtensor
-from bittensor.mock.wallet_mock import MockWallet, get_mock_wallet
+from bittensor_wallet.mock.wallet_mock import get_mock_wallet
 from pytest import fixture
+
+from tests.bittensor_mocks import MockSubtensor
 
 bt.debug(True)
 
