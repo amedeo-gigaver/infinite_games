@@ -7,7 +7,6 @@ from aioresponses import aioresponses
 from infinite_games.sandbox.validator.if_games.client import IfGamesClient
 
 
-@pytest.mark.asyncio
 class TestIfGamesClient:
     @pytest.fixture
     def client_test_env(self):

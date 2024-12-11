@@ -28,18 +28,31 @@ class DatabaseOperations:
                         unique_event_id,
                         event_id,
                         market_type,
-                        registered_date,
                         description,
                         starts,
                         resolve_date,
                         outcome,
-                        local_updated_at,
                         status,
                         metadata,
-                        created_at
+                        created_at,
+                        registered_date,
+                        local_updated_at
                     )
                 VALUES
-                    (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    (
+                        ?,
+                        ?,
+                        ?,
+                        ?,
+                        ?,
+                        ?,
+                        ?,
+                        ?,
+                        ?,
+                        ?,
+                        CURRENT_TIMESTAMP,
+                        CURRENT_TIMESTAMP
+                    )
                 ON CONFLICT
                     (unique_event_id)
                 DO UPDATE

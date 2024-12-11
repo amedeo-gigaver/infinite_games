@@ -152,7 +152,6 @@ class Client:
             if default_value is not None:
                 alter_query += f" DEFAULT {default_value}"
 
-            print(alter_query)
             await self.script(alter_query)
 
     async def migrate(self):

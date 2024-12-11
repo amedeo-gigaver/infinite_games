@@ -63,16 +63,18 @@ class PullEvents:
 
         while True:
             # Query events in batches
-            events = await self.api_client.get_events(events_from, offset, self.page_size)
+            response = await self.api_client.get_events(events_from, offset, self.page_size)
             # TODO: data validation
 
             # Parse events
-            parsed_events = [(self.parse_event(e)) for e in events.get("items")]
+            items = response.get("items")
+            parsed_events_for_insertion = [(self.parse_event(e)) for e in items]
 
             # Batch insert in the db
-            await self.db_operations.upsert_events(parsed_events)
+            if len(parsed_events_for_insertion) > 0:
+                await self.db_operations.upsert_events(parsed_events_for_insertion)
 
-            if events.get("count") < self.page_size:
+            if len(items) < self.page_size:
                 # Break if no more events
                 break
 
@@ -94,8 +96,6 @@ class PullEvents:
             event["event_id"],
             # market_type
             truncated_market_type,
-            # registered_date
-            datetime.now(timezone.utc),
             # description
             event.get("title", "") + event.get("description", ""),
             # starts
@@ -104,8 +104,6 @@ class PullEvents:
             None,
             # outcome
             event["answer"],
-            # local_updated_at
-            datetime.now(tz=timezone.utc),
             # status
             status,
             # metadata

@@ -70,6 +70,19 @@ class TestDbClient:
         assert result == [(1, "test_insert_1"), (2, "test_insert_2")]
         logger.info.assert_called()  # Ensure logger was called
 
+    async def test_insert_many_no_params(self, client, logger):
+        sql = "INSERT INTO test_table (name) VALUES (?)"
+        params = []
+
+        result = await client.insert_many(sql, params)
+        assert result is None
+
+        sql = "SELECT * FROM test_table"
+        result = await client.many(sql)
+
+        assert result == []
+        logger.info.assert_called()  # Ensure logger was called
+
     async def test_delete(self, client, logger):
         # Insert a row to delete
         await client.insert("INSERT INTO test_table (name) VALUES ('test_delete')")
