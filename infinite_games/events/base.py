@@ -1,6 +1,7 @@
 import asyncio
 import json
 import os
+import random
 import shutil
 import sqlite3
 import time
@@ -164,10 +165,15 @@ class EventAggregator:
             await asyncio.sleep(self.COLLECTOR_WATCH_EVENTS_DELAY)
 
     async def check_event(self, event_data: ProviderEvent):
-        processed_already = event_data.metadata.get("processed", False)
         market_type = event_data.metadata.get("market_type", event_data.market_type)
-        event_text = f"{market_type} {event_data.event_id}"
-        self.log(f"Update Event {event_text} {event_data.status} {processed_already=} ")
+
+        # reduce the number of logs - log a 20% sample
+        if random.random() < 0.2:
+            processed_already = event_data.metadata.get("processed", False)
+            event_text = f"{market_type} {event_data.event_id}"
+            self.log(
+                f"Sample of Update Event {event_text} {event_data.status=} {processed_already=} "
+            )
 
         if event_data.status in [EventStatus.PENDING, EventStatus.SETTLED]:
             integration = self.integrations.get(event_data.market_type)
@@ -257,7 +263,6 @@ class EventAggregator:
                             *[self.check_event(event_data) for event_data in events]
                         )
                         await asyncio.sleep(self.WATCH_EVENTS_DELAY)
-                        self.log("Updating events..")
                 except Exception as e:
                     self.error(f"Failed to get event: {repr(e)}")
                     self.error(traceback.format_exc())
@@ -299,7 +304,7 @@ class EventAggregator:
                         f"Failed to call update hook for event {key}: {repr(e)}", exc_info=True
                     )
         else:
-            self.log(f"New event:  {key} {pe.description} - {pe.status=} ")
+            self.log(f"New event:  {key} {pe.description[:50]} - {pe.status=} ")
 
         return is_new
 

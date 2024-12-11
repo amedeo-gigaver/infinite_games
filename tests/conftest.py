@@ -1,9 +1,7 @@
 import asyncio
 import os
 import shutil
-from datetime import datetime
 
-import aiohttp
 import bittensor as bt
 from bittensor_wallet.mock.wallet_mock import get_mock_wallet
 from pytest import fixture
@@ -45,7 +43,7 @@ def netuid():
 @fixture(scope="session")
 def test_network(netuid):
     w = get_mock_wallet()
-    s = MockSubtensor()
+    s = MockSubtensor(_mock=True)
     s.create_subnet(netuid)
     uid = s.force_register_neuron(netuid, w.hotkey.ss58_address, w.coldkey.ss58_address, 20, 20)
     print(f"Main neuron {w.hotkey.ss58_address} registered")

@@ -1,15 +1,17 @@
+# please sort alphabetically to avoid duplicates
 -r requirements.txt
-pytest
-pytest-mock
-pytest-env
-pytest-asyncio
-pytest-socket==0.7.0
-freezegun==1.5.1
-coverage==7.6.7
-black>=23,<24
-isort>=5,<6
-flake8>=7,<8
-flake8-isort==6.1.1
 aioresponses==0.7.7
 bittensor-wallet==2.1.3
+black>=23,<24
+coverage==7.6.7
+flake8-isort==6.1.1
+flake8>=7,<8
+freezegun==1.5.1
 git+https://github.com/opentensor/btcli.git@release/8.4.0
+isort>=5,<6
+pytest
+pytest-asyncio
+pytest-env
+pytest-mock
+pytest-socket==0.7.0
+pytest-timeout

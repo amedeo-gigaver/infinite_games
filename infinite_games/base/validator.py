@@ -39,6 +39,8 @@ from infinite_games import __version__
 from infinite_games.base.neuron import BaseNeuron
 from infinite_games.events.base import CLUSTER_EPOCH_2024
 
+TENSOR_DEBUG_SLICE = 12
+
 
 class BaseValidatorNeuron(BaseNeuron):
     """
@@ -410,7 +412,8 @@ class BaseValidatorNeuron(BaseNeuron):
             0, uids.clone().detach(), rewards
         ).to(self.device)
         bt.logging.debug(
-            f"Scattered scores: {torch.round(scattered_scores, decimals=3)} {len(scattered_scores)}"
+            f"Scattered scores[-{TENSOR_DEBUG_SLICE}:]:"
+            f" {torch.round(scattered_scores, decimals=3)[-TENSOR_DEBUG_SLICE:]} {len(scattered_scores)}"
         )
 
         alpha: float = self.config.neuron.moving_average_alpha
@@ -429,14 +432,23 @@ class BaseValidatorNeuron(BaseNeuron):
             0, uids.clone().detach(), rewards
         )
 
-        bt.logging.debug(f"Scattered rewards: {torch.round(zero_scattered_rewards, decimals=3)}")
-        bt.logging.debug(f"Average total: {torch.round(self.average_scores, decimals=3)}")
+        bt.logging.debug(
+            f"Scattered rewards[-{TENSOR_DEBUG_SLICE}:]:"
+            f" {torch.round(zero_scattered_rewards, decimals=3)[-TENSOR_DEBUG_SLICE:]}"
+        )
+        bt.logging.debug(
+            f"Average total[-{TENSOR_DEBUG_SLICE}:]:"
+            f" {torch.round(self.average_scores, decimals=3)[-TENSOR_DEBUG_SLICE:]}"
+        )
         bt.logging.debug(f"Daily iteration: {self.scoring_iterations + 1}")
 
         self.average_scores = (
             self.average_scores * self.scoring_iterations + zero_scattered_rewards
         ) / (self.scoring_iterations + 1)
-        bt.logging.debug(f"New Average total: {torch.round(self.average_scores, decimals=3)}")
+        bt.logging.debug(
+            f"New Average total[-{TENSOR_DEBUG_SLICE}:]:"
+            f" {torch.round(self.average_scores, decimals=3)[-TENSOR_DEBUG_SLICE:]}"
+        )
 
         alpha = 0.8
         if (
@@ -452,7 +464,10 @@ class BaseValidatorNeuron(BaseNeuron):
             self.scores: torch.FloatTensor = alpha * scattered_scores + (
                 1 - alpha
             ) * self.scores.to(self.device)
-        bt.logging.debug(f"Updated moving avg scores: {self.scores}")
+        bt.logging.debug(
+            f"Updated moving avg scores[-{TENSOR_DEBUG_SLICE}:]:"
+            f" {self.scores[-TENSOR_DEBUG_SLICE:]}"
+        )
         self.scoring_iterations += 1
         end_time = time.time()
         bt.logging.info(f"update_scores completed in {end_time - start_time:.2f} seconds")
