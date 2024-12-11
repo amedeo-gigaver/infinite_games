@@ -1,7 +1,6 @@
 import tempfile
 from unittest.mock import MagicMock
 
-import aiosqlite
 import pytest
 
 from infinite_games.sandbox.validator.db.client import Client
@@ -24,15 +23,31 @@ class TestDbClient:
         client = Client(db_path, logger)
 
         # Prepare database schema
-        async with aiosqlite.connect(db_path) as conn:
-            await conn.execute(
-                """
-                    CREATE TABLE IF NOT EXISTS test_table (id INTEGER PRIMARY KEY, name TEXT);
-                """
-            )
-            await conn.commit()
+        await client.script(
+            """
+                CREATE TABLE IF NOT EXISTS test_table (id INTEGER PRIMARY KEY, name TEXT);
+            """
+        )
 
         return client
+
+    async def test_add_column_if_not_exists(self, client):
+        await client.add_column_if_not_exists(
+            table_name="test_table",
+            column_name="created_at",
+            column_type="DATETIME",
+            default_value=None,
+        )
+
+        response = await client.add_column_if_not_exists(
+            table_name="test_table",
+            column_name="created_at",
+            column_type="DATETIME",
+            default_value=None,
+        )
+
+        # No error thrown
+        assert response is None
 
     async def test_insert(self, client, logger):
         sql = "INSERT INTO test_table (name) VALUES (?) returning name"
@@ -40,6 +55,19 @@ class TestDbClient:
         result = await client.insert(sql, params)
 
         assert result == [("test_insert",)]
+        logger.info.assert_called()  # Ensure logger was called
+
+    async def test_insert_many(self, client, logger):
+        sql = "INSERT INTO test_table (name) VALUES (?)"
+        params = [("test_insert_1",), ("test_insert_2",)]
+
+        result = await client.insert_many(sql, params)
+        assert result is None
+
+        sql = "SELECT * FROM test_table"
+        result = await client.many(sql)
+
+        assert result == [(1, "test_insert_1"), (2, "test_insert_2")]
         logger.info.assert_called()  # Ensure logger was called
 
     async def test_delete(self, client, logger):
@@ -100,7 +128,9 @@ class TestDbClient:
         result = await client.many(sql)
 
         assert len(result) == 101  # Verify returned rows
-        logger.warning.assert_called_with("Query returning 101 rows")  # Ensure warning logged
+        logger.warning.assert_called_with(
+            "Query returning many rows", extra={"rows": 101}
+        )  # Ensure warning logged
 
     async def test_migrate(self, client):
         await client.migrate()
