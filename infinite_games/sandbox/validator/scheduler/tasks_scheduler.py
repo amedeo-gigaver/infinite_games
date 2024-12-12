@@ -1,37 +1,8 @@
 import asyncio
 import time
-from dataclasses import dataclass, field
-from typing import Callable, Literal
 
+from infinite_games.sandbox.validator.scheduler.task import AbstractTask, TaskStatus
 from infinite_games.sandbox.validator.utils.logger.logger import AbstractLogger
-
-
-@dataclass
-class Task:
-    """
-    Represents a scheduled task with an execution interval and a callable function.
-    """
-
-    name: str  # Name of the task
-    interval_seconds: float  # Interval between task executions
-    task_function: Callable[[], asyncio.Future]  # Async function representing the task
-    status: Literal["unscheduled", "idle", "running"] = field(
-        init=False, default="unscheduled"
-    )  # Task status
-
-    def __post_init__(self):
-        """
-        Perform validation after the dataclass initialization.
-        :raises ValueError: If any argument is invalid (e.g., None or negative interval).
-        """
-        if (
-            not self.name
-            or not isinstance(self.name, str)
-            or not callable(self.task_function)
-            or not isinstance(self.interval_seconds, float)
-            or self.interval_seconds < 0.0
-        ):
-            raise ValueError("Invalid arguments.")
 
 
 class TasksScheduler:
@@ -40,10 +11,10 @@ class TasksScheduler:
     """
 
     def __init__(self, logger: AbstractLogger):
-        self.__tasks: list[Task] = []  # List to store tasks
+        self.__tasks: list[AbstractTask] = []  # List to store tasks
         self.__logger = logger  # Logger
 
-    async def __schedule_task(self, task: Task):
+    async def __schedule_task(self, task: AbstractTask):
         """
         Private method to manage the execution of a single task.
         :param task: The task to be scheduled and executed.
@@ -54,18 +25,18 @@ class TasksScheduler:
             # Start a new trace
             self.__logger.start_trace()
 
-            task.status = "running"  # Mark the task as running
+            task.status = TaskStatus.RUNNING  # Mark the task as running
 
             self.__logger.info("Task started", extra={"task_name": task.name})
 
             try:
-                # Execute the task's async function
-                await task.task_function()
+                # Execute the task's run async function
+                await task.run()
             except Exception:
                 # Log any exceptions that occur during task execution
                 self.__logger.exception("Task errored", extra={"task_name": task.name})
 
-            task.status = "idle"  # Mark the task as idle after completion
+            task.status = TaskStatus.IDLE  # Mark the task as idle after completion
 
             elapsed_time = time.time() - start_time
 
@@ -76,7 +47,7 @@ class TasksScheduler:
             # Wait for the specified interval before the next execution
             await asyncio.sleep(task.interval_seconds)
 
-    def add(self, task: Task):
+    def add(self, task: AbstractTask):
         """
         Add a new task to the scheduler.
         :param task: The Task object to add.
@@ -96,7 +67,7 @@ class TasksScheduler:
         scheduled_tasks = []  # List to hold scheduled asyncio tasks
 
         for task in self.__tasks:
-            if task.status != "unscheduled":  # Skip tasks that are already scheduled
+            if task.status != TaskStatus.UNSCHEDULED:  # Skip tasks that are already scheduled
                 continue
 
             # Schedule and start the task

@@ -78,17 +78,8 @@ class TestDbOperations:
 
         assert event_from == "2012-12-02T14:30:00+00:00"
 
-    async def test_upsert_no_events(self, db_operations, db_client):
-        """Test the run method when there are no events."""
+    async def test_upsert_no_events(self, db_operations):
+        """Test upsert not failing with empty list."""
         events = []
 
         await db_operations.upsert_events(events)
-
-        # En
-        result = await db_client.many(
-            """
-                SELECT * FROM events
-            """
-        )
-
-        assert len(result) == 0

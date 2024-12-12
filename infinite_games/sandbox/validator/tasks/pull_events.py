@@ -5,9 +5,10 @@ from datetime import datetime, timedelta, timezone
 from infinite_games.sandbox.validator.db.operations import DatabaseOperations
 from infinite_games.sandbox.validator.if_games.client import IfGamesClient
 from infinite_games.sandbox.validator.models.event import EventStatus
+from infinite_games.sandbox.validator.scheduler.task import AbstractTask
 
 
-class PullEvents:
+class PullEvents(AbstractTask):
     interval: float
     page_size: int
     api_client: IfGamesClient

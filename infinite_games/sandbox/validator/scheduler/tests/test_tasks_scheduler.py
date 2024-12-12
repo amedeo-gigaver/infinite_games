@@ -3,7 +3,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from infinite_games.sandbox.validator.tasks_scheduler import Task, TasksScheduler
+from infinite_games.sandbox.validator.scheduler.task import AbstractTask
+from infinite_games.sandbox.validator.scheduler.tasks_scheduler import TasksScheduler
 from infinite_games.sandbox.validator.utils.logger.logger import AbstractLogger
 
 
@@ -31,10 +32,19 @@ class TestTasksScheduler:
         await scheduler.start()
 
     async def test_add_task(self, scheduler):
-        async def dummy_task():
-            pass
+        class TestTask(AbstractTask):
+            @property
+            def name(self):
+                return "Test Task"
 
-        task = Task(name="Test Task", interval_seconds=5.0, task_function=dummy_task)
+            @property
+            def interval_seconds(self):
+                return 5.0
+
+            async def run(self):
+                pass
+
+        task = TestTask()
         scheduler.add(task)
 
         assert len(scheduler._TasksScheduler__tasks) == 1
@@ -45,11 +55,20 @@ class TestTasksScheduler:
 
         interval_seconds = 0.5
 
-        async def dummy_task():
-            nonlocal runs
-            runs += 1
+        class TestTask(AbstractTask):
+            @property
+            def name(self):
+                return "Test Task"
 
-        task = Task(name="Test Task", interval_seconds=interval_seconds, task_function=dummy_task)
+            @property
+            def interval_seconds(self):
+                return interval_seconds
+
+            async def run(self):
+                nonlocal runs
+                runs += 1
+
+        task = TestTask()
         scheduler.add(task)
 
         # Run the scheduler for a short time to allow task to execute
@@ -64,32 +83,47 @@ class TestTasksScheduler:
     async def test_tasks_run_concurrently_at_intervals(
         self, logger, scheduler, await_start_with_timeout
     ):
-        interval_task = 0.5
+        interval_seconds = 0.5
 
         runs_task_1 = 0
-
-        async def dummy_task_1():
-            nonlocal runs_task_1
-            runs_task_1 += 1
-
         runs_task_2 = 0
 
-        async def dummy_task_2():
-            nonlocal runs_task_2
-            runs_task_2 += 1
+        class TestTask1(AbstractTask):
+            @property
+            def name(self):
+                return "Test Task 1"
 
-        task_1 = Task(
-            name="Test Task 1", interval_seconds=interval_task, task_function=dummy_task_1
-        )
-        task_2 = Task(
-            name="Test Task 2", interval_seconds=interval_task, task_function=dummy_task_2
-        )
+            @property
+            def interval_seconds(self):
+                return interval_seconds
+
+            async def run(self):
+                nonlocal runs_task_1
+                runs_task_1 += 1
+
+        class TestTask2(AbstractTask):
+            @property
+            def name(self):
+                return "Test Task 2"
+
+            @property
+            def interval_seconds(self):
+                return interval_seconds
+
+            async def run(self):
+                nonlocal runs_task_2
+                runs_task_2 += 1
+
+        task_1 = TestTask1()
+        task_2 = TestTask2()
 
         scheduler.add(task_1)
         scheduler.add(task_2)
 
         # Run the scheduler for a short time to allow tasks to execute
-        await await_start_with_timeout(start_future=scheduler.start(), timeout=interval_task * 2.1)
+        await await_start_with_timeout(
+            start_future=scheduler.start(), timeout=interval_seconds * 2.1
+        )
 
         # Ensure that the tasks were executed N times
         assert runs_task_1 == 3
@@ -101,16 +135,23 @@ class TestTasksScheduler:
 
         interval_seconds = 0.5
 
-        # Create an async function that will simulate an error
-        async def dummy_task_with_error():
-            nonlocal runs
-            runs += 1
+        class TestTask(AbstractTask):
+            @property
+            def name(self):
+                return "Test Task"
 
-            raise Exception("Simulated error")
+            @property
+            def interval_seconds(self):
+                return interval_seconds
 
-        task = Task(
-            name="Test Task", interval_seconds=interval_seconds, task_function=dummy_task_with_error
-        )
+            # Async function that will simulate an error
+            async def run(self):
+                nonlocal runs
+                runs += 1
+
+                raise Exception("Simulated error")
+
+        task = TestTask()
         scheduler.add(task)
 
         # Run the scheduler for a short time to allow task to execute
@@ -132,8 +173,21 @@ class TestTasksScheduler:
             nonlocal runs
             runs += 1
 
+        class TestTask(AbstractTask):
+            @property
+            def name(self):
+                return "Test Task"
+
+            @property
+            def interval_seconds(self):
+                return 0.01
+
+            async def run(self):
+                nonlocal runs
+                runs += 1
+
         # Create a task and manually set it to "idle"
-        task = Task(name="Test Task", interval_seconds=0.01, task_function=dummy_task)
+        task = TestTask()
         task.status = "idle"
         scheduler.add(task)
 
