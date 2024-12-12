@@ -10,6 +10,7 @@ from tests.bittensor_mocks import MockSubtensor
 
 bt.debug(True)
 
+os.environ["NEST_ASYNCIO"] = "0"
 
 # @fixture
 # def event_loop():

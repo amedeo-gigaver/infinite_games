@@ -19,5 +19,6 @@
         "pytest",
         "subtensor",
         "uids"
-    ]
+    ],
+    "python.languageServer": "Pylance",
 }
