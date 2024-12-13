@@ -124,3 +124,17 @@ async def cleanup_event_loop():
             await task
         except asyncio.CancelledError:
             pass
+
+
+@fixture(autouse=True)
+def mock_sleep(monkeypatch):
+    # Mock asyncio.sleep
+    async def no_sleep_async(_):
+        pass
+
+    # Mock time.sleep
+    def no_sleep(_):
+        pass
+
+    monkeypatch.setattr("asyncio.sleep", no_sleep_async)
+    monkeypatch.setattr("time.sleep", no_sleep)
