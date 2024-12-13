@@ -38,10 +38,10 @@ class TasksScheduler:
 
             task.status = TaskStatus.IDLE  # Mark the task as idle after completion
 
-            elapsed_time = time.time() - start_time
+            elapsed_time_ms = round((time.time() - start_time) * 1000)
 
             self.__logger.info(
-                "Task finished", extra={"task_name": task.name, "elapsed_time": elapsed_time}
+                "Task finished", extra={"task_name": task.name, "elapsed_time_ms": elapsed_time_ms}
             )
 
             # Wait for the specified interval before the next execution

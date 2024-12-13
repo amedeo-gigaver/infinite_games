@@ -1,4 +1,7 @@
+from typing import Iterable
+
 from infinite_games.sandbox.validator.db.client import Client
+from infinite_games.sandbox.validator.models.event import EventStatus
 
 
 class DatabaseOperations:
@@ -13,12 +16,29 @@ class DatabaseOperations:
     async def get_last_event_from(self) -> str | None:
         row = await self.__db_client.one(
             """
-                SELECT MAX(created_at) from events
+                SELECT MAX(created_at) FROM events
             """
         )
 
         if row is not None:
             return row[0]
+
+    async def get_pending_events(self) -> Iterable[tuple[str]]:
+        # TODO limit to events that passed cutoff
+        return await self.__db_client.many(
+            """
+                SELECT event_id FROM events WHERE status = ?
+            """,
+            parameters=[EventStatus.PENDING],
+        )
+
+    async def resolve_event(self, event_id: str) -> Iterable[tuple[str]]:
+        return await self.__db_client.update(
+            """
+                UPDATE events set status = ? WHERE event_id = ?
+            """,
+            [EventStatus.SETTLED, event_id],
+        )
 
     async def upsert_events(self, events: list[any]) -> None:
         return await self.__db_client.insert_many(

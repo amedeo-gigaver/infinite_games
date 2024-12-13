@@ -27,3 +27,17 @@ class IfGamesClient:
                 response.raise_for_status()
 
                 return await response.json()
+
+    async def get_event(self, event_id: str):
+        if not isinstance(event_id, str):
+            raise ValueError("Invalid parameter")
+
+        async with aiohttp.ClientSession(
+            base_url=self.__base_url, timeout=self.__timeout
+        ) as session:
+            path = f"/api/v2/events/{event_id}"
+
+            async with session.get(path) as response:
+                response.raise_for_status()
+
+                return await response.json()

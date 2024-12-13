@@ -88,27 +88,94 @@ class TestIfGamesClient:
             # Verify the response matches the mock data
             assert result == mock_response_data
 
-    async def test_api_error_raised(self, client_test_env):
+    async def test_get_events_error_raised(self, client_test_env):
         # Define mock response data
-        mock_response_data = ({"error_message": "not found"},)
-
-        status_code = 404
+        mock_response_data = {"message": "Internal error"}
+        status_code = 500
 
         # Use aioresponses context manager to mock HTTP requests
         with aioresponses() as mocked:
+            url_path = "/api/v2/events?from_date=1234567890&offset=0&limit=10"
             mocked.get(
-                "/api/v2/events?from_date=1234567890&offset=0&limit=10",
+                url_path,
                 status=status_code,
                 body=json.dumps(mock_response_data).encode("utf-8"),
             )
 
             with pytest.raises(ClientResponseError) as e:
-                result = await client_test_env.get_events(from_date=1234567890, offset=0, limit=10)
+                await client_test_env.get_events(from_date=1234567890, offset=0, limit=10)
 
-                mocked.assert_called_once()
+            mocked.assert_called_with(url_path)
 
-                # Assert the exception
-                assert e.status == 200
+            # Assert the exception
+            assert e.value.status == status_code
 
-                # Verify the response matches the mock data
-                assert result == mock_response_data
+    @pytest.mark.parametrize(
+        "event_id",
+        [
+            None,  # Missing event id
+            1,  # Non str event id
+        ],
+    )
+    async def test_get_event_invalid_params(self, client_test_env, event_id):
+        with pytest.raises(ValueError, match="Invalid parameter"):
+            await client_test_env.get_event(event_id=event_id)
+
+    async def test_get_event_response(self, client_test_env):
+        # Define mock response data
+        mock_response_data = {
+            "event_id": "0x123456789abcdef123456789abcdef123456789abcdef123456789abcdef1234",
+            "cutoff": 1733616000,
+            "title": "Will Tesla stock price reach $2000 by 2025?",
+            "description": (
+                "This market will resolve to 'Yes' if the closing stock price of Tesla reaches or exceeds $2000 "
+                "on any trading day in 2025. Otherwise, this market will resolve to 'No'.\n\n"
+                "Resolution source: NASDAQ official data."
+            ),
+            "market_type": "BINARY",
+            "start_date": 1733600000,
+            "created_at": 1733200000,
+            "end_date": 1733620000,
+            "answer": None,
+        }
+
+        with aioresponses() as mocked:
+            event_id = "26d4322e-f2ac-4611-b8ed-e448d84975f1"
+            url_path = f"/api/v2/events/{event_id}"
+
+            mocked.get(
+                url_path,
+                status=200,
+                body=json.dumps(mock_response_data).encode("utf-8"),
+            )
+
+            result = await client_test_env.get_event(event_id)
+
+            mocked.assert_called_once()
+
+            # Verify the response matches the mock data
+            assert result == mock_response_data
+
+    async def test_get_event_error_raised(self, client_test_env):
+        # Define mock response data
+        mock_response_data = {"detail": "EVENT_NOT_FOUND"}
+        status_code = 404
+
+        # Use aioresponses context manager to mock HTTP requests
+        with aioresponses() as mocked:
+            event_id = "26d4322e-f2ac-4611-b8ed-e448d84975f1"
+            url_path = f"/api/v2/events/{event_id}"
+
+            mocked.get(
+                url_path,
+                status=status_code,
+                body=json.dumps(mock_response_data).encode("utf-8"),
+            )
+
+            with pytest.raises(ClientResponseError) as e:
+                await client_test_env.get_event(event_id)
+
+            mocked.assert_called_with(url_path)
+
+            # Assert the exception
+            assert e.value.status == status_code
