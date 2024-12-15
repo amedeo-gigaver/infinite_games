@@ -32,10 +32,18 @@ class DatabaseOperations:
             parameters=[EventStatus.PENDING],
         )
 
+    async def delete_event(self, event_id: str) -> Iterable[tuple[str]]:
+        return await self.__db_client.delete(
+            """
+                DELETE FROM events WHERE event_id = ? RETURNING event_id
+            """,
+            [event_id],
+        )
+
     async def resolve_event(self, event_id: str) -> Iterable[tuple[str]]:
         return await self.__db_client.update(
             """
-                UPDATE events set status = ? WHERE event_id = ?
+                UPDATE events SET status = ? WHERE event_id = ? RETURNING event_id
             """,
             [EventStatus.SETTLED, event_id],
         )

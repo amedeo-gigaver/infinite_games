@@ -5,6 +5,7 @@ import pytest
 
 from infinite_games.sandbox.validator.db.client import Client
 from infinite_games.sandbox.validator.db.operations import DatabaseOperations
+from infinite_games.sandbox.validator.models.event import EventStatus
 from infinite_games.sandbox.validator.utils.logger.logger import AbstractLogger
 
 
@@ -29,12 +30,9 @@ class TestDbOperations:
 
         return db_operations
 
-    async def test_get_last_event_from_no_events(self, db_operations):
-        result = await db_operations.get_last_event_from()
+    async def test_get_last_event_from(self, db_operations: DatabaseOperations, db_client: Client):
+        created_at = "2000-12-02T14:30:00+00:00"
 
-        assert result is None
-
-    async def test_upsert_events(self, db_operations, db_client):
         events = [
             (
                 "unique1",
@@ -46,7 +44,111 @@ class TestDbOperations:
                 "outcome1",
                 "status1",
                 '{"key": "value"}',
-                "2000-12-02T14:30:00+01:00",
+                created_at,
+            )
+        ]
+
+        await db_operations.upsert_events(events)
+
+        result = await db_operations.get_last_event_from()
+
+        assert result == created_at
+
+    async def test_get_last_event_from_no_events(self, db_operations: DatabaseOperations):
+        result = await db_operations.get_last_event_from()
+
+        assert result is None
+
+    async def test_get_pending_events(self, db_operations: DatabaseOperations):
+        pending_event_id = "event1"
+
+        events = [
+            (
+                "unique1",
+                pending_event_id,
+                "market1",
+                "desc1",
+                "2024-12-02",
+                "2024-12-03",
+                None,
+                EventStatus.PENDING,
+                '{"key": "value"}',
+                "2000-12-02T14:30:00+00:00",
+            ),
+            (
+                "unique2",
+                "event2",
+                "market2",
+                "desc2",
+                "2024-12-03",
+                "2024-12-04",
+                "outcome2",
+                EventStatus.SETTLED,
+                '{"key": "value"}',
+                "2012-12-02T14:30:00+00:00",
+            ),
+        ]
+
+        await db_operations.upsert_events(events)
+
+        result = await db_operations.get_pending_events()
+
+        assert len(result) == 1
+        assert result[0][0] == pending_event_id
+
+    async def test_resolve_event(self, db_operations: DatabaseOperations):
+        event_to_resolve_id = "event1"
+        event_pending_id = "event2"
+
+        events = [
+            (
+                "unique1",
+                event_to_resolve_id,
+                "market1",
+                "desc1",
+                "2024-12-02",
+                "2024-12-03",
+                None,
+                EventStatus.PENDING,
+                '{"key": "value"}',
+                "2000-12-02T14:30:00+00:00",
+            ),
+            (
+                "unique2",
+                event_pending_id,
+                "market2",
+                "desc2",
+                "2024-12-03",
+                "2024-12-04",
+                "outcome2",
+                EventStatus.PENDING,
+                '{"key": "value"}',
+                "2012-12-02T14:30:00+00:00",
+            ),
+        ]
+
+        await db_operations.upsert_events(events)
+
+        await db_operations.resolve_event(event_to_resolve_id)
+
+        result = await db_operations.get_pending_events()
+
+        assert len(result) == 1
+        assert result[0][0] == event_pending_id
+
+    async def test_upsert_events(self, db_operations: DatabaseOperations, db_client: Client):
+        events = [
+            (
+                "unique1",
+                "event1",
+                "market1",
+                "desc1",
+                "2024-12-02",
+                "2024-12-03",
+                "outcome1",
+                "status1",
+                '{"key": "value"}',
+                "2000-12-02T14:30:00+00:00",
             ),
             (
                 "unique2",
@@ -78,7 +180,7 @@ class TestDbOperations:
 
         assert event_from == "2012-12-02T14:30:00+00:00"
 
-    async def test_upsert_no_events(self, db_operations):
+    async def test_upsert_no_events(self, db_operations: DatabaseOperations):
         """Test upsert not failing with empty list."""
         events = []
 

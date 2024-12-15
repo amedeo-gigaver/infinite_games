@@ -41,7 +41,7 @@ class TestPullEventsTask:
 
         return db_client
 
-    @pytest.fixture(scope="function")
+    @pytest.fixture
     def pull_events_task(self, db_client):
         db_operations = DatabaseOperations(db_client=db_client)
         api_client = IfGamesClient(env="test")

@@ -1,3 +1,5 @@
+import aiohttp
+
 from infinite_games.sandbox.validator.db.operations import DatabaseOperations
 from infinite_games.sandbox.validator.if_games.client import IfGamesClient
 from infinite_games.sandbox.validator.scheduler.task import AbstractTask
@@ -44,12 +46,21 @@ class ResolveEvents(AbstractTask):
         for event in pending_events:
             event_id = event[0]
 
-            # Query
-            # TODO: handle 404 and 410
-            event = await self.api_client.get_event(event_id=event_id)
+            try:
+                # Query
+                event = await self.api_client.get_event(event_id=event_id)
 
-            resolved = True if event.get("answer") is not None else False
+                resolved = True if event.get("answer") is not None else False
 
-            # Mark resolved
-            if resolved:
-                await self.db_operations.resolve_event(event_id)
+                # Mark resolved
+                if resolved:
+                    await self.db_operations.resolve_event(event_id)
+
+            except aiohttp.ClientResponseError as error:
+                # Clear deleted events
+                if error.status in [404, 410]:
+                    await self.db_operations.delete_event(event_id=event_id)
+
+                    continue
+
+                raise error
