@@ -95,6 +95,7 @@ class TestResolveEventsTask:
                 EventStatus.DISCARDED,
                 '{"key": "value"}',
                 "2000-12-02T14:30:00+00:00",
+                "2000-12-30T14:30:00+00:00",
             ),
             (
                 "unique_2",
@@ -107,6 +108,7 @@ class TestResolveEventsTask:
                 EventStatus.PENDING,
                 '{"key": "value"}',
                 "2000-12-02T14:30:00+00:00",
+                "2000-12-30T14:30:00+00:00",
             ),
             (
                 "unique_3",
@@ -119,6 +121,7 @@ class TestResolveEventsTask:
                 EventStatus.SETTLED,
                 '{"key": "value"}',
                 "2000-12-02T14:30:00+00:00",
+                "2000-12-30T14:30:00+00:00",
             ),
             (
                 "unique_4",
@@ -131,6 +134,7 @@ class TestResolveEventsTask:
                 EventStatus.PENDING,
                 '{"key": "value"}',
                 "2000-12-02T14:30:00+00:00",
+                "2000-12-30T14:30:00+00:00",
             ),
         ]
 
@@ -196,6 +200,7 @@ class TestResolveEventsTask:
                 EventStatus.PENDING,
                 '{"key": "value"}',
                 "2000-12-02T14:30:00+00:00",
+                "2000-12-30T14:30:00+00:00",
             ),
             (
                 "unique_2",
@@ -208,6 +213,7 @@ class TestResolveEventsTask:
                 EventStatus.PENDING,
                 '{"key": "value"}',
                 "2000-12-02T14:30:00+00:00",
+                "2000-12-30T14:30:00+00:00",
             ),
             (
                 "unique_3",
@@ -220,6 +226,7 @@ class TestResolveEventsTask:
                 EventStatus.PENDING,
                 '{"key": "value"}',
                 "2000-12-02T14:30:00+00:00",
+                "2000-12-30T14:30:00+00:00",
             ),
         ]
 

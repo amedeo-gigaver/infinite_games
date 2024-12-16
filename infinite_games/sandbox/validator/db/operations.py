@@ -63,11 +63,13 @@ class DatabaseOperations:
                         status,
                         metadata,
                         created_at,
+                        cutoff,
                         registered_date,
                         local_updated_at
                     )
                 VALUES
                     (
+                        ?,
                         ?,
                         ?,
                         ?,

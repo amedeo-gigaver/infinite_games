@@ -90,6 +90,8 @@ class PullEvents(AbstractTask):
         status = EventStatus.SETTLED if event.get("answer") is not None else EventStatus.PENDING
         truncated_market_type = "ifgames"
 
+        cutoff = datetime.fromtimestamp(event.get("cutoff"), tz=timezone.utc)
+
         return (
             # unique_event_id
             f"{truncated_market_type}-{event['event_id']}",
@@ -117,4 +119,6 @@ class PullEvents(AbstractTask):
             ),
             # created_at
             created_at,
+            # cutoff
+            cutoff,
         )

@@ -208,3 +208,22 @@ class Client:
             column_type="DATETIME",
             default_value=None,
         )
+
+        await self.add_column_if_not_exists(
+            table_name="events",
+            column_name="cutoff",
+            column_type="DATETIME",
+            default_value=None,
+        )
+
+        await self.update(
+            """
+                UPDATE
+                    events
+                SET
+                    cutoff = datetime(metadata->>'cutoff', 'unixepoch')
+                WHERE
+                    cutoff IS NULL
+                    AND metadata->>'cutoff' IS NOT NULL
+            """
+        )

@@ -45,6 +45,7 @@ class TestDbOperations:
                 "status1",
                 '{"key": "value"}',
                 created_at,
+                "2024-12-03",
             )
         ]
 
@@ -74,6 +75,7 @@ class TestDbOperations:
                 EventStatus.PENDING,
                 '{"key": "value"}',
                 "2000-12-02T14:30:00+00:00",
+                "2000-12-30T14:30:00+00:00",
             ),
             (
                 "unique2",
@@ -86,6 +88,7 @@ class TestDbOperations:
                 EventStatus.SETTLED,
                 '{"key": "value"}',
                 "2012-12-02T14:30:00+00:00",
+                "2000-12-30T14:30:00+00:00",
             ),
         ]
 
@@ -112,6 +115,7 @@ class TestDbOperations:
                 EventStatus.PENDING,
                 '{"key": "value"}',
                 "2000-12-02T14:30:00+00:00",
+                "2000-12-30T14:30:00+00:00",
             ),
             (
                 "unique2",
@@ -124,6 +128,7 @@ class TestDbOperations:
                 EventStatus.PENDING,
                 '{"key": "value"}',
                 "2012-12-02T14:30:00+00:00",
+                "2000-12-30T14:30:00+00:00",
             ),
         ]
 
@@ -149,6 +154,7 @@ class TestDbOperations:
                 "status1",
                 '{"key": "value"}',
                 "2000-12-02T14:30:00+00:00",
+                "2000-01-01T14:30:00+00:00",
             ),
             (
                 "unique2",
@@ -161,6 +167,7 @@ class TestDbOperations:
                 "status2",
                 '{"key": "value"}',
                 "2012-12-02T14:30:00+00:00",
+                "2001-01-01T14:30:00+00:00",
             ),
         ]
 
@@ -168,17 +175,19 @@ class TestDbOperations:
 
         result = await db_client.many(
             """
-                SELECT * FROM events
+                SELECT event_id, cutoff FROM events
             """
         )
 
         assert len(result) == 2
-        assert result[0][0] == "unique1"
-        assert result[1][0] == "unique2"
 
-        event_from = await db_operations.get_last_event_from()
+        # Assert event id
+        assert result[0][0] == "event1"
+        assert result[1][0] == "event2"
 
-        assert event_from == "2012-12-02T14:30:00+00:00"
+        # Assert cutoff
+        assert result[0][1] == events[0][10]
+        assert result[1][1] == events[1][10]
 
     async def test_upsert_no_events(self, db_operations: DatabaseOperations):
         """Test upsert not failing with empty list."""
