@@ -82,15 +82,13 @@ class PullEvents(AbstractTask):
             offset += self.page_size
 
     def parse_event(self, event: any):
-        end_date_ts = event.get("end_date")
-        start_date_ts = event.get("start_date")
-        start_date = datetime.fromtimestamp(start_date_ts, tz=timezone.utc)
-
-        created_at = datetime.fromtimestamp(event.get("created_at"), tz=timezone.utc)
         status = EventStatus.SETTLED if event.get("answer") is not None else EventStatus.PENDING
         truncated_market_type = "ifgames"
 
+        created_at = datetime.fromtimestamp(event.get("created_at"), tz=timezone.utc)
+        start_date = datetime.fromtimestamp(event.get("start_date"), tz=timezone.utc)
         cutoff = datetime.fromtimestamp(event.get("cutoff"), tz=timezone.utc)
+        end_date = datetime.fromtimestamp(event.get("end_date"), tz=timezone.utc)
 
         return (
             # unique_event_id
@@ -114,11 +112,13 @@ class PullEvents(AbstractTask):
                 {
                     "market_type": event.get("market_type", "").lower(),
                     "cutoff": event.get("cutoff"),
-                    "end_date": end_date_ts,
+                    "end_date": event.get("end_date"),
                 }
             ),
             # created_at
             created_at,
             # cutoff
             cutoff,
+            # end_date
+            end_date,
         )

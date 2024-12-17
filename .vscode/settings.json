@@ -18,7 +18,8 @@
         "polymarket",
         "pytest",
         "subtensor",
-        "uids"
+        "uids",
+        "unixepoch"
     ],
     "python.languageServer": "Pylance",
 }

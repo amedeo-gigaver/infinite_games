@@ -227,3 +227,22 @@ class Client:
                     AND metadata->>'cutoff' IS NOT NULL
             """
         )
+
+        await self.add_column_if_not_exists(
+            table_name="events",
+            column_name="end_date",
+            column_type="DATETIME",
+            default_value=None,
+        )
+
+        await self.update(
+            """
+                UPDATE
+                    events
+                SET
+                    end_date = datetime(metadata->>'end_date', 'unixepoch')
+                WHERE
+                    end_date IS NULL
+                    AND metadata->>'end_date' IS NOT NULL
+            """
+        )
