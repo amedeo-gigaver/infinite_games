@@ -1,0 +1,24 @@
+{
+    "cSpell.words": [
+        "ainit",
+        "aioresponses",
+        "asyncio",
+        "azuro",
+        "bittensor",
+        "blocklisted",
+        "blocktime",
+        "executemany",
+        "freezegun",
+        "giveup",
+        "ifgames",
+        "isort",
+        "iterrows",
+        "levelname",
+        "Opentensor",
+        "polymarket",
+        "pytest",
+        "subtensor",
+        "uids"
+    ],
+    "python.languageServer": "Pylance",
+}

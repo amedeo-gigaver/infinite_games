@@ -1,0 +1,38 @@
+#!/bin/bash
+
+function changed_files {
+    # arg #1: files pattern
+    git diff --name-only --cached --diff-filter=AMR "${1}"
+}
+
+
+printf "Applying isort and black formatting to the following python files:\n"
+changed_files "*.py" | xargs -I{} ls -lhtr {}
+changed_files "*.py" | xargs -I{} isort {}
+changed_files "*.py" | xargs -I{} black {}
+changed_files "*.py" | xargs -I{} git add {}
+
+
+printf "Checking if there are any files larger than 500KB...\n"
+# reference https://gist.github.com/guysmoilov/ddb3329e31b001c1e990e08394a08dc4
+limit=524288 # Default 512kB
+
+# Set split so that for loop below can handle spaces in file names by splitting on line breaks
+IFS='
+'
+
+shouldFail=false
+for file in $( git diff --name-only --cached --diff-filter=AMRC ); do
+ file_size=$(([ ! -f $file ] && echo 0) || (ls -la $file | awk '{ print $5 }'))
+ if [ "$file_size" -gt  "$limit" ]; then
+     echo File $file is $(( $file_size / 1024 )) kB, which is larger than our configured limit of $(( $limit / 1024 )) kB
+        shouldFail=true
+ fi
+done
+
+if $shouldFail
+then
+    printf "If you REALLY need to commit this file, add the --no-verify flag to commit to skip the check!\n"
+ printf "===== Commit aborted =====\n"
+    exit 1;
+fi
