@@ -13,6 +13,34 @@ class DatabaseOperations:
 
         self.__db_client = db_client
 
+    async def delete_event(self, event_id: str) -> Iterable[tuple[str]]:
+        return await self.__db_client.delete(
+            """
+                DELETE FROM events WHERE event_id = ? RETURNING event_id
+            """,
+            [event_id],
+        )
+
+    async def get_events_to_predict(self) -> Iterable[tuple[str]]:
+        return await self.__db_client.many(
+            """
+                SELECT
+                    event_id,
+                    market_type,
+                    description,
+                    cutoff,
+                    resolve_date,
+                    end_date,
+                    metadata
+                FROM
+                    events
+                WHERE
+                    status = ?
+                    AND datetime(CURRENT_TIMESTAMP) < datetime(cutoff)
+            """,
+            parameters=[EventStatus.PENDING],
+        )
+
     async def get_last_event_from(self) -> str | None:
         row = await self.__db_client.one(
             """
@@ -32,14 +60,6 @@ class DatabaseOperations:
             parameters=[EventStatus.PENDING],
         )
 
-    async def delete_event(self, event_id: str) -> Iterable[tuple[str]]:
-        return await self.__db_client.delete(
-            """
-                DELETE FROM events WHERE event_id = ? RETURNING event_id
-            """,
-            [event_id],
-        )
-
     async def resolve_event(self, event_id: str) -> Iterable[tuple[str]]:
         return await self.__db_client.update(
             """
@@ -48,7 +68,7 @@ class DatabaseOperations:
             [EventStatus.SETTLED, event_id],
         )
 
-    async def upsert_events(self, events: list[any]) -> None:
+    async def upsert_events(self, events: list[list[any]]) -> None:
         return await self.__db_client.insert_many(
             """
                 INSERT INTO events
@@ -91,4 +111,37 @@ class DatabaseOperations:
                     set outcome = EXCLUDED.market_type
             """,
             events,
+        )
+
+    async def upsert_predictions(self, predictions: list[list[any]]):
+        return await self.__db_client.insert_many(
+            """
+                INSERT INTO predictions (
+                    unique_event_id,
+                    minerHotkey,
+                    minerUid,
+                    predictedOutcome,
+                    interval_start_minutes,
+                    interval_agg_prediction,
+                    interval_count,
+                    submitted,
+                    blocktime
+                )
+                VALUES (
+                    ?,
+                    ?,
+                    ?,
+                    ?,
+                    ?,
+                    ?,
+                    ?,
+                    ?,
+                    ?
+                )
+                ON CONFLICT(unique_event_id,  interval_start_minutes, minerUid)
+                DO UPDATE SET
+                    interval_agg_prediction = (interval_agg_prediction * interval_count + ?) / (interval_count + 1),
+                    interval_count = interval_count + 1
+            """,
+            predictions,
         )

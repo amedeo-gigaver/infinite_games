@@ -1,4 +1,5 @@
 import tempfile
+from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock
 
 import pytest
@@ -30,7 +31,61 @@ class TestDbOperations:
 
         return db_operations
 
-    async def test_get_last_event_from(self, db_operations: DatabaseOperations, db_client: Client):
+    async def test_delete_event(self, db_operations: DatabaseOperations, db_client: Client):
+        event_id_to_keep = "event1"
+        event_id_to_delete = "event2"
+
+        events = [
+            (
+                "unique1",
+                event_id_to_keep,
+                "market1",
+                "desc1",
+                "2024-12-02",
+                "2024-12-03",
+                "outcome1",
+                "status1",
+                '{"key": "value"}',
+                "2000-12-02T14:30:00+00:00",
+                "2000-12-02T14:30:00+00:00",
+                "2000-12-03T14:30:00+00:00",
+            ),
+            (
+                "unique2",
+                event_id_to_delete,
+                "market1",
+                "desc1",
+                "2024-12-02",
+                "2024-12-03",
+                "outcome1",
+                "status1",
+                '{"key": "value"}',
+                "2000-12-02T14:30:00+00:00",
+                "2000-12-02T14:30:00+00:00",
+                "2000-12-03T14:30:00+00:00",
+            ),
+        ]
+
+        await db_operations.upsert_events(events)
+
+        result = await db_operations.delete_event(event_id=event_id_to_delete)
+
+        assert len(result) == 1
+        assert result[0][0] == event_id_to_delete
+
+        result = await db_client.many(
+            """
+                SELECT event_id FROM events
+            """
+        )
+
+        assert len(result) == 1
+        assert result[0][0] == event_id_to_keep
+
+    async def test_get_last_event_from(
+        self,
+        db_operations: DatabaseOperations,
+    ):
         created_at = "2000-12-02T14:30:00+00:00"
 
         events = [
@@ -101,6 +156,78 @@ class TestDbOperations:
 
         assert len(result) == 1
         assert result[0][0] == pending_event_id
+
+    async def test_get_events_to_predict(self, db_operations: DatabaseOperations):
+        event_to_predict_id = "event3"
+
+        cutoff_now = datetime.now(timezone.utc).isoformat()
+        cutoff_future = (datetime.now(timezone.utc) + timedelta(seconds=2)).isoformat()
+
+        events = [
+            (
+                "unique1",
+                "event1",
+                "market1",
+                "desc1",
+                "2024-12-02",
+                "2024-12-03",
+                None,
+                EventStatus.DISCARDED,
+                '{"key": "value"}',
+                "2000-12-02T14:30:00+00:00",
+                "2000-12-30T14:30:00+00:00",
+                "2000-12-31T14:30:00+00:00",
+            ),
+            (
+                "unique2",
+                "event2",
+                "market2",
+                "desc2",
+                "2024-12-03",
+                "2024-12-04",
+                "outcome2",
+                EventStatus.PENDING,
+                '{"key": "value"}',
+                "2012-12-02T14:30:00+00:00",
+                cutoff_now,
+                "2000-12-31T14:30:00+00:00",
+            ),
+            (
+                "unique3",
+                event_to_predict_id,
+                "market3",
+                "desc3",
+                "2024-12-03",
+                "2024-12-04",
+                "outcome2",
+                EventStatus.PENDING,
+                '{"key": "value"}',
+                "2012-12-02T14:30:00+00:00",
+                cutoff_future,
+                "2000-12-31T14:30:00+00:00",
+            ),
+            (
+                "unique4",
+                "event4",
+                "market4",
+                "desc2",
+                "2024-12-03",
+                "2024-12-04",
+                "outcome2",
+                EventStatus.SETTLED,
+                '{"key": "value"}',
+                "2012-12-02T14:30:00+00:00",
+                "2000-12-30T14:30:00+00:00",
+                "2000-12-31T14:30:00+00:00",
+            ),
+        ]
+
+        await db_operations.upsert_events(events)
+
+        result = await db_operations.get_events_to_predict()
+
+        assert len(result) == 1
+        assert result[0][0] == event_to_predict_id
 
     async def test_resolve_event(self, db_operations: DatabaseOperations):
         event_to_resolve_id = "event1"
@@ -201,3 +328,65 @@ class TestDbOperations:
         events = []
 
         await db_operations.upsert_events(events)
+
+    async def test_upsert_predictions(self, db_operations: DatabaseOperations, db_client: Client):
+        predictions = [
+            (
+                "unique_event_id_1",
+                "minerHotkey_1",
+                "minerUid_1",
+                "1",
+                10,
+                1,
+                1,
+                "2000-12-02T14:30:00+00:00",
+                1,
+                1,
+            ),
+            (
+                "unique_event_id_2",
+                "minerHotkey_2",
+                "minerUid_2",
+                "1",
+                10,
+                1,
+                1,
+                "2000-12-02T14:30:00+00:00",
+                1,
+                1,
+            ),
+        ]
+
+        # Insert
+        await db_operations.upsert_predictions(predictions)
+
+        result = await db_client.many(
+            """
+                SELECT unique_event_id, minerHotkey FROM predictions
+            """
+        )
+
+        assert len(result) == 2
+
+        # Assert event id
+        assert result[0][0] == predictions[0][0]
+        assert result[1][0] == predictions[1][0]
+
+        # Assert minerHotkey
+        assert result[0][1] == predictions[0][1]
+        assert result[1][1] == predictions[1][1]
+
+        # Upsert
+        await db_operations.upsert_predictions(predictions)
+
+        result = await db_client.many(
+            """
+                SELECT interval_count FROM predictions
+            """
+        )
+
+        assert len(result) == 2
+
+        # Assert interval_count
+        assert result[0][0] == 2
+        assert result[1][0] == 2
