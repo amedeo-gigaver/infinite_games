@@ -1,16 +1,16 @@
 import asyncio
 import os
 import shutil
-from datetime import datetime
 
-import aiohttp
 import bittensor as bt
-from bittensor.mock import MockSubtensor
-from bittensor.mock.wallet_mock import MockWallet, get_mock_wallet
+from bittensor_wallet.mock.wallet_mock import get_mock_wallet
 from pytest import fixture
+
+from tests.bittensor_mocks import MockSubtensor
 
 bt.debug(True)
 
+os.environ["NEST_ASYNCIO"] = "0"
 
 # @fixture
 # def event_loop():
@@ -44,7 +44,7 @@ def netuid():
 @fixture(scope="session")
 def test_network(netuid):
     w = get_mock_wallet()
-    s = MockSubtensor()
+    s = MockSubtensor(_mock=True)
     s.create_subnet(netuid)
     uid = s.force_register_neuron(netuid, w.hotkey.ss58_address, w.coldkey.ss58_address, 20, 20)
     print(f"Main neuron {w.hotkey.ss58_address} registered")
@@ -124,3 +124,17 @@ async def cleanup_event_loop():
             await task
         except asyncio.CancelledError:
             pass
+
+
+@fixture(autouse=True)
+def mock_sleep(monkeypatch):
+    # Mock asyncio.sleep
+    async def no_sleep_async(_):
+        pass
+
+    # Mock time.sleep
+    def no_sleep(_):
+        pass
+
+    monkeypatch.setattr("asyncio.sleep", no_sleep_async)
+    monkeypatch.setattr("time.sleep", no_sleep)

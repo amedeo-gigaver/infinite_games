@@ -24,13 +24,11 @@ class IFGamesProviderIntegration(ProviderIntegration):
         self.base_url = "https://stage.ifgames.win" if self.is_test else "https://ifgames.win"
 
     async def _ainit(self) -> "IFGamesProviderIntegration":
-        self.session = aiohttp.ClientSession()
         self.loop = asyncio.get_event_loop()
         return self
 
     async def close(self):
-        if self.session:
-            await self.session.close()
+        pass
 
     def provider_name(self):
         return "ifgames"
@@ -109,7 +107,6 @@ class IFGamesProviderIntegration(ProviderIntegration):
         if not payload:
             return None
         pe = self.construct_provider_event(event_id, payload)
-        bittensor.logging.info(f"Retrieved event: {pe} {pe.status} {pe.starts}")
         return pe
 
     async def _request(self, url, max_retries=3, expo_backoff=2):
@@ -120,20 +117,20 @@ class IFGamesProviderIntegration(ProviderIntegration):
         while retried < max_retries:
             await asyncio.sleep(0.1)
             try:
-                async with self.session.get(url) as resp:
-                    if resp.status == 200:
-                        return await resp.json()
-                    else:
-                        error_response = await resp.text()
-                        if resp.status == 429:
-                            await self._handle_429(resp)
-                        elif resp.status == 410:
-                            raise EventRemovedException()
-                        elif resp.status == 404 and self.is_test:
-                            self.log(f"[TEST] Removing not found event from {url}")
-                            raise EventRemovedException()
-                        retried += 1
-                        await asyncio.sleep(expo_backoff**retried)
+                async with aiohttp.ClientSession() as session:
+                    async with session.get(url) as resp:
+                        if resp.status == 200:
+                            return await resp.json()
+                        else:
+                            error_response = await resp.text()
+                            if resp.status == 429:
+                                await self._handle_429(resp)
+                            elif resp.status == 410:
+                                raise EventRemovedException()
+                            elif resp.status == 404:
+                                raise EventRemovedException()
+                            retried += 1
+                            await asyncio.sleep(expo_backoff**retried)
             except EventRemovedException:
                 raise
             except Exception as e:

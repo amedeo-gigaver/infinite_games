@@ -16,41 +16,31 @@
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 
-import asyncio
-import json
-import logging
 import os
+import random
 import sqlite3
-import sys
-import unittest
+import time
 from collections import Counter
 from copy import deepcopy
 from datetime import datetime, timedelta, timezone
-from time import sleep
 from unittest.mock import patch
 
 import bittensor as bt
 import pytest
-import torch
-from bittensor.mock import wallet_mock
-from bittensor.mock.wallet_mock import MockWallet
 from freezegun import freeze_time
 
-from infinite_games.events.azuro import AzuroProviderIntegration
 from infinite_games.events.base import (
     CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES,
     EventStatus,
     ProviderEvent,
 )
-from infinite_games.events.polymarket import PolymarketProviderIntegration
-from infinite_games.protocol import EventPredictionSynapse
 from neurons.validator import Validator
 from tests.providers import (
     MockAzuroProviderIntegration,
     MockIFGamesProviderIntegration,
     MockPolymarketProviderIntegration,
 )
-from tests.utils import after, before, fake_synapse_response
+from tests.utils import after, fake_synapse_response
 
 
 @pytest.mark.asyncio
@@ -102,7 +92,6 @@ class TestTemplateValidatorNeuronTestCase:
         provider = MockIFGamesProviderIntegration()
         v = Validator(integrations=[provider], db_path="test.db")
 
-        print("First run")
         initial_date = datetime(year=2024, month=1, day=3)
         with freeze_time(initial_date, tick=True):
             await v.initialize_provider()
@@ -111,7 +100,6 @@ class TestTemplateValidatorNeuronTestCase:
             assert v.event_provider.register_or_update_event(test_event) is True
             assert v.event_provider.integrations
 
-            print("Second run")
             mock_response = fake_synapse_response(v.event_provider.get_events_for_submission())
             mock_response[3].events["ifgames-dbcba93a-fe3b-4092-b918-8231b23f2faa"][
                 "probability"
@@ -170,15 +158,10 @@ class TestTemplateValidatorNeuronTestCase:
             db_path="test.db",
         )
 
-        # await v.forward()
-        print("First run")
         initial_date = datetime(year=2024, month=1, day=3)
         with freeze_time(initial_date, tick=True):
             await v.initialize_provider()
 
-            # await restarted_vali.initialize_provider()
-            # sleep(4)
-            # v.stop_run_thread()
             test_event = ProviderEvent(
                 "0x8f3f3f19c4e4015fd9db2f22e653c766154091ef_100100000000000015927404810000000000000365390949_2000",
                 datetime.now(timezone.utc),
@@ -213,7 +196,6 @@ class TestTemplateValidatorNeuronTestCase:
             ] = 0.5
 
             monkeypatch.setattr("neurons.validator.query_miners", lambda a, b, c: mock_response)
-            print("Second run")
             await self.next_run(v)
             mock_response = fake_synapse_response(v.event_provider.get_events_for_submission())
             mock_response[3].events[f"{test_event.market_type}-{test_event.event_id}"][
@@ -256,7 +238,6 @@ class TestTemplateValidatorNeuronTestCase:
         iggames_provider = MockIFGamesProviderIntegration()
         v = Validator(integrations=[iggames_provider], db_path="test.db")
 
-        print("First run")
         initial_date = datetime(year=2024, month=1, day=3)
         with freeze_time(initial_date, tick=True):
             await v.initialize_provider()
@@ -267,7 +248,6 @@ class TestTemplateValidatorNeuronTestCase:
             assert v.event_provider.register_or_update_event(test_event) is True
             assert v.event_provider.integrations
 
-            print("Second run")
             mock_response = fake_synapse_response(v.event_provider.get_events_for_submission())
             mock_response[3].events["ifgames-cbcba93a-fe3b-4092-b918-8231b23f2faa"][
                 "probability"
@@ -316,14 +296,9 @@ class TestTemplateValidatorNeuronTestCase:
             db_path="test.db",
         )
 
-        # await v.forward()
-        print("First run")
         initial_date = datetime(year=2024, month=1, day=3)
         with freeze_time(initial_date, tick=True):
-            await self.next_run(v)
-            # await restarted_vali.initialize_provider()
-            # sleep(4)
-            # v.stop_run_thread()
+            await v.initialize_provider()
             test_event = ProviderEvent(
                 "0x8f3f3f19c4e4015fd9db2f22e653c766154091ef_100100000000000015927404810000000000000365390949_2000",
                 datetime.now(timezone.utc),
@@ -356,7 +331,6 @@ class TestTemplateValidatorNeuronTestCase:
                 "probability"
             ] = 0.9
             monkeypatch.setattr("neurons.validator.query_miners", lambda a, b, c: mock_response)
-            print("Second run")
             await self.next_run(v)
 
         second_window = initial_date + timedelta(minutes=CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES)
@@ -395,14 +369,10 @@ class TestTemplateValidatorNeuronTestCase:
             db_path="test.db",
         )
 
-        # await v.forward()
-        print("First run")
         initial_date = datetime(year=2024, month=1, day=3)
         with freeze_time(initial_date, tick=True):
-            await self.next_run(v)
-            # await restarted_vali.initialize_provider()
-            # sleep(4)
-            # v.stop_run_thread()
+            await v.initialize_provider()
+
             test_event = ProviderEvent(
                 "0x8f3f3f19c4e4015fd9db2f22e653c766154091ef_100100000000000015927404810000000000000365390949_2000",
                 datetime.now(timezone.utc),
@@ -432,7 +402,6 @@ class TestTemplateValidatorNeuronTestCase:
                 "probability"
             ] = 0.9
             monkeypatch.setattr("neurons.validator.query_miners", lambda a, b, c: mock_response)
-            print("Second run")
             await self.next_run(v)
 
         second_window = initial_date + timedelta(minutes=CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES)
@@ -473,14 +442,9 @@ class TestTemplateValidatorNeuronTestCase:
             db_path="test.db",
         )
 
-        # await v.forward()
-        print("First run")
         initial_date = datetime(year=2024, month=1, day=3)
         with freeze_time(initial_date, tick=True):
-            await self.next_run(v)
-            # await restarted_vali.initialize_provider()
-            # sleep(4)
-            # v.stop_run_thread()
+            await v.initialize_provider()
             test_event = ProviderEvent(
                 "0x8f3f3f19c4e4015fd9db2f22e653c766154091ef_100100000000000015927404810000000000000365390949_2000",
                 datetime.now(timezone.utc),
@@ -510,7 +474,6 @@ class TestTemplateValidatorNeuronTestCase:
                 "probability"
             ] = 0.9
             monkeypatch.setattr("neurons.validator.query_miners", lambda a, b, c: mock_response)
-            print("Second run")
             await self.next_run(v)
 
         second_window = initial_date + timedelta(minutes=CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES)
@@ -528,8 +491,6 @@ class TestTemplateValidatorNeuronTestCase:
             minutes=CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES * 11
         )
         with freeze_time(eleventh_window, tick=True):
-            # await self.next_run(v)
-
             test_event.status = EventStatus.SETTLED
             test_event.answer = 1
             v.event_provider.register_or_update_event(test_event)
@@ -556,14 +517,9 @@ class TestTemplateValidatorNeuronTestCase:
             db_path="test.db",
         )
 
-        # await v.forward()
-        print("First run")
         initial_date = datetime(year=2024, month=1, day=3)
         with freeze_time(initial_date, tick=True):
-            await self.next_run(v)
-            # await restarted_vali.initialize_provider()
-            # sleep(4)
-            # v.stop_run_thread()
+            await v.initialize_provider()
             test_event = ProviderEvent(
                 "0x8f3f3f19c4e4015fd9db2f22e653c766154091ef_100100000000000015927404810000000000000365390949_2000",
                 datetime.now(timezone.utc),
@@ -595,7 +551,6 @@ class TestTemplateValidatorNeuronTestCase:
                 "probability"
             ] = 0.9
             monkeypatch.setattr("neurons.validator.query_miners", lambda a, b, c: mock_response)
-            print("Second run")
             await self.next_run(v)
 
         test_event.status = EventStatus.SETTLED
@@ -636,14 +591,9 @@ class TestTemplateValidatorNeuronTestCase:
                 "registered_date": reg_time if uid == 1 else "2024-01-01 00:00"
             },
         )
-        # await v.forward()
-        print("First run")
         initial_date = datetime(year=2024, month=1, day=3)
         with freeze_time(initial_date, tick=True):
-            await self.next_run(v)
-            # await restarted_vali.initialize_provider()
-            # sleep(4)
-            # v.stop_run_thread()
+            await v.initialize_provider()
             test_event = ProviderEvent(
                 "0x8f3f3f19c4e4015fd9db2f22e653c766154091ef_100100000000000015927404810000000000000365390949_2000",
                 datetime.now(timezone.utc),
@@ -677,7 +627,6 @@ class TestTemplateValidatorNeuronTestCase:
                 "probability"
             ] = 0.0
             monkeypatch.setattr("neurons.validator.query_miners", lambda a, b, c: mock_response)
-            print("Second run")
             await self.next_run(v)
 
         test_event.status = EventStatus.SETTLED
@@ -709,11 +658,9 @@ class TestTemplateValidatorNeuronTestCase:
             ],
             db_path="test.db",
         )
-        # await v.forward()
-        print("First run")
         initial_date = datetime(year=2024, month=1, day=3)
         with freeze_time(initial_date, tick=True):
-            await self.next_run(v)
+            await v.initialize_provider()
             test_event = ProviderEvent(
                 "0x8f3f3f19c4e4015fd9db2f22e653c766154091ef_100100000000000015927404810000000000000365390949_2000",
                 datetime.now(timezone.utc),
@@ -768,7 +715,6 @@ class TestTemplateValidatorNeuronTestCase:
                 "probability"
             ] = 1.0
             monkeypatch.setattr("neurons.validator.query_miners", lambda a, b, c: mock_response)
-            print("Second run")
             await self.next_run(v)
             mock_response = fake_synapse_response(v.event_provider.get_events_for_submission())
             mock_response[2].events[f"{test_event.market_type}-{test_event.event_id}"][
@@ -878,7 +824,6 @@ class TestTemplateValidatorNeuronTestCase:
         initial_date = datetime(year=2024, month=1, day=3)
         with freeze_time(initial_date, tick=True):
             await v.initialize_provider()
-            # await self.next_run(v)
 
             test_event = ProviderEvent(
                 "0x8f3f3f19c4e4015fd9db2f22e653c766154091ef_100100000000000015927404810000000000000365390949_2000",
@@ -1018,10 +963,122 @@ class TestTemplateValidatorNeuronTestCase:
             assert count_counter[1] == 3  # the one which had None in the previous run
             assert count_counter[2] == 762
 
-    def tearDown(self):
-        # clean the sqlite DB
-        try:
-            os.remove("test.db")
-        except FileNotFoundError:
-            pass
-        return
+    @pytest.mark.asyncio
+    async def test_submissions_export(
+        self, mock_network, caplog, monkeypatch, disable_event_updates
+    ):
+        n_miners = 3
+        initial_date = datetime(year=2024, month=2, day=3)
+        with freeze_time(initial_date, tick=True):
+            wallet, subtensor = mock_network
+            v = Validator(
+                integrations=[
+                    MockAzuroProviderIntegration(max_pending_events=6),
+                    MockPolymarketProviderIntegration(),
+                    MockIFGamesProviderIntegration(),
+                ],
+                db_path="test.db",
+            )
+
+            await v.initialize_provider()
+
+            test_event = ProviderEvent(
+                "0x8f3f3f19c4e4015fd9db2f22e653c766154091ef_100100000000000015927404810000000000000365390949_2000",
+                datetime.now(timezone.utc),
+                "ifgames",
+                "Test event 1",
+                None,
+                after(hours=12),
+                None,
+                datetime.now(timezone.utc),
+                EventStatus.PENDING,
+                {},
+                {},
+            )
+
+            test_event_2 = deepcopy(test_event)
+            test_event_2.market_type = "polymarket"
+
+            all_events = [test_event, test_event_2]
+            batch_size = n_miners * len(all_events)
+
+            for event in all_events:
+                assert v.event_provider.register_or_update_event(event) is True
+            assert v.event_provider.integrations
+
+            # set some predictions
+            mock_response = fake_synapse_response(v.event_provider.get_events_for_submission())
+            for event in all_events:
+                for miner_uid in range(n_miners):
+                    mock_response[miner_uid].events[f"{event.market_type}-{event.event_id}"][
+                        "probability"
+                    ] = (5 * random.random())
+            monkeypatch.setattr("neurons.validator.query_miners", lambda a, b, c: mock_response)
+            await self.next_run(v)
+
+        # move to the next window and set some predictions again
+        second_window = initial_date + timedelta(minutes=CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES * 2)
+        with freeze_time(second_window, tick=True):
+            # set some predictions again
+            mock_response = fake_synapse_response(v.event_provider.get_events_for_submission())
+            for event in all_events:
+                for miner_uid in range(n_miners):
+                    mock_response[miner_uid].events[f"{event.market_type}-{event.event_id}"][
+                        "probability"
+                    ] = random.random()
+            monkeypatch.setattr("neurons.validator.query_miners", lambda a, b, c: mock_response)
+            await self.next_run(v)
+
+            # no predictions should be exported
+            not_exported = v.event_provider.get_all_non_exported_event_predictions(
+                interval_minutes_begin=47520,
+                interval_minutes_end=48000,
+            )
+            assert len(not_exported) == 2 * batch_size
+
+            # now we export the predictions for the first window
+            monkeypatch.setattr(v, "send_interval_data", lambda *args, **kwargs: None)
+            await v.send_interval_stats(datetime.now(timezone.utc))
+
+            not_exported = v.event_provider.get_all_non_exported_event_predictions(
+                interval_minutes_begin=47520,
+                interval_minutes_end=48000,
+            )
+            assert len(not_exported) == batch_size
+
+            # now we export the predictions for the second window
+            await v.send_interval_stats(datetime.now(timezone.utc) + timedelta(minutes=240))
+
+            not_exported = v.event_provider.get_all_non_exported_event_predictions(
+                interval_minutes_begin=47520,
+                interval_minutes_end=48000,
+            )
+            assert len(not_exported) == 0
+
+        # we insert some older predictions
+        previous_window = initial_date - timedelta(minutes=CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES)
+        with freeze_time(previous_window, tick=True):
+            for event in all_events:
+                for miner_uid in range(n_miners):
+                    mock_response[miner_uid].events[f"{event.market_type}-{event.event_id}"][
+                        "probability"
+                    ] = random.random()
+            monkeypatch.setattr("neurons.validator.query_miners", lambda a, b, c: mock_response)
+            await self.next_run(v)
+
+            # the older predictions are not exported
+            not_exported = v.event_provider.get_all_non_exported_event_predictions(
+                interval_minutes_begin=47000,
+                interval_minutes_end=48000,
+            )
+            assert len(not_exported) == batch_size
+
+            # now we export the older predictions
+            await v.send_interval_stats(
+                initial_date.astimezone(timezone.utc) + timedelta(minutes=240)
+            )
+            not_exported = v.event_provider.get_all_non_exported_event_predictions(
+                interval_minutes_begin=47000,
+                interval_minutes_end=48000,
+            )
+            assert len(not_exported) == 0

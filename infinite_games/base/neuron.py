@@ -119,14 +119,14 @@ class BaseNeuron(ABC):
         Wrapper for synchronizing the state of the network for the given miner or validator.
         """
         # Ensure miner or validator hotkey is still registered on the network.
-        bt.logging.info("Check neuron registration..")
+        bt.logging.debug("Check neuron registration..")
         self.check_registered()
-        bt.logging.info("Check if need to sync metagraph...")
 
+        bt.logging.debug("Check if need to sync metagraph...")
         if self.should_sync_metagraph():
             self.resync_metagraph()
-        bt.logging.info("Check if need to set weights..")
 
+        bt.logging.debug("Check if need to set weights..")
         if set_weights_enabled and self.should_set_weights():
             bt.logging.info("********* SUBMIT WEIGHTS *********")
             self.set_weights()

@@ -1,6 +1,7 @@
 {
     "cSpell.words": [
         "ainit",
+        "aioresponses",
         "asyncio",
         "azuro",
         "bittensor",
@@ -12,10 +13,12 @@
         "ifgames",
         "isort",
         "iterrows",
+        "levelname",
         "Opentensor",
         "polymarket",
         "pytest",
         "subtensor",
         "uids"
-    ]
+    ],
+    "python.languageServer": "Pylance",
 }

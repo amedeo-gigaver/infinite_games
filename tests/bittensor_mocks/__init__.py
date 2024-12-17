@@ -1,5 +1,5 @@
 # The MIT License (MIT)
-# Copyright © 2023 Yuma Rao
+# Copyright © 2023 Opentensor Technologies Inc
 
 # Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
 # documentation files (the “Software”), to deal in the Software without restriction, including without limitation
@@ -15,12 +15,4 @@
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 
-__version__ = "1.3.3"
-
-version_split = __version__.split(".")
-__spec_version__ = (
-    (1000 * int(version_split[0])) + (10 * int(version_split[1])) + (1 * int(version_split[2]))
-)
-
-# Import all submodules.
-from . import base, protocol, utils, validator
+from .subtensor_mock import MockSubtensor as MockSubtensor

@@ -31,3 +31,4 @@ COPY . /root/infinite_games
 
 
 CMD ["python", "neurons/validator.py", "--netuid", "155", "--subtensor.network", "test", "--wallet.name", "${WALLET_NAME}", "--wallet.hotkey", "${WALLET_HOTKEY}"]
+

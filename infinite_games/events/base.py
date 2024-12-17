@@ -1,6 +1,7 @@
 import asyncio
 import json
 import os
+import random
 import shutil
 import sqlite3
 import time
@@ -13,16 +14,14 @@ from typing import Any, AsyncIterator, Callable, Dict, Iterator, List, Optional,
 import backoff
 import bittensor as bt
 import pandas as pd
-from bittensor.chain_data import AxonInfo
+from bittensor import AxonInfo
 
 from infinite_games.utils.misc import split_chunks
 from infinite_games.utils.uids import miner_count_in_db
 
 # defines a time window for grouping submissions based on a specified number of minutes
 CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES = 60 * 4
-CLUSTER_EPOCH_2024 = datetime.now(timezone.utc).replace(
-    hour=0, minute=0, second=0, microsecond=0, month=1, day=1
-)
+CLUSTER_EPOCH_2024 = datetime(2024, 1, 1, 0, 0, 0, 0, tzinfo=timezone.utc)
 
 
 class EventRemovedException(Exception):
@@ -164,10 +163,15 @@ class EventAggregator:
             await asyncio.sleep(self.COLLECTOR_WATCH_EVENTS_DELAY)
 
     async def check_event(self, event_data: ProviderEvent):
-        processed_already = event_data.metadata.get("processed", False)
         market_type = event_data.metadata.get("market_type", event_data.market_type)
-        event_text = f"{market_type} {event_data.event_id}"
-        self.log(f"Update Event {event_text} {event_data.status} {processed_already=} ")
+
+        # reduce the number of logs - log a 20% sample
+        if random.random() < 0.2:
+            processed_already = event_data.metadata.get("processed", False)
+            event_text = f"{market_type} {event_data.event_id}"
+            self.log(
+                f"Sample of Update Event {event_text} {event_data.status=} {processed_already=} "
+            )
 
         if event_data.status in [EventStatus.PENDING, EventStatus.SETTLED]:
             integration = self.integrations.get(event_data.market_type)
@@ -194,7 +198,7 @@ class EventAggregator:
                 bt.logging.error(traceback.format_exc())
 
     def log(self, msg):
-        bt.logging.info(f"{self.__class__.__name__} {msg}")
+        bt.logging.debug(f"{self.__class__.__name__} {msg}")
 
     def error(self, msg):
         bt.logging.error(f"{self.__class__.__name__} {msg}")
@@ -257,7 +261,6 @@ class EventAggregator:
                             *[self.check_event(event_data) for event_data in events]
                         )
                         await asyncio.sleep(self.WATCH_EVENTS_DELAY)
-                        self.log("Updating events..")
                 except Exception as e:
                     self.error(f"Failed to get event: {repr(e)}")
                     self.error(traceback.format_exc())
@@ -295,11 +298,11 @@ class EventAggregator:
                     elif event.metadata.get("processed", False) is True:
                         bt.logging.warning(f"Tried to process already processed {event} event!")
                 except Exception as e:
-                    bt.logging.error(f"Failed to call update hook for event {key}: {repr(e)}")
-                    bt.logging.error(traceback.format_exc())
-                    print(traceback.format_exc())
+                    bt.logging.error(
+                        f"Failed to call update hook for event {key}: {repr(e)}", exc_info=True
+                    )
         else:
-            self.log(f"New event:  {key} {pe.description} - {pe.status} ")
+            self.log(f"New event:  {key} {pe.description[:50]} - {pe.status=} ")
 
         return is_new
 
@@ -831,7 +834,9 @@ class EventAggregator:
         conn.close()
         return False
 
-    def mark_submissions_as_exported(self) -> bool:
+    def mark_submissions_as_exported(
+        self, interval_minutes_begin: int, interval_minutes_end: int
+    ) -> bool:
         """Returns true if submitted successfully"""
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
@@ -842,7 +847,9 @@ class EventAggregator:
                 cursor.execute(
                     """
                     UPDATE predictions set exported = true
+                    WHERE interval_start_minutes >= ? and interval_start_minutes <= ?
                     """,
+                    (interval_minutes_begin, interval_minutes_end),
                 )
                 # bt.logging.debug(result)
                 conn.execute("COMMIT")
@@ -892,38 +899,7 @@ class EventAggregator:
                 ] = interval_prediction
         return output
 
-    def get_non_exported_event_predictions(self, pe: ProviderEvent):
-        conn = sqlite3.connect(self.db_path)
-        conn.row_factory = sqlite3.Row
-        cursor = conn.cursor()
-        result = []
-        try:
-            c = cursor.execute(
-                """
-                select unique_event_id, minerHotkey, minerUid, predictedOutcome,interval_start_minutes,interval_agg_prediction,interval_count,submitted,blocktime
-                from predictions
-                where unique_event_id = ? and exported = false
-                """,
-                (self.event_key(pe.market_type, event_id=pe.event_id),),
-            )
-            result: List[sqlite3.Row] = c.fetchall()
-        except Exception as e:
-            bt.logging.error(f"Error fetching non-exported event predictions {repr(pe)}: {repr(e)}")
-            bt.logging.error(traceback.format_exc())
-        conn.close()
-        output = defaultdict(dict)
-        for row in result:
-            interval_prediction = dict(row)
-            if (
-                int(interval_prediction["interval_start_minutes"])
-                not in output[int(interval_prediction["minerUid"])]
-            ):
-                output[int(interval_prediction["minerUid"])][
-                    int(interval_prediction["interval_start_minutes"])
-                ] = interval_prediction
-        return output
-
-    def get_all_non_exported_event_predictions(self, interval_minutes):
+    def get_all_non_exported_event_predictions(self, interval_minutes_begin, interval_minutes_end):
         conn = sqlite3.connect(self.db_path)
         # conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
@@ -931,12 +907,16 @@ class EventAggregator:
         try:
             c = cursor.execute(
                 """
-                select e.metadata, e.unique_event_id, p.minerHotkey, p.minerUid, p.predictedOutcome, p.interval_start_minutes, p.interval_agg_prediction,p.interval_count,p.submitted,p.blocktime
-                from predictions p join events e on p.unique_event_id = e.unique_event_id
-                where
-                p.exported = false and interval_start_minutes = ?
+                SELECT e.metadata, e.unique_event_id, p.minerHotkey, p.minerUid,
+                    p.predictedOutcome, p.interval_start_minutes,
+                    p.interval_agg_prediction, p.interval_count,
+                    p.submitted, p.blocktime
+                FROM predictions p
+                JOIN events e ON p.unique_event_id = e.unique_event_id
+                WHERE p.exported = false
+                    AND interval_start_minutes >= ? AND interval_start_minutes <= ?
                 """,
-                (interval_minutes,),
+                (interval_minutes_begin, interval_minutes_end),
             )
             result: list = c.fetchall()
         except Exception as e:

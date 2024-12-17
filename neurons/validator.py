@@ -43,8 +43,7 @@ import infinite_games
 
 # import base validator class which takes care of most of the boilerplate
 from infinite_games import __spec_version__ as spec_version
-from infinite_games.base.validator import BaseValidatorNeuron
-from infinite_games.events.azuro import AzuroProviderIntegration
+from infinite_games.base.validator import TENSOR_DEBUG_SLICE, BaseValidatorNeuron
 from infinite_games.events.base import (
     CLUSTER_EPOCH_2024,
     CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES,
@@ -52,9 +51,7 @@ from infinite_games.events.base import (
     EventStatus,
     ProviderEvent,
     ProviderIntegration,
-    Submission,
 )
-from infinite_games.events.polymarket import PolymarketProviderIntegration
 from infinite_games.utils.query import query_miners
 
 # The minimum time between querying miners in seconds - avoid spamming miners
@@ -134,23 +131,40 @@ class Validator(BaseValidatorNeuron):
         end_time = time.time()
         bt.logging.info(f"initialize_provider completed in {end_time - start_time:.2f} seconds")
 
-    async def send_interval_stats(self):
+    async def send_interval_stats(self, overwrite_now=None):
         start_time = time.time()
         now = datetime.now(timezone.utc)
+        # overwrite_now for testing, freeze_date does not work well with get_event_loop
+        # https://github.com/spulec/freezegun/issues/529
+        if overwrite_now:
+            now = overwrite_now
         minutes_since_epoch = int((now - CLUSTER_EPOCH_2024).total_seconds()) // 60
         # previous interval from current one filled already, sending it.
-        interval_prev_start_minutes = (
+        previous_interval_start_minutes = (
             minutes_since_epoch
-            - (minutes_since_epoch % (CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES))
+            - (minutes_since_epoch % CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES)
             - CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES
         )
-        # all_uids = [uid for uid in range(self.metagraph.n.item())]
-        interval_date = CLUSTER_EPOCH_2024 + timedelta(minutes=interval_prev_start_minutes)
-        bt.logging.debug(f"Sending interval data: {interval_prev_start_minutes} -> {interval_date}")
+        previous_m20_interval_start_minutes = (
+            minutes_since_epoch
+            - (minutes_since_epoch % CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES)
+            - (CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES * 20)
+        )
+        interval_date_begin = (
+            CLUSTER_EPOCH_2024 + timedelta(minutes=previous_m20_interval_start_minutes)
+        ).isoformat()
+        interval_date_end = (
+            CLUSTER_EPOCH_2024 + timedelta(minutes=previous_interval_start_minutes)
+        ).isoformat()
+        bt.logging.debug(
+            f"Sending interval data between: {interval_date_begin=} -> {interval_date_end=}"
+        )
         metrics = []
         predictions_data = self.event_provider.get_all_non_exported_event_predictions(
-            interval_prev_start_minutes
+            interval_minutes_begin=previous_m20_interval_start_minutes,
+            interval_minutes_end=previous_interval_start_minutes,
         )
+
         bt.logging.debug(f"Loaded {len(predictions_data)} submissions..")
         for (
             metadata,
@@ -177,15 +191,19 @@ class Validator(BaseValidatorNeuron):
         if metrics and len(metrics) > 0:
             bt.logging.info(f"Total submission to export: {len(metrics)}")
             chunk_metrics = split_chunks(list(metrics), 15000)
-            async for metrics in chunk_metrics:
-                try:
+            try:
+                async for metrics in chunk_metrics:
                     self.send_interval_data(miner_data=metrics)
                     bt.logging.info(f"chunk submissions processed {len(metrics)}")
-                except Exception as e:
-                    bt.logging.error(f"Error sending interval data: {repr(e)}")
-                    bt.logging.error(traceback.format_exc())
+
                 await asyncio.sleep(4)
-            self.event_provider.mark_submissions_as_exported()
+                self.event_provider.mark_submissions_as_exported(
+                    interval_minutes_begin=previous_m20_interval_start_minutes,
+                    interval_minutes_end=previous_interval_start_minutes,
+                )
+            except Exception as e:
+                bt.logging.error(f"Error sending interval data: {repr(e)}", exc_info=True)
+
         end_time = time.time()
         bt.logging.info(f"send_interval_stats completed in {end_time - start_time:.2f} seconds")
 
@@ -266,7 +284,7 @@ class Validator(BaseValidatorNeuron):
                 miner_reg_time = datetime.fromisoformat(miner_data["registered_date"]).replace(
                     tzinfo=timezone.utc
                 )
-                bt.logging.info(f"miner {uid=} reg time: {miner_reg_time}")
+                bt.logging.debug(f"miner {uid=} reg time: {miner_reg_time}")
                 prediction_intervals = predictions.get(uid.item())
                 if market_type == "azuro":
                     # if miner registered after the cutoff.
@@ -291,7 +309,7 @@ class Validator(BaseValidatorNeuron):
                     ans = max(0, min(1, ans))  # Clamp the answer
                     brier_score = 1 - ((ans - correct_ans) ** 2)
                     scores.append(brier_score)
-                    bt.logging.info(
+                    bt.logging.debug(
                         f"settled answer for {uid=} for {pe.event_id=} {ans=} {brier_score=}"
                     )
                 else:
@@ -339,7 +357,7 @@ class Validator(BaseValidatorNeuron):
                         brier_score = 1 - ((ans - correct_ans) ** 2)
                         mk.append(wk * brier_score)
 
-                        bt.logging.info(
+                        bt.logging.debug(
                             f"{pe} answer for {uid=} {interval_start_minutes=} {interval_start_date=} {ans=} total={total_intervals} curr={current_interval_no} {wk=} {brier_score=}"
                         )
                     if weights_sum < 0.01:
@@ -356,7 +374,10 @@ class Validator(BaseValidatorNeuron):
 
                     scores.append(final_avg_score)
             brier_scores = torch.FloatTensor(scores)
-            bt.logging.info(f"scores {torch.round(brier_scores, decimals=3)}")
+            bt.logging.info(
+                f"Brier scores[-{TENSOR_DEBUG_SLICE}:]:"
+                f" {torch.round(brier_scores, decimals=3)[-TENSOR_DEBUG_SLICE:]}"
+            )
             scores = torch.FloatTensor(scores)
             if all(score.item() <= 0.0 for score in scores):
                 # bt.logging.info('All effective scores zero for this event!')
@@ -368,9 +389,15 @@ class Validator(BaseValidatorNeuron):
                 scores[non_zeros] = alpha * scores[non_zeros] + (
                     beta * torch.exp(30 * scores[non_zeros])
                 )
-            bt.logging.info(f"expd {torch.round(scores, decimals=3)}")
+            bt.logging.info(
+                f"Expd scores[-{TENSOR_DEBUG_SLICE}:]:"
+                f" {torch.round(scores, decimals=3)[-TENSOR_DEBUG_SLICE:]}"
+            )
             scores = torch.nn.functional.normalize(scores, p=1, dim=0)
-            bt.logging.info(f"Normalized {torch.round(scores, decimals=3)}")
+            bt.logging.info(
+                f"Normalized scores[-{TENSOR_DEBUG_SLICE}:]:"
+                f" {torch.round(scores, decimals=3)[-TENSOR_DEBUG_SLICE:]}"
+            )
             self.update_scores(scores, miner_uids)
             self.export_scores(p_event=pe, miner_score_data=zip(miner_uids, brier_scores, scores))
             end_time = time.time()
@@ -431,10 +458,10 @@ class Validator(BaseValidatorNeuron):
                 )
                 if not res.status_code == 200:
                     bt.logging.warning(
-                        f"Error processing scores for event {p_event}: {res.content}"
+                        f"Error processing scores for event {p_event}: {res.status_code=} {res.content=}"
                     )
                 else:
-                    bt.logging.info(f"Scores processed {res.status_code} {res.content}")
+                    bt.logging.info(f"Scores processed {res.status_code=} {res.content=}")
                     self.event_provider.mark_event_as_exported(p_event)
                 time.sleep(1)
             except Exception as e:
@@ -455,7 +482,6 @@ class Validator(BaseValidatorNeuron):
             self.reset_daily_average_scores()
             self.print_info()
             block_start = self.block
-
             miner_uids = infinite_games.utils.uids.get_all_uids(self)
             # Create synapse object to send to the miner.
             synapse = infinite_games.protocol.EventPredictionSynapse()
@@ -512,12 +538,20 @@ class Validator(BaseValidatorNeuron):
                     answers.append(score)
                     minerUids.append(uid.item())
                     provider_events.append(provider_event)
-                    resp_logs += 1
-                    if resp_logs <= 5 and uid.item() != current_uid:
-                        bt.logging.info(
-                            f"First 5 miners responseuid: {uid.item()} {unique_event_id=} {score=} {event_data=} {provider_event=}"
+
+                    if (
+                        resp_logs <= 5
+                        and uid.item() != current_uid
+                        and score is not None
+                        and score > 0
+                    ):
+                        resp_logs += 1
+                        bt.logging.debug(
+                            f"Sample of valid responses from 5 miners: {uid.item()} "
+                            f"{unique_event_id=} {score=} >v1.3.2_{miner_answered=}"
                         )
                         current_uid = uid.item()
+
                     if not provider_event:
                         details.append("non-registered-event")
                         bt.logging.trace(
@@ -629,7 +663,6 @@ if __name__ == "__main__":
     bt.logging.debug(f"Python version {version} {version_info}")
     bt.logging.debug(f"Bittensor version  {bt.__version__}")
     bt.logging.debug(f"SQLite version  {sqlite3.sqlite_version}")
-    bt.logging.debug(f"Bittensor version  {bt.__version__}")
     major, minor, patch = sqlite3.sqlite_version.split(".")
     if int(major) < 3 or int(minor) < 35:
         bt.logging.error(
