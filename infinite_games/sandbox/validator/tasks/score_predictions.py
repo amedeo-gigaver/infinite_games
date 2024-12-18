@@ -33,7 +33,8 @@ class ScorePredictions(AbstractTask):
         return self.interval
 
     async def run(self):
-        # pull predictions
+        # events_to_score = await self.db_operations.get_events_for_scoring()
+        # get predictions for each event
 
         # score them
 

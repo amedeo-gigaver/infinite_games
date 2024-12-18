@@ -399,7 +399,7 @@ class TestDbOperations:
                 description="desc1",
                 starts="2024-12-02",
                 resolve_date="2024-12-03",
-                outcome=None,
+                outcome="outcome1",
                 status=EventStatus.SETTLED,
                 metadata='{"key": "value"}',
                 created_at="2000-12-02T14:30:00+00:00",
@@ -413,7 +413,7 @@ class TestDbOperations:
                 description="desc2",
                 starts="2024-12-03",
                 resolve_date="2024-12-04",
-                outcome="outcome2",
+                outcome=None,
                 status=EventStatus.PENDING,
                 metadata='{"key": "value"}',
                 created_at="2012-12-02T14:30:00+00:00",
@@ -429,3 +429,51 @@ class TestDbOperations:
         assert len(result) == 1
         assert result[0].event_id == expected_event_id
         assert result[0].status == EventStatus.SETTLED
+
+    async def test_get_predictions_for_scoring(
+        self, db_operations: DatabaseOperations, db_client: Client
+    ):
+        expected_event_id = "_event1"
+
+        predictions = [
+            (
+                "unique_event_id_1",
+                "minerHotkey_1",
+                "minerUid_1",
+                "1",
+                10,
+                1,
+                1,
+                "2000-12-02T14:30:00+00:00",
+                1,
+                1,
+            ),
+            (
+                expected_event_id,
+                "minerHotkey_2",
+                "minerUid_2",
+                "1",
+                10,
+                1,
+                1,
+                "2000-12-02T14:30:00+00:00",
+                1,
+                1,
+            ),
+        ]
+
+        await db_operations.upsert_predictions(predictions)
+
+        all_predictions = await db_client.many(
+            """
+                SELECT unique_event_id FROM predictions ORDER BY unique_event_id
+            """
+        )
+        assert len(all_predictions) == 2
+        assert all_predictions[0][0] == expected_event_id
+        assert all_predictions[1][0] == "unique_event_id_1"
+
+        result = await db_operations.get_predictions_for_scoring(event_id=expected_event_id)
+
+        assert len(result) == 1
+        assert result[0].unique_event_id == expected_event_id

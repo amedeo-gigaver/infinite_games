@@ -2,6 +2,7 @@ from typing import Iterable
 
 from infinite_games.sandbox.validator.db.client import Client
 from infinite_games.sandbox.validator.models.event import EVENTS_FIELDS, EventsModel, EventStatus
+from infinite_games.sandbox.validator.models.prediction import PREDICTION_FIELDS, PredictionsModel
 from infinite_games.sandbox.validator.utils.logger.logger import db_logger
 
 
@@ -176,7 +177,7 @@ class DatabaseOperations:
             parameters=event_tuples,
         )
 
-    async def get_events_for_scoring(self) -> Iterable[tuple[str]]:
+    async def get_events_for_scoring(self) -> list[EventsModel]:
         """
         Returns all events that were recently resolved and need to be scored
         """
@@ -187,6 +188,7 @@ class DatabaseOperations:
                     {', '.join(EVENTS_FIELDS)}
                 FROM events
                 WHERE status = ?
+                    AND outcome IS NOT NULL
                     AND processed = false
             """,
             parameters=[EventStatus.SETTLED],
@@ -202,3 +204,25 @@ class DatabaseOperations:
                 db_logger.exception("Error parsing event", extra={"row": row[0]})
 
         return events
+
+    async def get_predictions_for_scoring(self, event_id: str) -> list[PredictionsModel]:
+        rows = await self.__db_client.many(
+            f"""
+                SELECT
+                    {', '.join(PREDICTION_FIELDS)}
+                FROM predictions
+                WHERE unique_event_id = ?
+            """,
+            parameters=(event_id,),
+            use_row_factory=True,
+        )
+
+        predictions = []
+        for row in rows:
+            try:
+                prediction = PredictionsModel(**dict(row))
+                predictions.append(prediction)
+            except Exception:
+                db_logger.exception("Error parsing prediction", extra={"row": row[0]})
+
+        return predictions

@@ -16,7 +16,7 @@ class EventStatus(IntEnum):
 
 
 class EventsModel(BaseModel):
-    """Event model: keep it 1:1 with the DB table"""
+    """Events model: keep it 1:1 with the DB table"""
 
     model_config = {"arbitrary_types_allowed": True}
     unique_event_id: str
@@ -36,8 +36,11 @@ class EventsModel(BaseModel):
     cutoff: Optional[datetime] = None
     end_date: Optional[datetime] = None
 
+    @property
+    def unique_constraints(self):
+        return ["unique_event_id"]
+
     @field_validator("exported", mode="before")
-    @classmethod
     def parse_exported_as_bool(cls, v: Any) -> bool:
         # If the DB returns an integer, convert it to boolean
         if isinstance(v, int):
