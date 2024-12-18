@@ -119,9 +119,14 @@ class Client:
         return await self.__wrap_execution(execute)
 
     async def many(
-        self, sql: str, parameters: Optional[Iterable[Any]] = None
+        self,
+        sql: str,
+        parameters: Optional[Iterable[Any]] = None,
+        use_row_factory: bool = False,
     ) -> Iterable[aiosqlite.Row]:
         async def execute(connection: aiosqlite.Connection):
+            if use_row_factory:
+                connection.row_factory = aiosqlite.Row
             cursor = await connection.execute(sql=sql, parameters=parameters)
             # Note query should be paginated
             rows = await cursor.fetchall()

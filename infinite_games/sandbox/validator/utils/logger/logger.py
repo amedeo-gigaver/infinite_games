@@ -55,3 +55,4 @@ def create_logger(name: str = None, level: any = logging.DEBUG) -> AbstractLogge
 
 
 logger = create_logger("validator")
+db_logger = create_logger("db")

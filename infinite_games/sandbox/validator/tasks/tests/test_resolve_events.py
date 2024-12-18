@@ -179,10 +179,10 @@ class TestResolveEventsTask:
         )
 
         assert len(response) == 4
-        assert response[0][0] == str(EventStatus.DISCARDED)
-        assert response[1][0] == str(EventStatus.PENDING)
-        assert response[2][0] == str(EventStatus.SETTLED)
-        assert response[3][0] == str(EventStatus.SETTLED)
+        assert response[0][0] == str(EventStatus.DISCARDED.value)
+        assert response[1][0] == str(EventStatus.PENDING.value)
+        assert response[2][0] == str(EventStatus.SETTLED.value)
+        assert response[3][0] == str(EventStatus.SETTLED.value)
 
     async def test_resolve_events_404_410_errors(
         self,
@@ -280,4 +280,4 @@ class TestResolveEventsTask:
 
         assert len(response) == 1
         assert response[0][0] == events[2][1]
-        assert response[0][1] == str(EventStatus.SETTLED)
+        assert response[0][1] == str(EventStatus.SETTLED.value)

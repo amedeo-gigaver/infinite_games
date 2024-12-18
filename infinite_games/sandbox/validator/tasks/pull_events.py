@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 
 from infinite_games.sandbox.validator.db.operations import DatabaseOperations
 from infinite_games.sandbox.validator.if_games.client import IfGamesClient
-from infinite_games.sandbox.validator.models.event import EventStatus
+from infinite_games.sandbox.validator.models.event import EventsModel, EventStatus
 from infinite_games.sandbox.validator.scheduler.task import AbstractTask
 
 
@@ -73,7 +73,7 @@ class PullEvents(AbstractTask):
 
             # Batch insert in the db
             if len(parsed_events_for_insertion) > 0:
-                await self.db_operations.upsert_events(parsed_events_for_insertion)
+                await self.db_operations.upsert_pydantic_events(parsed_events_for_insertion)
 
             if len(items) < self.page_size:
                 # Break if no more events
@@ -90,35 +90,23 @@ class PullEvents(AbstractTask):
         cutoff = datetime.fromtimestamp(event.get("cutoff"), tz=timezone.utc)
         end_date = datetime.fromtimestamp(event.get("end_date"), tz=timezone.utc)
 
-        return (
-            # unique_event_id
-            f"{truncated_market_type}-{event['event_id']}",
-            # event_id
-            event["event_id"],
-            # market_type
-            truncated_market_type,
-            # description
-            event.get("title", "") + event.get("description", ""),
-            # starts
-            start_date,
-            # resolve_date
-            None,
-            # outcome
-            event["answer"],
-            # status
-            status,
-            # metadata
-            json.dumps(
+        return EventsModel(
+            unique_event_id=f"{truncated_market_type}-{event['event_id']}",
+            event_id=event["event_id"],
+            market_type=truncated_market_type,
+            description=event.get("title", "") + event.get("description", ""),
+            starts=start_date,
+            resolve_date=None,
+            outcome=event["answer"],
+            status=status,
+            metadata=json.dumps(
                 {
                     "market_type": event.get("market_type", "").lower(),
                     "cutoff": event.get("cutoff"),
                     "end_date": event.get("end_date"),
                 }
             ),
-            # created_at
-            created_at,
-            # cutoff
-            cutoff,
-            # end_date
-            end_date,
+            created_at=created_at,
+            cutoff=cutoff,
+            end_date=end_date,
         )

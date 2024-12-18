@@ -1,7 +1,8 @@
 from typing import Iterable
 
 from infinite_games.sandbox.validator.db.client import Client
-from infinite_games.sandbox.validator.models.event import EventStatus
+from infinite_games.sandbox.validator.models.event import EVENTS_FIELDS, EventsModel, EventStatus
+from infinite_games.sandbox.validator.utils.logger.logger import db_logger
 
 
 class DatabaseOperations:
@@ -107,8 +108,7 @@ class DatabaseOperations:
                     )
                 ON CONFLICT
                     (unique_event_id)
-                DO UPDATE
-                    set outcome = EXCLUDED.market_type
+                DO NOTHING
             """,
             events,
         )
@@ -145,3 +145,60 @@ class DatabaseOperations:
             """,
             predictions,
         )
+
+    async def upsert_pydantic_events(self, events: list[EventsModel]) -> None:
+        """Same as upsert_events but with pydantic models"""
+
+        fields_to_insert = [
+            field_name
+            for field_name in EVENTS_FIELDS
+            if field_name not in ("registered_date", "local_updated_at")
+        ]
+        placeholders = ", ".join(["?"] * len(fields_to_insert))
+        columns = ", ".join(fields_to_insert)
+
+        # Convert each event into a tuple of values in the same order as fields_to_insert
+        event_tuples = [
+            tuple(getattr(event, field_name) for field_name in fields_to_insert) for event in events
+        ]
+
+        sql = f"""
+                INSERT INTO events
+                    ({columns}, registered_date, local_updated_at)
+                VALUES
+                    ({placeholders}, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                ON CONFLICT
+                    (unique_event_id)
+                DO NOTHING
+        """
+        return await self.__db_client.insert_many(
+            sql=sql,
+            parameters=event_tuples,
+        )
+
+    async def get_events_for_scoring(self) -> Iterable[tuple[str]]:
+        """
+        Returns all events that were recently resolved and need to be scored
+        """
+
+        rows = await self.__db_client.many(
+            f"""
+                SELECT
+                    {', '.join(EVENTS_FIELDS)}
+                FROM events
+                WHERE status = ?
+                    AND processed = false
+            """,
+            parameters=[EventStatus.SETTLED],
+            use_row_factory=True,
+        )
+
+        events = []
+        for row in rows:
+            try:
+                event = EventsModel(**dict(row))
+                events.append(event)
+            except Exception:
+                db_logger.exception("Error parsing event", extra={"row": row[0]})
+
+        return events

@@ -6,7 +6,7 @@ import pytest
 
 from infinite_games.sandbox.validator.db.client import Client
 from infinite_games.sandbox.validator.db.operations import DatabaseOperations
-from infinite_games.sandbox.validator.models.event import EventStatus
+from infinite_games.sandbox.validator.models.event import EventsModel, EventStatus
 from infinite_games.sandbox.validator.utils.logger.logger import AbstractLogger
 
 
@@ -82,10 +82,7 @@ class TestDbOperations:
         assert len(result) == 1
         assert result[0][0] == event_id_to_keep
 
-    async def test_get_last_event_from(
-        self,
-        db_operations: DatabaseOperations,
-    ):
+    async def test_get_last_event_from(self, db_operations: DatabaseOperations):
         created_at = "2000-12-02T14:30:00+00:00"
 
         events = [
@@ -390,3 +387,45 @@ class TestDbOperations:
         # Assert interval_count
         assert result[0][0] == 2
         assert result[1][0] == 2
+
+    async def test_get_events_for_scoring(self, db_operations: DatabaseOperations):
+        expected_event_id = "event1"
+
+        events = [
+            EventsModel(
+                unique_event_id="unique1",
+                event_id=expected_event_id,
+                market_type="market1",
+                description="desc1",
+                starts="2024-12-02",
+                resolve_date="2024-12-03",
+                outcome=None,
+                status=EventStatus.SETTLED,
+                metadata='{"key": "value"}',
+                created_at="2000-12-02T14:30:00+00:00",
+                cutoff="2000-12-30T14:30:00+00:00",
+                end_date="2000-12-31T14:30:00+00:00",
+            ),
+            EventsModel(
+                unique_event_id="unique2",
+                event_id="event2",
+                market_type="market2",
+                description="desc2",
+                starts="2024-12-03",
+                resolve_date="2024-12-04",
+                outcome="outcome2",
+                status=EventStatus.PENDING,
+                metadata='{"key": "value"}',
+                created_at="2012-12-02T14:30:00+00:00",
+                cutoff="2000-12-30T14:30:00+00:00",
+                end_date="2000-12-31T14:30:00+00:00",
+            ),
+        ]
+
+        await db_operations.upsert_pydantic_events(events)
+
+        result = await db_operations.get_events_for_scoring()
+
+        assert len(result) == 1
+        assert result[0].event_id == expected_event_id
+        assert result[0].status == EventStatus.SETTLED

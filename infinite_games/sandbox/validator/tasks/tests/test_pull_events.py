@@ -79,18 +79,18 @@ class TestPullEventsTask:
         parsed_event = pull_events_task.parse_event(event)
 
         # Assert
-        assert parsed_event[0] == "ifgames-123"  # unique_event_id
-        assert parsed_event[1] == "123"  # event_id
-        assert parsed_event[2] == "ifgames"  # truncated market_type
-        assert parsed_event[3] == "Test EventThis is a test."  # description
-        assert parsed_event[4] == datetime.fromtimestamp(
+        assert parsed_event.unique_event_id == "ifgames-123"  # unique_event_id
+        assert parsed_event.event_id == "123"  # event_id
+        assert parsed_event.market_type == "ifgames"  # truncated market_type
+        assert parsed_event.description == "Test EventThis is a test."  # description
+        assert parsed_event.starts == datetime.fromtimestamp(
             event["start_date"], tz=timezone.utc
         )  # starts
-        assert parsed_event[5] is None  # resolve_date
-        assert parsed_event[6] is None  # outcome
-        assert parsed_event[7] == EventStatus.PENDING  # status
-        assert json.loads(parsed_event[8])["market_type"] == "type1"  # metadata
-        assert parsed_event[9] == datetime.fromtimestamp(
+        assert parsed_event.resolve_date is None  # resolve_date
+        assert parsed_event.outcome is None  # outcome
+        assert parsed_event.status == EventStatus.PENDING  # status
+        assert json.loads(parsed_event.metadata)["market_type"] == "type1"  # metadata
+        assert parsed_event.created_at == datetime.fromtimestamp(
             event["created_at"], tz=timezone.utc
         )  # created_at
 
