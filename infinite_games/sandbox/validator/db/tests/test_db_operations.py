@@ -327,30 +327,32 @@ class TestDbOperations:
         await db_operations.upsert_events(events)
 
     async def test_upsert_predictions(self, db_operations: DatabaseOperations, db_client: Client):
+        interval_start_minutes = 5
+        block = 1
+
+        neuron_1_answer = "1"
+        neuron_2_answer = "0.5"
+
         predictions = [
             (
                 "unique_event_id_1",
-                "minerHotkey_1",
-                "minerUid_1",
-                "1",
-                10,
-                1,
-                1,
-                "2000-12-02T14:30:00+00:00",
-                1,
-                1,
+                "neuronHotkey_1",
+                "neuronUid_1",
+                neuron_1_answer,
+                interval_start_minutes,
+                neuron_1_answer,
+                block,
+                neuron_1_answer,
             ),
             (
                 "unique_event_id_2",
-                "minerHotkey_2",
-                "minerUid_2",
-                "1",
-                10,
-                1,
-                1,
-                "2000-12-02T14:30:00+00:00",
-                1,
-                1,
+                "neuronHotkey_2",
+                "neuronUid_2",
+                neuron_2_answer,
+                interval_start_minutes,
+                neuron_2_answer,
+                block,
+                neuron_2_answer,
             ),
         ]
 
@@ -359,7 +361,7 @@ class TestDbOperations:
 
         result = await db_client.many(
             """
-                SELECT unique_event_id, minerHotkey FROM predictions
+                SELECT unique_event_id, minerHotkey, interval_agg_prediction, interval_count  FROM predictions
             """
         )
 
@@ -369,9 +371,17 @@ class TestDbOperations:
         assert result[0][0] == predictions[0][0]
         assert result[1][0] == predictions[1][0]
 
-        # Assert minerHotkey
+        # Assert neuron hotkey
         assert result[0][1] == predictions[0][1]
         assert result[1][1] == predictions[1][1]
+
+        # Assert interval_agg_prediction
+        assert result[0][2] == float(neuron_1_answer)
+        assert result[1][2] == float(neuron_2_answer)
+
+        # Assert interval_count
+        assert result[0][3] == 1
+        assert result[1][3] == 1
 
         # Upsert
         await db_operations.upsert_predictions(predictions)
@@ -438,27 +448,23 @@ class TestDbOperations:
         predictions = [
             (
                 "unique_event_id_1",
-                "minerHotkey_1",
-                "minerUid_1",
+                "neuronHotkey_1",
+                "neuronUid_1",
                 "1",
                 10,
+                "1",
                 1,
-                1,
-                "2000-12-02T14:30:00+00:00",
-                1,
-                1,
+                "1",
             ),
             (
                 expected_event_id,
-                "minerHotkey_2",
-                "minerUid_2",
+                "neuronHotkey_2",
+                "neuronUid_2",
                 "1",
                 10,
+                "1",
                 1,
-                1,
-                "2000-12-02T14:30:00+00:00",
-                1,
-                1,
+                "1",
             ),
         ]
 

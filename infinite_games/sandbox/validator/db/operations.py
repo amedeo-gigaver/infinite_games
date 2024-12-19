@@ -124,9 +124,9 @@ class DatabaseOperations:
                     predictedOutcome,
                     interval_start_minutes,
                     interval_agg_prediction,
+                    blocktime,
                     interval_count,
-                    submitted,
-                    blocktime
+                    submitted
                 )
                 VALUES (
                     ?,
@@ -136,8 +136,8 @@ class DatabaseOperations:
                     ?,
                     ?,
                     ?,
-                    ?,
-                    ?
+                    1,
+                    CURRENT_TIMESTAMP
                 )
                 ON CONFLICT(unique_event_id,  interval_start_minutes, minerUid)
                 DO UPDATE SET

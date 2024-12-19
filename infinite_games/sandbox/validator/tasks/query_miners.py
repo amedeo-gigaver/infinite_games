@@ -1,3 +1,6 @@
+from datetime import datetime, timezone
+
+from bittensor.core.chain_data import AxonInfo
 from bittensor.core.dendrite import DendriteMixin
 from bittensor.core.metagraph import MetagraphMixin
 
@@ -6,6 +9,12 @@ from infinite_games.sandbox.validator.models.events_prediction_synapse import (
     EventsPredictionSynapse,
 )
 from infinite_games.sandbox.validator.scheduler.task import AbstractTask
+
+AxonInfoByUidType = dict[int, AxonInfo]
+SynapseResponseByUidType = dict[int, EventsPredictionSynapse]
+
+CLUSTER_EPOCH_2024 = datetime(2024, 1, 1, 0, 0, 0, 0, tzinfo=timezone.utc)
+CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES = 60 * 4
 
 
 class QueryMiners(AbstractTask):
@@ -59,32 +68,53 @@ class QueryMiners(AbstractTask):
         # Build synapse
         synapse = self.make_predictions_synapse(events)
 
+        # Sync metagraph & store the current block
+        self.metagraph.sync(lite=True)
+        block = self.metagraph.block
+
         # Get axons to query
         axons = self.get_axons()
 
-        # Query miners
-        predictions = self.query_miners(axons=axons, synapse=synapse)
+        if not len(axons):
+            return
 
-        # TODO, parse predictions
-        # Store predictions
-        await self.db_operations.upsert_predictions(predictions=predictions)
+        # keep a record of neurons
 
-    def get_axons(self):
-        pass
-
-    def query_miners(self, axons: any, synapse: EventsPredictionSynapse):
-        timeout = 120
-
-        responses = self.dendrite.query(
-            # Send the query to selected miner axons in the network.
-            axons=axons,
-            synapse=synapse,
-            # Do not deserialize the response so that we have access to the raw response.
-            deserialize=False,
-            timeout=timeout,
+        # Query neurons
+        predictions_synapses: SynapseResponseByUidType = await self.query_neurons(
+            axons_list=axons, synapse=synapse
         )
 
-        return responses
+        interval_start_minutes = self.get_interval_start_minutes()
+
+        # Store predictions
+        await self.store_predictions(
+            block=block,
+            interval_start_minutes=interval_start_minutes,
+            neurons_predictions=predictions_synapses,
+        )
+
+    def get_axons(self) -> AxonInfoByUidType:
+        axons: AxonInfoByUidType = {}
+
+        for uid in self.metagraph.uids:
+            axon = self.metagraph.axons[uid]
+
+            if axon is not None and axon.is_serving is True:
+                axons[uid] = axon
+
+        return axons
+
+    def get_interval_start_minutes(self):
+        now = datetime.now(timezone.utc)
+
+        minutes_since_epoch = int((now - CLUSTER_EPOCH_2024).total_seconds()) // 60
+
+        interval_start_minutes = minutes_since_epoch - (
+            minutes_since_epoch % (CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES)
+        )
+
+        return interval_start_minutes
 
     def make_predictions_synapse(self, events: tuple[any]) -> EventsPredictionSynapse:
         events = {}
@@ -113,3 +143,76 @@ class QueryMiners(AbstractTask):
             }
 
         return EventsPredictionSynapse(events=events)
+
+    def parse_neuron_predictions(
+        self,
+        block: int,
+        interval_start_minutes: int,
+        uid: int,
+        neuron_predictions: EventsPredictionSynapse,
+    ):
+        axon_hotkey = self.metagraph.axons[uid].hotkey
+
+        predictions_to_insert = []
+
+        # Iterate over all event predictions
+        for unique_event_id, event_prediction in neuron_predictions.events.items():
+            answer = event_prediction.get("probability")
+
+            prediction = (
+                unique_event_id,
+                axon_hotkey,
+                uid,
+                answer,
+                interval_start_minutes,
+                answer,
+                block,
+                answer,
+            )
+
+            predictions_to_insert.append(prediction)
+
+        return predictions_to_insert
+
+    async def query_neurons(
+        self, axons_by_uid: AxonInfoByUidType, synapse: EventsPredictionSynapse
+    ):
+        timeout = 120
+
+        axons_list = list(axons_by_uid.values())
+
+        # Use forward directly to make it async
+        responses: list[EventsPredictionSynapse] = await self.dendrite.forward(
+            # Send the query to selected miner axons in the network.
+            axons=axons_list,
+            synapse=synapse,
+            # Do not deserialize the response so that we have access to the raw response.
+            deserialize=False,
+            timeout=timeout,
+        )
+
+        responses_by_uid: SynapseResponseByUidType = {}
+        axons_uids = list(axons_by_uid.keys())
+
+        for uid, response in zip(axons_uids, responses):
+            responses_by_uid[uid] = response
+
+        return responses_by_uid
+
+    async def store_predictions(
+        self, block: int, interval_start_minutes: int, neurons_predictions: SynapseResponseByUidType
+    ):
+        # For each neuron predictions
+        for uid, neuron_predictions in neurons_predictions.items():
+            # Parse neuron predictions for insert
+            parsed_neuron_predictions_for_insertion = self.parse_neuron_predictions(
+                block=block,
+                interval_start_minutes=interval_start_minutes,
+                uid=uid,
+                neuron_predictions=neuron_predictions,
+            )
+
+            # Batch upsert neuron predictions
+            await self.db_operations.upsert_predictions(
+                predictions=parsed_neuron_predictions_for_insertion
+            )
