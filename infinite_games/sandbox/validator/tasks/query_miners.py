@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from typing import Iterable
 
 from bittensor.core.chain_data import AxonInfo
 from bittensor.core.dendrite import DendriteMixin
@@ -116,33 +117,31 @@ class QueryMiners(AbstractTask):
 
         return interval_start_minutes
 
-    def make_predictions_synapse(self, events: tuple[any]) -> EventsPredictionSynapse:
-        events = {}
+    def make_predictions_synapse(self, events: Iterable[tuple[any]]) -> EventsPredictionSynapse:
+        compiled_events = {}
 
         for event in events:
             event_id = event[0]
-            market_type = event[1]
             description = event[2]
-            cutoff = event[3]
-            resolve_date = event[4]
-            end_date = event[5]
+            cutoff = int(datetime.fromisoformat(event[3]).timestamp()) if event[3] else None
+            resolve_date = int(datetime.fromisoformat(event[4]).timestamp()) if event[4] else None
+            end_date = int(datetime.fromisoformat(event[5]).timestamp()) if event[5] else None
             metadata = event[6]
+            market_type = (metadata.get("market_type", event[1])).lower()
 
-            market_type = (metadata.get("market_type", market_type)).lower()
-
-            self.events[f"{market_type}-{event_id}"] = {
+            compiled_events[f"{market_type}-{event_id}"] = {
                 "event_id": event_id,
                 "market_type": market_type,
                 "probability": None,
                 "miner_answered": False,
                 "description": description,
                 "cutoff": cutoff,
-                "starts": int(cutoff) if (cutoff and market_type == "azuro") else None,
-                "resolve_date": (int(resolve_date.timestamp()) if resolve_date else None),
-                "end_date": (end_date.timestamp() if end_date else None),
+                "starts": cutoff if (cutoff and market_type == "azuro") else None,
+                "resolve_date": resolve_date,
+                "end_date": end_date,
             }
 
-        return EventsPredictionSynapse(events=events)
+        return EventsPredictionSynapse(events=compiled_events)
 
     def parse_neuron_predictions(
         self,
