@@ -1,3 +1,4 @@
+import json
 from datetime import datetime, timezone
 from typing import Iterable
 
@@ -79,11 +80,12 @@ class QueryMiners(AbstractTask):
         if not len(axons):
             return
 
-        # keep a record of neurons
+        # keep record of neurons
+        # https://linear.app/infinite-games/issue/INF-210
 
         # Query neurons
         predictions_synapses: SynapseResponseByUidType = await self.query_neurons(
-            axons_list=axons, synapse=synapse
+            axons_by_uid=axons, synapse=synapse
         )
 
         interval_start_minutes = self.get_interval_start_minutes()
@@ -126,7 +128,7 @@ class QueryMiners(AbstractTask):
             cutoff = int(datetime.fromisoformat(event[3]).timestamp()) if event[3] else None
             resolve_date = int(datetime.fromisoformat(event[4]).timestamp()) if event[4] else None
             end_date = int(datetime.fromisoformat(event[5]).timestamp()) if event[5] else None
-            metadata = event[6]
+            metadata = {**json.loads(event[6])}
             market_type = (metadata.get("market_type", event[1])).lower()
 
             compiled_events[f"{market_type}-{event_id}"] = {
