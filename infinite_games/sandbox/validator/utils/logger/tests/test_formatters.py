@@ -2,6 +2,8 @@ import json
 import logging
 import sys
 
+from infinite_games import __version__
+from infinite_games.sandbox.validator.utils.git import commit_short_hash
 from infinite_games.sandbox.validator.utils.logger.context import logger_context
 from infinite_games.sandbox.validator.utils.logger.formatters import ConsoleFormatter, JSONFormatter
 
@@ -94,3 +96,28 @@ class TestJsonFormatter:
         # Ensure the exception information is included in the JSON log output
         assert "exception" in log_data
         assert "ZeroDivisionError" in log_data["exception"]
+
+    def test_json_formatter_with_version(
+        self,
+    ):
+        formatter = JSONFormatter()
+
+        record = logging.LogRecord(
+            "test_logger",
+            logging.INFO,
+            "test_module",
+            1,
+            "This is a log",
+            None,
+            None,
+        )
+
+        formatted_message = formatter.format(record)
+        log_data = json.loads(formatted_message)
+
+        # Ensure the version data is included in the JSON log output
+        assert "version" in log_data
+        assert log_data["version"] == __version__
+
+        assert "commit_hash" in log_data
+        assert log_data["commit_hash"] == commit_short_hash

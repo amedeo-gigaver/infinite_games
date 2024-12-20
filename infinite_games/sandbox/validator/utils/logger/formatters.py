@@ -3,6 +3,8 @@ import logging
 
 from colorama import Back, Fore, Style
 
+from infinite_games import __version__
+from infinite_games.sandbox.validator.utils.git import commit_short_hash
 from infinite_games.sandbox.validator.utils.logger.context import get_context
 
 
@@ -81,6 +83,8 @@ class JSONFormatter(logging.Formatter):
             "logger": record.name,  # Logger name
             "pathname": record.pathname,  # File path where the log was created
             "lineno": record.lineno,  # Line number where the log was created
+            "version": __version__,  # Version of the validator
+            "commit_hash": commit_short_hash,  # Commit hash of the validator
         }
 
         # Add extra information to the log

@@ -3,8 +3,11 @@ import json
 import pytest
 from aiohttp import ClientResponseError
 from aioresponses import aioresponses
+from yarl import URL
 
+from infinite_games import __version__
 from infinite_games.sandbox.validator.if_games.client import IfGamesClient
+from infinite_games.sandbox.validator.utils.git import commit_short_hash
 
 
 class TestIfGamesClient:
@@ -12,17 +15,22 @@ class TestIfGamesClient:
     def client_test_env(self):
         return IfGamesClient(env="test")
 
-    @pytest.fixture
-    def client_prod_env(self):
-        return IfGamesClient(env="prod")
+    @pytest.mark.parametrize(
+        "client,expected_base_url",
+        [
+            (IfGamesClient(env="test"), "https://stage.ifgames.win"),
+            (IfGamesClient(env="prod"), "https://ifgames.win"),
+        ],
+    )
+    async def test_default_session_config(self, client: IfGamesClient, expected_base_url: str):
+        session = client.create_session()
 
-    async def test_base_url_and_timeout(self, client_test_env, client_prod_env):
-        assert client_test_env._IfGamesClient__base_url == "https://stage.ifgames.win"
-        assert client_prod_env._IfGamesClient__base_url == "https://ifgames.win"
+        assert session._base_url == URL(expected_base_url)
+        assert session._timeout.total == 30
 
-        # Verify that the timeout value was set to 30 seconds
-        assert client_test_env._IfGamesClient__timeout.total == 30
-        assert client_prod_env._IfGamesClient__timeout.total == 30
+        # Verify that the default headers were set correctly
+        assert session.headers["Validator-Version"] == __version__
+        assert session.headers["Validator-Hash"] == commit_short_hash
 
     @pytest.mark.parametrize(
         "from_date,offset,limit",
