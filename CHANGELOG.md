@@ -1,7 +1,7 @@
 # Release Notes
 
 ## [1.3.3] - 2024-12-17
-- **Bittensor Upgrade**: Upgraded to Bittensor version 8.4.5
+- **Bittensor Upgrade**: Upgraded to Bittensor version 8.5.1
 - **Default `netuid` for Validators**: The `--netuid` argument now defaults to 6, ensuring validators register on the intended subnet when the argument is not explicitly provided.
 - **Logging Improvements**: Enhanced logging and error reporting for better debugging and issue tracking
 - **Resilient Score Exporting**: Re-exporting functionality added to ensure scores from failed or missed past intervals are included in the current interval.
