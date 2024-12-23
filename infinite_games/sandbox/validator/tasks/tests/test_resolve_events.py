@@ -47,7 +47,7 @@ class TestResolveEventsTask:
 
     @pytest.fixture
     def resolve_events_task(self, db_operations: DatabaseOperations):
-        api_client = IfGamesClient(env="test")
+        api_client = IfGamesClient(env="test", logger=MagicMock(spec=AbstractLogger))
 
         return ResolveEvents(
             interval_seconds=60.0,
@@ -61,7 +61,7 @@ class TestResolveEventsTask:
     ):
         """Test the run method when there are no pending events."""
         # Arrange
-        api_client = IfGamesClient(env="test")
+        api_client = IfGamesClient(env="test", logger=MagicMock(spec=AbstractLogger))
 
         resolve_events_task = ResolveEvents(
             interval_seconds=60.0,

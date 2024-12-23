@@ -21,7 +21,7 @@ class TestLogger:
     def test_logger_handlers(self, logger):
         """Test that the logger has the correct handlers attached."""
         handlers = logger.handlers
-        print(handlers)
+
         assert len(handlers) == 2  # Expecting 2 handlers (console and JSON)
 
         # Validate the type of each handler

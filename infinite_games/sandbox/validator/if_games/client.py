@@ -1,3 +1,4 @@
+import time
 from typing import Literal
 
 import aiohttp
@@ -5,6 +6,7 @@ import aiohttp.typedefs
 
 from infinite_games import __version__
 from infinite_games.sandbox.validator.utils.git import commit_short_hash
+from infinite_games.sandbox.validator.utils.logger.logger import AbstractLogger
 
 EnvType = Literal["test", "prod"]
 
@@ -13,8 +15,10 @@ class IfGamesClient:
     __base_url: str
     __timeout: aiohttp.ClientTimeout
     __headers: aiohttp.typedefs.LooseHeaders
+    __logger: AbstractLogger
 
-    def __init__(self, env: EnvType) -> None:
+    def __init__(self, env: EnvType, logger: AbstractLogger) -> None:
+        self.__logger = logger
         self.__base_url = "https://stage.ifgames.win" if env == "test" else "https://ifgames.win"
         self.__timeout = aiohttp.ClientTimeout(total=30)  # In seconds
         self.__headers = {
@@ -23,11 +27,50 @@ class IfGamesClient:
         }
 
     def create_session(self):
+        trace_config = aiohttp.TraceConfig()
+        trace_config.on_request_start.append(self.on_request_start)
+        trace_config.on_request_end.append(self.on_request_end)
+        trace_config.on_request_exception.append(self.on_request_exception)
+
         return aiohttp.ClientSession(
             base_url=self.__base_url,
             timeout=self.__timeout,
             headers=self.__headers,
+            trace_configs=[trace_config],
         )
+
+    async def on_request_start(self, _, trace_config_ctx, __):
+        trace_config_ctx.start_time = time.time()
+
+    async def on_request_end(self, _, trace_config_ctx, params: aiohttp.TraceRequestEndParams):
+        elapsed_time_ms = round((time.time() - trace_config_ctx.start_time) * 1000)
+
+        response_status = params.response.status
+
+        extra = {
+            "response_status": response_status,
+            "method": params.method,
+            "url": str(params.url),
+            "elapsed_time_ms": elapsed_time_ms,
+        }
+
+        if response_status >= 400:
+            self.__logger.error("Http request failed", extra=extra)
+        else:
+            self.__logger.info("Http request finished", extra=extra)
+
+    async def on_request_exception(
+        self, _, trace_config_ctx, params: aiohttp.TraceRequestExceptionParams
+    ):
+        elapsed_time_ms = round((time.time() - trace_config_ctx.start_time) * 1000)
+
+        extra = {
+            "method": params.method,
+            "url": str(params.url),
+            "elapsed_time_ms": elapsed_time_ms,
+        }
+
+        self.__logger.exception("Http request exception", extra=extra)
 
     async def get_events(self, from_date: int, offset: int, limit: int):
         # Check that all parameters are provided

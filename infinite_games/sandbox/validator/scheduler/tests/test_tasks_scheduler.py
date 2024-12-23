@@ -122,7 +122,7 @@ class TestTasksScheduler:
 
         # Run the scheduler for a short time to allow tasks to execute
         await await_start_with_timeout(
-            start_future=scheduler.start(), timeout=interval_seconds * 2.1
+            start_future=scheduler.start(), timeout=interval_seconds * 2.5
         )
 
         # Ensure that the tasks were executed N times

@@ -1,4 +1,5 @@
 import json
+from unittest.mock import MagicMock
 
 import pytest
 from aiohttp import ClientResponseError
@@ -8,18 +9,27 @@ from yarl import URL
 from infinite_games import __version__
 from infinite_games.sandbox.validator.if_games.client import IfGamesClient
 from infinite_games.sandbox.validator.utils.git import commit_short_hash
+from infinite_games.sandbox.validator.utils.logger.logger import AbstractLogger
 
 
 class TestIfGamesClient:
     @pytest.fixture
     def client_test_env(self):
-        return IfGamesClient(env="test")
+        logger = MagicMock(spec=AbstractLogger)
+
+        return IfGamesClient(env="test", logger=logger)
 
     @pytest.mark.parametrize(
         "client,expected_base_url",
         [
-            (IfGamesClient(env="test"), "https://stage.ifgames.win"),
-            (IfGamesClient(env="prod"), "https://ifgames.win"),
+            (
+                IfGamesClient(env="test", logger=MagicMock(spec=AbstractLogger)),
+                "https://stage.ifgames.win",
+            ),
+            (
+                IfGamesClient(env="prod", logger=MagicMock(spec=AbstractLogger)),
+                "https://ifgames.win",
+            ),
         ],
     )
     async def test_default_session_config(self, client: IfGamesClient, expected_base_url: str):
