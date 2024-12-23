@@ -10,6 +10,10 @@ RUN apt-get update  && export DEBIAN_FRONTEND=noninteractive \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
+# Add Rust
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+ENV PATH="/root/.cargo/bin:${PATH}"
+
 COPY requirements.txt /workspace/requirements.txt
 COPY requirements_dev.txt /workspace/requirements_dev.txt
 
