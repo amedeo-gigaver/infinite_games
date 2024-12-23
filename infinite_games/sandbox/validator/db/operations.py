@@ -62,12 +62,23 @@ class DatabaseOperations:
             parameters=[EventStatus.PENDING],
         )
 
-    async def resolve_event(self, event_id: str) -> Iterable[tuple[str]]:
+    async def resolve_event(
+        self, event_id: str, outcome: str, resolved_at: str
+    ) -> Iterable[tuple[str]]:
         return await self.__db_client.update(
             """
-                UPDATE events SET status = ? WHERE event_id = ? RETURNING event_id
+                UPDATE
+                    events
+                SET
+                    status = ?,
+                    outcome = ?,
+                    resolved_at = ?
+                WHERE
+                    event_id = ?
+                RETURNING
+                    event_id
             """,
-            [EventStatus.SETTLED, event_id],
+            [EventStatus.SETTLED, outcome, resolved_at, event_id],
         )
 
     async def upsert_events(self, events: list[list[any]]) -> None:

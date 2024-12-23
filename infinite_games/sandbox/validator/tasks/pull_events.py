@@ -54,8 +54,8 @@ class PullEvents(AbstractTask):
         events_from = await self.db_operations.get_last_event_from()
 
         if events_from:
-            # Back track 1h
-            events_from = (datetime.fromisoformat(events_from) - timedelta(hours=1)).timestamp()
+            # Back track 1 second
+            events_from = (datetime.fromisoformat(events_from) - timedelta(seconds=1)).timestamp()
             events_from = math.floor(events_from)
         else:
             events_from = 0
@@ -65,7 +65,6 @@ class PullEvents(AbstractTask):
         while True:
             # Query events in batches
             response = await self.api_client.get_events(events_from, offset, self.page_size)
-            # TODO: data validation
 
             # Parse events
             items = response.get("items")

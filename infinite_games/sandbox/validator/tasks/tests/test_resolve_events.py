@@ -1,5 +1,6 @@
 import json
 import tempfile
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -147,11 +148,13 @@ class TestResolveEventsTask:
         mock_response_event_2 = {
             "event_id": events[1][1],
             "answer": None,
+            "resolved_at": None,
         }
 
         mock_response_event_4 = {
             "event_id": events[3][1],
             "answer": 1,  # Event is settled now
+            "resolved_at": 1234567890,
         }
 
         # Mock API response
@@ -174,7 +177,7 @@ class TestResolveEventsTask:
         # Assert
         response = await db_client.many(
             """
-                SELECT status from events
+                SELECT status, outcome, resolved_at from events
             """
         )
 
@@ -182,7 +185,16 @@ class TestResolveEventsTask:
         assert response[0][0] == str(EventStatus.DISCARDED.value)
         assert response[1][0] == str(EventStatus.PENDING.value)
         assert response[2][0] == str(EventStatus.SETTLED.value)
+
+        # Event 4 is settled
         assert response[3][0] == str(EventStatus.SETTLED.value)
+        assert response[3][1] == str(mock_response_event_4["answer"])
+        assert (
+            response[3][2]
+            == datetime.fromtimestamp(
+                mock_response_event_4["resolved_at"], timezone.utc
+            ).isoformat()
+        )
 
     async def test_resolve_events_404_410_errors(
         self,
@@ -245,7 +257,8 @@ class TestResolveEventsTask:
 
         mock_response_event_3 = {
             "event_id": events[2][1],
-            "answer": 1,  # Event is settled now
+            "answer": 1,  # Event is settled now,
+            "resolved_at": 1234567890,
         }
 
         # Mock API response
@@ -274,10 +287,20 @@ class TestResolveEventsTask:
         # Assert
         response = await db_client.many(
             """
-                SELECT event_id, status from events
+                SELECT event_id, status, outcome, resolved_at from events
             """
         )
 
+        # Only one event left, the others are deleted
         assert len(response) == 1
-        assert response[0][0] == events[2][1]
+
+        # Resolved event status
+        assert response[0][0] == mock_response_event_3["event_id"]
         assert response[0][1] == str(EventStatus.SETTLED.value)
+        assert response[0][2] == str(mock_response_event_3["answer"])
+        assert (
+            response[0][3]
+            == datetime.fromtimestamp(
+                mock_response_event_3["resolved_at"], timezone.utc
+            ).isoformat()
+        )

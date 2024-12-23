@@ -1,6 +1,7 @@
 import json
+import math
 import tempfile
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -258,6 +259,13 @@ class TestPullEventsTask:
             "items": [],
         }
 
+        from_last = math.floor(
+            (
+                datetime.fromtimestamp(mock_response_data_1["items"][0]["created_at"])
+                - timedelta(seconds=1)
+            ).timestamp()
+        )
+
         # Mock API response
         with aioresponses() as mocked:
             mocked.get(
@@ -273,13 +281,13 @@ class TestPullEventsTask:
             )
 
             mocked.get(
-                "/api/v2/events?from_date=1733196400&offset=0&limit=1",
+                f"/api/v2/events?from_date={from_last}&offset=0&limit=1",
                 status=200,
                 body=json.dumps(mock_response_data_3).encode("utf-8"),
             )
 
             mocked.get(
-                "/api/v2/events?from_date=1733196400&offset=1&limit=1",
+                f"/api/v2/events?from_date={from_last}&offset=1&limit=1",
                 status=200,
                 body=json.dumps(mock_response_data_4).encode("utf-8"),
             )

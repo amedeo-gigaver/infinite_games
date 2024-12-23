@@ -226,14 +226,15 @@ class TestDbOperations:
         assert len(result) == 1
         assert result[0][0] == event_to_predict_id
 
-    async def test_resolve_event(self, db_operations: DatabaseOperations):
-        event_to_resolve_id = "event1"
-        event_pending_id = "event2"
+    async def test_resolve_event(self, db_client: Client, db_operations: DatabaseOperations):
+        event_id = "event1"
+        outcome = 1
+        resolved_at = "2000-12-31T14:30:00+00:00"
 
         events = [
             (
                 "unique1",
-                event_to_resolve_id,
+                event_id,
                 "market1",
                 "desc1",
                 "2024-12-02",
@@ -245,30 +246,27 @@ class TestDbOperations:
                 "2000-12-30T14:30:00+00:00",
                 "2000-12-31T14:30:00+00:00",
             ),
-            (
-                "unique2",
-                event_pending_id,
-                "market2",
-                "desc2",
-                "2024-12-03",
-                "2024-12-04",
-                "outcome2",
-                EventStatus.PENDING,
-                '{"key": "value"}',
-                "2012-12-02T14:30:00+00:00",
-                "2000-12-30T14:30:00+00:00",
-                "2000-12-31T14:30:00+00:00",
-            ),
         ]
 
         await db_operations.upsert_events(events)
 
-        await db_operations.resolve_event(event_to_resolve_id)
+        await db_operations.resolve_event(
+            event_id=event_id,
+            outcome=outcome,
+            resolved_at=resolved_at,
+        )
 
-        result = await db_operations.get_pending_events()
+        result = await db_client.many(
+            """
+                SELECT event_id, status, outcome, resolved_at FROM events
+            """
+        )
 
         assert len(result) == 1
-        assert result[0][0] == event_pending_id
+        assert result[0][0] == event_id
+        assert result[0][1] == str(EventStatus.SETTLED.value)
+        assert result[0][2] == str(outcome)
+        assert result[0][3] == resolved_at
 
     async def test_upsert_events(self, db_operations: DatabaseOperations, db_client: Client):
         events = [

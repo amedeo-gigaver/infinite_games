@@ -251,3 +251,10 @@ class Client:
                     AND metadata->>'end_date' IS NOT NULL
             """
         )
+
+        await self.add_column_if_not_exists(
+            table_name="events",
+            column_name="resolved_at",
+            column_type="DATETIME",
+            default_value=None,
+        )

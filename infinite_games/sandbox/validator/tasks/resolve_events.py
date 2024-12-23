@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 import aiohttp
 
 from infinite_games.sandbox.validator.db.operations import DatabaseOperations
@@ -54,7 +56,17 @@ class ResolveEvents(AbstractTask):
 
                 # Mark resolved
                 if resolved:
-                    await self.db_operations.resolve_event(event_id)
+                    outcome = event.get("answer")
+
+                    resolved_at = datetime.fromtimestamp(
+                        event.get("resolved_at"), tz=timezone.utc
+                    ).isoformat()
+
+                    await self.db_operations.resolve_event(
+                        event_id=event_id,
+                        outcome=outcome,
+                        resolved_at=resolved_at,
+                    )
 
             except aiohttp.ClientResponseError as error:
                 # Clear deleted events
