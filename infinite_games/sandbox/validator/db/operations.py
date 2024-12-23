@@ -2,6 +2,7 @@ from typing import Iterable
 
 from infinite_games.sandbox.validator.db.client import Client
 from infinite_games.sandbox.validator.models.event import EVENTS_FIELDS, EventsModel, EventStatus
+from infinite_games.sandbox.validator.models.miner import MINERS_FIELDS, MinersModel
 from infinite_games.sandbox.validator.models.prediction import PREDICTION_FIELDS, PredictionsModel
 from infinite_games.sandbox.validator.utils.logger.logger import db_logger
 
@@ -237,3 +238,33 @@ class DatabaseOperations:
                 db_logger.exception("Error parsing prediction", extra={"row": row[0]})
 
         return predictions
+
+    async def get_miners_last_registration(self) -> list:
+        rows = await self.__db_client.many(
+            f"""
+                WITH ranked AS (
+                    SELECT
+                        {', '.join(MINERS_FIELDS)},
+                        ROW_NUMBER() OVER (
+                            PARTITION BY miner_uid
+                            ORDER BY registered_date DESC
+                        ) AS rn
+                    FROM miners t
+                )
+                SELECT
+                    {', '.join(MINERS_FIELDS)}
+                FROM ranked
+                WHERE rn = 1
+                ORDER BY miner_uid
+            """,
+            use_row_factory=True,
+        )
+        miners = []
+        for row in rows:
+            try:
+                miner = MinersModel(**dict(row))
+                miners.append(miner)
+            except Exception:
+                db_logger.exception("Error parsing miner", extra={"row": row[0]})
+
+        return miners

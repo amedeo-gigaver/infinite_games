@@ -7,6 +7,7 @@ import pytest
 from infinite_games.sandbox.validator.db.client import Client
 from infinite_games.sandbox.validator.db.operations import DatabaseOperations
 from infinite_games.sandbox.validator.models.event import EventsModel, EventStatus
+from infinite_games.sandbox.validator.models.miner import MinersModel
 from infinite_games.sandbox.validator.utils.logger.logger import AbstractLogger
 
 
@@ -481,3 +482,56 @@ class TestDbOperations:
 
         assert len(result) == 1
         assert result[0].unique_event_id == expected_event_id
+
+    async def test_get_miners_last_registration(
+        self, db_operations: DatabaseOperations, db_client: Client
+    ):
+        miner_1 = MinersModel(
+            miner_hotkey="hotkey1",
+            miner_uid="uid1",
+            registered_date=datetime(2024, 1, 1, 10, 0, 0),
+        )
+
+        miner_2 = MinersModel(
+            miner_hotkey="hotkey2",
+            miner_uid="uid2",
+            registered_date=datetime(2024, 1, 1, 10, 0, 0),
+        )
+
+        miner_1_replaced = MinersModel(
+            miner_hotkey="hotkey2",
+            miner_uid="uid1",
+            registered_date=datetime(2024, 1, 1, 11, 0, 1),
+        )
+
+        miners = [miner_1, miner_2, miner_1_replaced]
+        await db_client.insert_many(
+            """
+            INSERT INTO miners (miner_hotkey, miner_uid, registered_date)
+            VALUES (?, ?, ?)
+            """,
+            [(m.miner_hotkey, m.miner_uid, m.registered_date) for m in miners],
+        )
+
+        all_miners = await db_client.many(
+            """
+                SELECT miner_uid, miner_hotkey, registered_date FROM miners
+                ORDER BY miner_uid, registered_date
+            """
+        )
+
+        assert len(all_miners) == 3
+        assert all_miners[0][0] == miner_1.miner_uid
+        assert all_miners[0][1] == miner_1.miner_hotkey
+        assert all_miners[1][1] == miner_1_replaced.miner_hotkey
+        assert datetime.fromisoformat(all_miners[1][2]) == miner_1_replaced.registered_date
+        assert all_miners[2][0] == miner_2.miner_uid
+
+        result = await db_operations.get_miners_last_registration()
+        assert len(result) == 2
+        assert result[0].miner_uid == miner_1_replaced.miner_uid
+        assert result[0].miner_hotkey == miner_1_replaced.miner_hotkey
+        assert result[0].registered_date == miner_1_replaced.registered_date
+        assert result[1].miner_uid == miner_2.miner_uid
+        assert result[1].miner_hotkey == miner_2.miner_hotkey
+        assert result[1].registered_date == miner_2.registered_date

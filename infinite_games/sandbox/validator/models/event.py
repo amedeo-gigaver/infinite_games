@@ -37,8 +37,10 @@ class EventsModel(BaseModel):
     end_date: Optional[datetime] = None
 
     @property
-    def unique_constraints(self):
-        return ["unique_event_id"]
+    def primary_key(self):
+        return [
+            "unique_event_id",
+        ]
 
     @field_validator("exported", mode="before")
     def parse_exported_as_bool(cls, v: Any) -> bool:

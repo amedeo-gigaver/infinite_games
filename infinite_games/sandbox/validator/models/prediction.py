@@ -20,8 +20,12 @@ class PredictionsModel(BaseModel):
     model_config = {"arbitrary_types_allowed": True}
 
     @property
-    def unique_constraints(self):
-        return ["unique_event_id", "interval_start_minutes", "minerUid"]
+    def primary_key(self):
+        return [
+            "unique_event_id",
+            "interval_start_minutes",
+            "minerUid",
+        ]
 
     @field_validator("exported", mode="before")
     def parse_exported_as_bool(cls, v: Any) -> bool:

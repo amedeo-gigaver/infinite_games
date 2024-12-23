@@ -112,4 +112,4 @@ class TestPredictionsModel:
             interval_start_minutes=20,
             interval_agg_prediction=0.4,
         )
-        assert model.unique_constraints == ["unique_event_id", "interval_start_minutes", "minerUid"]
+        assert model.primary_key == ["unique_event_id", "interval_start_minutes", "minerUid"]
