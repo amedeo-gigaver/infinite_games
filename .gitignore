@@ -182,3 +182,6 @@ docker-compose*
 validator.db
 test.db
 *.db
+
+# validator state
+state.pt
