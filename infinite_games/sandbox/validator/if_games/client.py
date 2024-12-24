@@ -20,7 +20,7 @@ class IfGamesClient:
     def __init__(self, env: EnvType, logger: AbstractLogger) -> None:
         self.__logger = logger
         self.__base_url = "https://stage.ifgames.win" if env == "test" else "https://ifgames.win"
-        self.__timeout = aiohttp.ClientTimeout(total=30)  # In seconds
+        self.__timeout = aiohttp.ClientTimeout(total=90)  # In seconds
         self.__headers = {
             "Validator-Version": __version__,
             "Validator-Hash": commit_short_hash,

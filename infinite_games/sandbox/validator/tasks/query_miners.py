@@ -80,8 +80,8 @@ class QueryMiners(AbstractTask):
         if not len(axons):
             return
 
-        # keep record of neurons
-        # https://linear.app/infinite-games/issue/INF-210
+        # Store miners
+        await self.store_miners(block=block, axons=axons)
 
         # Query neurons
         predictions_synapses: SynapseResponseByUidType = await self.query_neurons(
@@ -199,6 +199,22 @@ class QueryMiners(AbstractTask):
             responses_by_uid[uid] = response
 
         return responses_by_uid
+
+    async def store_miners(self, block: int, axons: AxonInfoByUidType):
+        miners_count_in_db = await self.db_operations.get_miners_count()
+
+        registered_date = (
+            datetime.now().isoformat()
+            if miners_count_in_db > 0
+            else datetime(year=2024, month=1, day=1).isoformat()
+        )
+
+        miners = [
+            (uid, axon.hotkey, axon.ip, registered_date, block, axon.ip, block)
+            for uid, axon in axons.items()
+        ]
+
+        await self.db_operations.upsert_miners(miners=miners)
 
     async def store_predictions(
         self, block: int, interval_start_minutes: int, neurons_predictions: SynapseResponseByUidType

@@ -36,7 +36,7 @@ class TestIfGamesClient:
         session = client.create_session()
 
         assert session._base_url == URL(expected_base_url)
-        assert session._timeout.total == 30
+        assert session._timeout.total == 90
 
         # Verify that the default headers were set correctly
         assert session.headers["Validator-Version"] == __version__

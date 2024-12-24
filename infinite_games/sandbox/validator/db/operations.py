@@ -54,6 +54,15 @@ class DatabaseOperations:
         if row is not None:
             return row[0]
 
+    async def get_miners_count(self) -> int:
+        row = await self.__db_client.one(
+            """
+                SELECT COUNT(*) FROM miners
+            """
+        )
+
+        return row[0]
+
     async def get_pending_events(self) -> Iterable[tuple[str]]:
         # TODO limit to events that passed cutoff
         return await self.__db_client.many(
@@ -124,6 +133,39 @@ class DatabaseOperations:
                 DO NOTHING
             """,
             events,
+        )
+
+    async def upsert_miners(self, miners: list[list[any]]) -> None:
+        return await self.__db_client.insert_many(
+            """
+                INSERT INTO miners
+                    (
+                        miner_uid,
+                        miner_hotkey,
+                        node_ip,
+                        registered_date,
+                        last_updated,
+                        blocktime,
+                        blocklisted
+                    )
+                VALUES
+                    (
+                        ?,
+                        ?,
+                        ?,
+                        ?,
+                        CURRENT_TIMESTAMP,
+                        ?,
+                        FALSE
+                    )
+                ON CONFLICT
+                    (miner_hotkey, miner_uid)
+                DO UPDATE
+                    set node_ip = ?,
+                    last_updated = CURRENT_TIMESTAMP,
+                    blocktime = ?
+            """,
+            miners,
         )
 
     async def upsert_predictions(self, predictions: list[list[any]]):

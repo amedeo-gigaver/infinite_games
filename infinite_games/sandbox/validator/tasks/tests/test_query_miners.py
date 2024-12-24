@@ -1,3 +1,4 @@
+import asyncio
 import json
 import tempfile
 from datetime import datetime, timedelta, timezone
@@ -263,6 +264,66 @@ class TestQueryMiners:
         assert response["1"] == synapse
         assert response["50"] == synapse
 
+    async def test_store_miners(self, db_client: Client, query_miners_task: QueryMiners):
+        block = 12345
+        axons = {"uid_1": MagicMock(hotkey="hotkey_1", ip="ip_1")}
+
+        await query_miners_task.store_miners(block=block, axons=axons)
+
+        # Assertions
+        result = await db_client.many(
+            """
+                SELECT
+                    miner_uid,
+                    miner_hotkey,
+                    node_ip,
+                    registered_date,
+                    last_updated,
+                    blocktime
+                FROM
+                    miners
+            """
+        )
+
+        assert len(result) == 1
+        assert result[0] == ("uid_1", "hotkey_1", "ip_1", "2024-01-01T00:00:00", ANY, block)
+
+        # Conflicting insert
+        new_block = 23456
+        new_axons = {
+            "uid_1": MagicMock(hotkey="hotkey_1", ip="ip_2"),
+            "uid_2": MagicMock(hotkey="hotkey_2", ip="ip_3"),
+        }
+
+        # Wait 1s so last updated is different
+        await asyncio.sleep(1)
+
+        await query_miners_task.store_miners(block=new_block, axons=new_axons)
+
+        # Assertions
+        result_2 = await db_client.many(
+            """
+                SELECT
+                    miner_uid,
+                    miner_hotkey,
+                    node_ip,
+                    registered_date,
+                    last_updated,
+                    blocktime
+                FROM
+                    miners
+            """
+        )
+
+        assert len(result_2) == 2
+        assert result_2[0] == ("uid_1", "hotkey_1", "ip_2", "2024-01-01T00:00:00", ANY, new_block)
+        assert result_2[1] == ("uid_2", "hotkey_2", "ip_3", ANY, ANY, new_block)
+
+        # Check that last update has been updated
+        assert result[0][4] != result_2[0][4]
+        # Check that the registered_date is not anymore 2024-01-01T00:00:00
+        assert result_2[1][4] != "2024-01-01T00:00:00"
+
     async def test_store_predictions(self, query_miners_task: QueryMiners):
         # Set up mocks
         query_miners_task.db_operations.upsert_predictions = AsyncMock()
@@ -408,8 +469,8 @@ class TestQueryMiners:
         query_miners_task.metagraph.block = block
         query_miners_task.metagraph.uids = [1, 2]
         query_miners_task.metagraph.axons = {
-            1: MagicMock(is_serving=True, hotkey="hotkey_1"),
-            2: MagicMock(is_serving=True, hotkey="hotkey_2"),
+            1: MagicMock(is_serving=True, hotkey="hotkey_1", ip="ip_1"),
+            2: MagicMock(is_serving=True, hotkey="hotkey_2", ip="ip_2"),
         }
 
         async def forward(
@@ -427,7 +488,9 @@ class TestQueryMiners:
         query_miners_task.dendrite.forward = forward
 
         # Configure mock to return our test time when now() is called
-        with patch("infinite_games.sandbox.validator.tasks.query_miners.datetime") as mock_datetime:
+        with patch(
+            "infinite_games.sandbox.validator.tasks.query_miners.datetime", wraps=datetime
+        ) as mock_datetime:
             mock_datetime.now.return_value = datetime(2025, 1, 3, 4, 0, 0, tzinfo=timezone.utc)
 
             # Run the task
@@ -512,6 +575,20 @@ class TestQueryMiners:
                 0,
             ),
         ]
+
+        miners = await db_client.many(
+            """
+                    SELECT
+                        miner_uid,
+                        miner_hotkey
+                    FROM
+                        miners
+                """
+        )
+
+        assert len(miners) == 2
+        assert miners[0] == ("1", "hotkey_1")
+        assert miners[1] == ("2", "hotkey_2")
 
     async def test_run_no_events_to_predict(self, query_miners_task: QueryMiners):
         # Set mocks
