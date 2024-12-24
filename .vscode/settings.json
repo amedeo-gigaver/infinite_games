@@ -10,6 +10,7 @@
         "blocktime",
         "dataframe",
         "executemany",
+        "executescript",
         "freezegun",
         "giveup",
         "ifgames",

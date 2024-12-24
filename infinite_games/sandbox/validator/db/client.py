@@ -34,7 +34,7 @@ class Client:
             if elapsed_time_ms > 500:
                 self.__logger.warning(log, extra=extra)
             else:
-                self.__logger.info(log, extra=extra)
+                self.__logger.debug(log, extra=extra)
 
     async def insert(
         self, sql: str, parameters: Optional[Iterable[Any]] = None
@@ -128,12 +128,13 @@ class Client:
             if use_row_factory:
                 connection.row_factory = aiosqlite.Row
             cursor = await connection.execute(sql=sql, parameters=parameters)
+
             # Note query should be paginated
             rows = await cursor.fetchall()
 
             await cursor.close()
 
-            if len(rows) > 100:
+            if len(rows) > 500:
                 self.__logger.warning("Query returning many rows", extra={"rows": len(rows)})
 
             return rows

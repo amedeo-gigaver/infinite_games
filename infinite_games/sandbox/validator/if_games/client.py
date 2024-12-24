@@ -57,7 +57,7 @@ class IfGamesClient:
         if response_status >= 400:
             self.__logger.error("Http request failed", extra=extra)
         else:
-            self.__logger.info("Http request finished", extra=extra)
+            self.__logger.debug("Http request finished", extra=extra)
 
     async def on_request_exception(
         self, _, trace_config_ctx, params: aiohttp.TraceRequestExceptionParams

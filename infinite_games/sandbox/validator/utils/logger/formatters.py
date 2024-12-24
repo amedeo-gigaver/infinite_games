@@ -21,9 +21,7 @@ class ConsoleFormatter(logging.Formatter):
     LOG_FORMAT = (
         "$STD%(asctime)s.%(msecs)03d$RESET | "  # Timestamp with milliseconds
         "$LEVEL%(levelname)s$RESET | "  # Log level (DEBUG, INFO, etc.)
-        "$STD%(name)s$RESET:"  # Logger name
-        "$STD%(funcName)s$RESET:"  # Function name where log was called
-        "$STD%(lineno)d$RESET - "  # Line number where the log was created
+        "$STD%(name)s$RESET - "  # Logger name
         "$MESSAGE%(message)s$RESET"  # Log message itself
     )
 
@@ -78,11 +76,9 @@ class JSONFormatter(logging.Formatter):
         log_record = {
             "timestamp": self.formatTime(record, self.datefmt),  # Timestamp of the log event
             "level": record.levelname,  # Log level (INFO, ERROR, etc.)
+            "logger": record.name,  # Logger name
             "message": record.getMessage(),  # The actual log message
             **context,  # Add context information
-            "logger": record.name,  # Logger name
-            "pathname": record.pathname,  # File path where the log was created
-            "lineno": record.lineno,  # Line number where the log was created
             "version": __version__,  # Version of the validator
             "commit_hash": commit_short_hash,  # Commit hash of the validator
         }

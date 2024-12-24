@@ -55,7 +55,7 @@ class TestDbClient:
         result = await client.insert(sql, params)
 
         assert result == [("test_insert",)]
-        logger.info.assert_called()  # Ensure logger was called
+        logger.debug.assert_called()  # Ensure logger was called
 
     async def test_insert_many(self, client, logger):
         sql = "INSERT INTO test_table (name) VALUES (?)"
@@ -68,7 +68,7 @@ class TestDbClient:
         result = await client.many(sql)
 
         assert result == [(1, "test_insert_1"), (2, "test_insert_2")]
-        logger.info.assert_called()  # Ensure logger was called
+        logger.debug.assert_called()  # Ensure logger was called
 
     async def test_insert_many_no_params(self, client, logger):
         sql = "INSERT INTO test_table (name) VALUES (?)"
@@ -81,7 +81,7 @@ class TestDbClient:
         result = await client.many(sql)
 
         assert result == []
-        logger.info.assert_called()  # Ensure logger was called
+        logger.debug.assert_called()  # Ensure logger was called
 
     async def test_delete(self, client, logger):
         # Insert a row to delete
@@ -92,7 +92,7 @@ class TestDbClient:
         result = await client.delete(sql, params)
 
         assert result == [("test_delete",)]
-        logger.info.assert_called()  # Ensure logger was called
+        logger.debug.assert_called()  # Ensure logger was called
 
     async def test_update(self, client, logger):
         # Insert a row to update
@@ -103,7 +103,7 @@ class TestDbClient:
         result = await client.update(sql, params)
 
         assert result == [("test_update_2",)]
-        logger.info.assert_called()  # Ensure logger was called
+        logger.debug.assert_called()  # Ensure logger was called
 
     async def test_one(self, client, logger):
         # Insert a row for querying
@@ -114,7 +114,7 @@ class TestDbClient:
         result = await client.one(sql, params)
 
         assert result == (1, "test_one")  # Verify returned row
-        logger.info.assert_called()  # Ensure logger was called
+        logger.debug.assert_called()  # Ensure logger was called
 
     async def test_many(self, client, logger):
         # Insert multiple rows for querying
@@ -126,23 +126,25 @@ class TestDbClient:
         result = await client.many(sql)
 
         assert result == [(1, "test_many_1"), (2, "test_many_2")]  # Verify returned rows
-        logger.info.assert_called()  # Ensure logger was called
-        logger.warning.assert_not_called()  # No warning since rows < 100
+        logger.debug.assert_called()  # Ensure logger was called
+        logger.warning.assert_not_called()  # No warning since rows are few
 
     async def test_many_with_warning(self, client, logger):
-        # Insert 101 rows for testing pagination warning
+        # Insert many rows for testing pagination warning
         sql = "INSERT INTO test_table (name) VALUES (?)"
 
-        for i in range(101):
+        rows_to_insert = 501
+
+        for i in range(rows_to_insert):
             params = (f"Name {i}",)
             await client.insert(sql, params)
 
         sql = "SELECT * FROM test_table"
         result = await client.many(sql)
 
-        assert len(result) == 101  # Verify returned rows
+        assert len(result) == rows_to_insert  # Verify returned rows
         logger.warning.assert_called_with(
-            "Query returning many rows", extra={"rows": 101}
+            "Query returning many rows", extra={"rows": rows_to_insert}
         )  # Ensure warning logged
 
     async def test_migrate(self, client):

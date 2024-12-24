@@ -11,7 +11,7 @@ from infinite_games.sandbox.validator.utils.logger.logger import logger
 async def main():
     db_client = Client(db_path="my_db.db", logger=logger)
     db_operations = DatabaseOperations(db_client=db_client)
-    api_client = IfGamesClient(env="test")
+    api_client = IfGamesClient(env="test", logger=logger)
 
     await db_client.migrate()
 
