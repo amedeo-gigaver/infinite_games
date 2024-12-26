@@ -1,8 +1,10 @@
 import json
+from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
 from aiohttp import ClientResponseError
+from aiohttp.web import Response
 from aioresponses import aioresponses
 from yarl import URL
 
@@ -41,6 +43,85 @@ class TestIfGamesClient:
         # Verify that the default headers were set correctly
         assert session.headers["Validator-Version"] == __version__
         assert session.headers["Validator-Hash"] == commit_short_hash
+
+    async def test_logger_interceptors_success(self, client_test_env: IfGamesClient):
+        logger = client_test_env._IfGamesClient__logger
+
+        context = SimpleNamespace()
+        method = "GET"
+        response_status = 200
+        url = "/test"
+
+        # Test success response
+        await client_test_env.on_request_start(None, context, None)
+        await client_test_env.on_request_end(
+            None,
+            context,
+            MagicMock(response=Response(status=response_status), method=method, url=URL(url)),
+        )
+
+        # Verify the debug call
+        logger.debug.assert_called_once_with(
+            "Http request finished",
+            extra={
+                "response_status": response_status,
+                "method": method,
+                "url": url,
+                "elapsed_time_ms": pytest.approx(100, abs=100),
+            },
+        )
+
+    async def test_logger_interceptors_error(self, client_test_env: IfGamesClient):
+        logger = client_test_env._IfGamesClient__logger
+
+        context = SimpleNamespace()
+        method = "GET"
+        response_status = 500
+        url = "/test"
+
+        # Test success response
+        await client_test_env.on_request_start(None, context, None)
+        await client_test_env.on_request_end(
+            None,
+            context,
+            MagicMock(response=Response(status=response_status), method=method, url=URL(url)),
+        )
+
+        # Verify the error call
+        logger.error.assert_called_once_with(
+            "Http request failed",
+            extra={
+                "response_status": response_status,
+                "method": method,
+                "url": url,
+                "elapsed_time_ms": pytest.approx(100, abs=100),
+            },
+        )
+
+    async def test_logger_interceptors_exception(self, client_test_env: IfGamesClient):
+        logger = client_test_env._IfGamesClient__logger
+
+        context = SimpleNamespace()
+        method = "GET"
+        url = "/test"
+
+        # Test success response
+        await client_test_env.on_request_start(None, context, None)
+        await client_test_env.on_request_exception(
+            None,
+            context,
+            MagicMock(method=method, url=URL(url)),
+        )
+
+        # Verify the debug call
+        logger.exception.assert_called_once_with(
+            "Http request exception",
+            extra={
+                "method": method,
+                "url": url,
+                "elapsed_time_ms": pytest.approx(100, abs=100),
+            },
+        )
 
     @pytest.mark.parametrize(
         "from_date,offset,limit",
