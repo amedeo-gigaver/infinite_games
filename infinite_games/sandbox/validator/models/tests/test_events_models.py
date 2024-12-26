@@ -11,7 +11,8 @@ class TestEventsModel:
         event = EventsModel(
             unique_event_id="unique1",
             event_id="event1",
-            market_type="market1",
+            market_type="truncated_market1",
+            event_type="market1",
             description="desc1",
             starts="2024-12-03T00:00:00Z",
             resolve_date="2024-12-04T00:00:00Z",
@@ -30,7 +31,8 @@ class TestEventsModel:
         event = EventsModel(
             unique_event_id="unique2",
             event_id="event2",
-            market_type="market2",
+            market_type="truncated_market2",
+            event_type="market2",
             description="desc2",
             starts="2024-12-03",
             resolve_date="2024-12-04",
@@ -48,7 +50,8 @@ class TestEventsModel:
             EventsModel(
                 unique_event_id="unique3",
                 event_id="event3",
-                market_type="market3",
+                market_type="truncated_market3",
+                event_type="market3",
                 description="desc3",
                 starts=None,
                 resolve_date=None,
@@ -65,7 +68,8 @@ class TestEventsModel:
         event = EventsModel(
             unique_event_id="unique4",
             event_id="event4",
-            market_type="market4",
+            market_type="truncated_market4",
+            event_type="market4",
             description="desc4",
             starts=None,
             resolve_date=None,
@@ -84,7 +88,8 @@ class TestEventsModel:
         event = EventsModel(
             unique_event_id="unique5",
             event_id="event5",
-            market_type="market5",
+            market_type="truncated_market5",
+            event_type="market5",
             description="desc5",
             status=EventStatus.PENDING,
             metadata="{}",

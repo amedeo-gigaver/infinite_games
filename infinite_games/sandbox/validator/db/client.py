@@ -259,3 +259,22 @@ class Client:
             column_type="DATETIME",
             default_value=None,
         )
+
+        await self.add_column_if_not_exists(
+            table_name="events",
+            column_name="event_type",
+            column_type="TEXT",
+            default_value=None,
+        )
+
+        await self.update(
+            """
+                UPDATE
+                    events
+                SET
+                    event_type = metadata->>'market_type'
+                WHERE
+                    event_type IS NULL
+                    AND metadata->>'market_type' IS NOT NULL
+            """
+        )

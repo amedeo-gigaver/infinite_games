@@ -99,6 +99,7 @@ class DatabaseOperations:
                         unique_event_id,
                         event_id,
                         market_type,
+                        event_type,
                         description,
                         starts,
                         resolve_date,
@@ -113,6 +114,7 @@ class DatabaseOperations:
                     )
                 VALUES
                     (
+                        ?,
                         ?,
                         ?,
                         ?,

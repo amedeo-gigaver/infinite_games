@@ -89,10 +89,13 @@ class PullEvents(AbstractTask):
         cutoff = datetime.fromtimestamp(event.get("cutoff"), tz=timezone.utc)
         end_date = datetime.fromtimestamp(event.get("end_date"), tz=timezone.utc)
 
+        event_type = event.get("market_type", "").lower()
+
         return EventsModel(
             unique_event_id=f"{truncated_market_type}-{event['event_id']}",
             event_id=event["event_id"],
             market_type=truncated_market_type,
+            event_type=event_type,
             description=event.get("title", "") + event.get("description", ""),
             starts=start_date,
             resolve_date=None,
@@ -100,7 +103,7 @@ class PullEvents(AbstractTask):
             status=status,
             metadata=json.dumps(
                 {
-                    "market_type": event.get("market_type", "").lower(),
+                    "market_type": event_type,
                     "cutoff": event.get("cutoff"),
                     "end_date": event.get("end_date"),
                 }

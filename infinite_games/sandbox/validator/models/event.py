@@ -22,6 +22,7 @@ class EventsModel(BaseModel):
     unique_event_id: str
     event_id: str
     market_type: str
+    event_type: str
     registered_date: Optional[datetime] = None
     description: str
     starts: Optional[datetime] = None

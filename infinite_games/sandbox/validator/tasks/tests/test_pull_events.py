@@ -65,7 +65,7 @@ class TestPullEventsTask:
             "end_date": 1700003600,
             "created_at": 1699996400,
             "answer": None,
-            "market_type": "type1",
+            "market_type": "TYpe1",
             "cutoff": 1699996800,
         }
 
@@ -83,6 +83,7 @@ class TestPullEventsTask:
         assert parsed_event.unique_event_id == "ifgames-123"  # unique_event_id
         assert parsed_event.event_id == "123"  # event_id
         assert parsed_event.market_type == "ifgames"  # truncated market_type
+        assert parsed_event.event_type == "type1"
         assert parsed_event.description == "Test EventThis is a test."  # description
         assert parsed_event.starts == datetime.fromtimestamp(
             event["start_date"], tz=timezone.utc

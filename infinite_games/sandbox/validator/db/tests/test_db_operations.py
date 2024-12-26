@@ -40,7 +40,8 @@ class TestDbOperations:
             (
                 "unique1",
                 event_id_to_keep,
-                "market1",
+                "truncated_market1",
+                "market_1",
                 "desc1",
                 "2024-12-02",
                 "2024-12-03",
@@ -54,7 +55,8 @@ class TestDbOperations:
             (
                 "unique2",
                 event_id_to_delete,
-                "market1",
+                "truncated_market1",
+                "market_1",
                 "desc1",
                 "2024-12-02",
                 "2024-12-03",
@@ -90,7 +92,8 @@ class TestDbOperations:
             (
                 "unique1",
                 "event1",
-                "market1",
+                "truncated_market1",
+                "market_1",
                 "desc1",
                 "2024-12-02",
                 "2024-12-03",
@@ -121,7 +124,8 @@ class TestDbOperations:
             (
                 "unique1",
                 pending_event_id,
-                "market1",
+                "truncated_market1",
+                "market_1",
                 "desc1",
                 "2024-12-02",
                 "2024-12-03",
@@ -135,7 +139,8 @@ class TestDbOperations:
             (
                 "unique2",
                 "event2",
-                "market2",
+                "truncated_market2",
+                "market_2",
                 "desc2",
                 "2024-12-03",
                 "2024-12-04",
@@ -165,7 +170,8 @@ class TestDbOperations:
             (
                 "unique1",
                 "event1",
-                "market1",
+                "truncated_market1",
+                "market_1",
                 "desc1",
                 "2024-12-02",
                 "2024-12-03",
@@ -179,7 +185,8 @@ class TestDbOperations:
             (
                 "unique2",
                 "event2",
-                "market2",
+                "truncated_market2",
+                "market_2",
                 "desc2",
                 "2024-12-03",
                 "2024-12-04",
@@ -193,7 +200,8 @@ class TestDbOperations:
             (
                 "unique3",
                 event_to_predict_id,
-                "market3",
+                "truncated_market3",
+                "market_3",
                 "desc3",
                 "2024-12-03",
                 "2024-12-04",
@@ -207,7 +215,8 @@ class TestDbOperations:
             (
                 "unique4",
                 "event4",
-                "market4",
+                "truncated_market4",
+                "market_4",
                 "desc2",
                 "2024-12-03",
                 "2024-12-04",
@@ -236,7 +245,8 @@ class TestDbOperations:
             (
                 "unique1",
                 event_id,
-                "market1",
+                "truncated_market1",
+                "market_1",
                 "desc1",
                 "2024-12-02",
                 "2024-12-03",
@@ -274,7 +284,8 @@ class TestDbOperations:
             (
                 "unique1",
                 "event1",
-                "market1",
+                "truncated_market1",
+                "market_1",
                 "desc1",
                 "2024-12-02",
                 "2024-12-03",
@@ -288,7 +299,8 @@ class TestDbOperations:
             (
                 "unique2",
                 "event2",
-                "market2",
+                "truncated_market2",
+                "market_2",
                 "desc2",
                 "2024-12-03",
                 "2024-12-04",
@@ -316,8 +328,8 @@ class TestDbOperations:
         assert result[1][0] == "event2"
 
         # Assert cutoff
-        assert result[0][1] == events[0][10]
-        assert result[1][1] == events[1][10]
+        assert result[0][1] == events[0][11]
+        assert result[1][1] == events[1][11]
 
     async def test_upsert_no_events(self, db_operations: DatabaseOperations):
         """Test upsert not failing with empty list."""
@@ -404,7 +416,8 @@ class TestDbOperations:
             EventsModel(
                 unique_event_id="unique1",
                 event_id=expected_event_id,
-                market_type="market1",
+                market_type="truncated_market1",
+                event_type="market1",
                 description="desc1",
                 starts="2024-12-02",
                 resolve_date="2024-12-03",
@@ -418,7 +431,8 @@ class TestDbOperations:
             EventsModel(
                 unique_event_id="unique2",
                 event_id="event2",
-                market_type="market2",
+                market_type="truncated_market2",
+                event_type="market2",
                 description="desc2",
                 starts="2024-12-03",
                 resolve_date="2024-12-04",

@@ -88,7 +88,8 @@ class TestResolveEventsTask:
             (
                 "unique_1",
                 "event_id_1",
-                "market1",
+                "truncated_market1",
+                "market_1",
                 "desc1",
                 "2024-12-02",
                 "2024-12-03",
@@ -102,7 +103,8 @@ class TestResolveEventsTask:
             (
                 "unique_2",
                 "event_id_2",
-                "market1",
+                "truncated_market1",
+                "market_1",
                 "desc1",
                 "2024-12-02",
                 "2024-12-03",
@@ -116,7 +118,8 @@ class TestResolveEventsTask:
             (
                 "unique_3",
                 "event_id_3",
-                "market1",
+                "truncated_market1",
+                "market_1",
                 "desc1",
                 "2024-12-02",
                 "2024-12-03",
@@ -130,7 +133,8 @@ class TestResolveEventsTask:
             (
                 "unique_4",
                 "event_id_4",
-                "market1",
+                "truncated_market1",
+                "market_1",
                 "desc1",
                 "2024-12-02",
                 "2024-12-03",
@@ -208,7 +212,8 @@ class TestResolveEventsTask:
             (
                 "unique_1",
                 "event_id_1",
-                "market1",
+                "truncated_market1",
+                "market_1",
                 "desc1",
                 "2024-12-02",
                 "2024-12-03",
@@ -222,7 +227,8 @@ class TestResolveEventsTask:
             (
                 "unique_2",
                 "event_id_2",
-                "market1",
+                "truncated_market1",
+                "market_1",
                 "desc1",
                 "2024-12-02",
                 "2024-12-03",
@@ -236,7 +242,8 @@ class TestResolveEventsTask:
             (
                 "unique_3",
                 "event_id_3",
-                "market1",
+                "truncated_market1",
+                "market_1",
                 "desc1",
                 "2024-12-02",
                 "2024-12-03",
