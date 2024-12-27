@@ -1,4 +1,5 @@
 import tempfile
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -42,6 +43,62 @@ class TestExportPredictions:
             validator_uid=11,
             validator_hotkey="validator_hotkey_test",
         )
+
+    def test_parse_predictions_for_exporting(self, export_predictions_task: ExportPredictions):
+        # Test with a single prediction
+        predictions = [
+            (
+                1,  # ROWID (unused in function)
+                "event123",  # unique_event_id
+                "miner_key_1",  # miner_hotkey
+                "miner_uid_1",  # miner_uid
+                "weather",  # event_type
+                0.75,  # predicted_outcome
+                120,  # interval_start_minutes
+                0.8,  # interval_agg_prediction
+                5,  # interval_count
+            )
+        ]
+
+        result = export_predictions_task.parse_predictions_for_exporting(predictions)
+
+        assert "submissions" in result
+        assert "events" in result
+        assert result["events"] is None
+        assert len(result["submissions"]) == 1
+
+        submission = result["submissions"][0]
+        assert submission["unique_event_id"] == "event123"
+        assert submission["provider_type"] == "weather"
+        assert submission["prediction"] == 0.75
+        assert submission["interval_start_minutes"] == 120
+        assert submission["interval_agg_prediction"] == 0.8
+        assert submission["interval_agg_count"] == 5
+        assert submission["miner_hotkey"] == "miner_key_1"
+        assert submission["miner_uid"] == "miner_uid_1"
+        assert submission["validator_hotkey"] == "validator_hotkey_test"
+        assert submission["validator_uid"] == 11
+        assert submission["title"] is None
+        assert submission["outcome"] is None
+
+        # Verify datetime calculation
+        expected_datetime = datetime(2024, 1, 1, 2, 0, 0, 0, tzinfo=timezone.utc).isoformat()
+        assert submission["interval_datetime"] == expected_datetime
+
+    def test_parse_predictions_for_exporting_multiple_predictions(
+        self, export_predictions_task: ExportPredictions
+    ):
+        # Test with multiple predictions
+        predictions = [
+            (0, "event1", "miner1", "uid1", "weather", 0.75, 120, 0.8, 5),
+            (0, "event2", "miner2", "uid2", "sports", 0.25, 240, 0.3, 3),
+        ]
+
+        result = export_predictions_task.parse_predictions_for_exporting(predictions)
+
+        assert len(result["submissions"]) == 2
+        assert result["submissions"][0]["unique_event_id"] == "event1"
+        assert result["submissions"][1]["unique_event_id"] == "event2"
 
     async def test_run(
         self,
