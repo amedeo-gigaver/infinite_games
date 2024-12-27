@@ -3,7 +3,11 @@ from typing import Iterable
 from infinite_games.sandbox.validator.db.client import Client
 from infinite_games.sandbox.validator.models.event import EVENTS_FIELDS, EventsModel, EventStatus
 from infinite_games.sandbox.validator.models.miner import MINERS_FIELDS, MinersModel
-from infinite_games.sandbox.validator.models.prediction import PREDICTION_FIELDS, PredictionsModel
+from infinite_games.sandbox.validator.models.prediction import (
+    PREDICTION_FIELDS,
+    PredictionExportedStatus,
+    PredictionsModel,
+)
 from infinite_games.sandbox.validator.utils.logger.logger import db_logger
 
 
@@ -72,6 +76,50 @@ class DatabaseOperations:
             parameters=[EventStatus.PENDING],
         )
 
+    async def get_predictions_to_export(self, batch_size: int):
+        return await self.__db_client.many(
+            """
+                SELECT
+                    p.ROWID,
+                    p.unique_event_id,
+                    p.minerHotkey,
+                    p.minerUid,
+                    e.event_type,
+                    p.predictedOutcome,
+                    p.interval_start_minutes,
+                    p.interval_agg_prediction,
+                    p.interval_count
+                FROM
+                    predictions p
+                JOIN
+                    events e ON e.unique_event_id = p.unique_event_id
+                WHERE
+                    p.exported = ?
+                ORDER BY
+                    p.ROWID ASC
+                LIMIT
+                    ?
+            """,
+            [PredictionExportedStatus.NOT_EXPORTED, batch_size],
+        )
+
+    async def mark_predictions_as_exported(self, ids: list[str]):
+        placeholders = ", ".join(["?"] * len(ids))
+
+        return await self.__db_client.update(
+            f"""
+                UPDATE
+                    predictions
+                SET
+                    exported = ?
+                WHERE
+                    ROWID IN ({placeholders})
+                RETURNING
+                    ROWID
+            """,
+            [PredictionExportedStatus.EXPORTED] + ids,
+        )
+
     async def resolve_event(
         self, event_id: str, outcome: str, resolved_at: str
     ) -> Iterable[tuple[str]]:
@@ -82,7 +130,8 @@ class DatabaseOperations:
                 SET
                     status = ?,
                     outcome = ?,
-                    resolved_at = ?
+                    resolved_at = ?,
+                    local_updated_at = CURRENT_TIMESTAMP
                 WHERE
                     event_id = ?
                 RETURNING

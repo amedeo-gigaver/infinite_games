@@ -131,11 +131,13 @@ class TestIfGamesClient:
             (1234567890, 0, None),  # Missing limit
         ],
     )
-    async def test_get_events_invalid_params(self, client_test_env, from_date, offset, limit):
+    async def test_get_events_invalid_params(
+        self, client_test_env: IfGamesClient, from_date, offset, limit
+    ):
         with pytest.raises(ValueError, match="Invalid parameters"):
             await client_test_env.get_events(from_date=from_date, offset=offset, limit=limit)
 
-    async def test_get_events_response(self, client_test_env):
+    async def test_get_events_response(self, client_test_env: IfGamesClient):
         # Define mock response data
         mock_response_data = {
             "count": 2,
@@ -187,7 +189,7 @@ class TestIfGamesClient:
             # Verify the response matches the mock data
             assert result == mock_response_data
 
-    async def test_get_events_error_raised(self, client_test_env):
+    async def test_get_events_error_raised(self, client_test_env: IfGamesClient):
         # Define mock response data
         mock_response_data = {"message": "Internal error"}
         status_code = 500
@@ -216,11 +218,11 @@ class TestIfGamesClient:
             1,  # Non str event id
         ],
     )
-    async def test_get_event_invalid_params(self, client_test_env, event_id):
+    async def test_get_event_invalid_params(self, client_test_env: IfGamesClient, event_id):
         with pytest.raises(ValueError, match="Invalid parameter"):
             await client_test_env.get_event(event_id=event_id)
 
-    async def test_get_event_response(self, client_test_env):
+    async def test_get_event_response(self, client_test_env: IfGamesClient):
         # Define mock response data
         mock_response_data = {
             "event_id": "0x123456789abcdef123456789abcdef123456789abcdef123456789abcdef1234",
@@ -255,7 +257,7 @@ class TestIfGamesClient:
             # Verify the response matches the mock data
             assert result == mock_response_data
 
-    async def test_get_event_error_raised(self, client_test_env):
+    async def test_get_event_error_raised(self, client_test_env: IfGamesClient):
         # Define mock response data
         mock_response_data = {"detail": "EVENT_NOT_FOUND"}
         status_code = 404
@@ -275,6 +277,53 @@ class TestIfGamesClient:
                 await client_test_env.get_event(event_id)
 
             mocked.assert_called_with(url_path)
+
+            # Assert the exception
+            assert e.value.status == status_code
+
+    async def test_post_predictions(self, client_test_env: IfGamesClient):
+        # Define mock response data
+        mock_response_data = {"fake_response": "ok"}
+
+        predictions = [{"fake_data": "fake_data"}]
+
+        with aioresponses() as mocked:
+            url_path = "/api/v2/validators/data"
+
+            mocked.post(
+                url_path,
+                status=200,
+                body=json.dumps(mock_response_data).encode("utf-8"),
+            )
+
+            result = await client_test_env.post_predictions(predictions=predictions)
+
+            mocked.assert_called_with(url=url_path, method="POST", json=predictions)
+
+            # Verify the response matches
+            assert result == mock_response_data
+
+    async def test_post_predictions_error_raised(self, client_test_env: IfGamesClient):
+        # Define mock response data
+        mock_response_data = {"fake_response": "ok"}
+
+        predictions = [{"fake_data": "fake_data"}]
+
+        status_code = 500
+
+        with aioresponses() as mocked:
+            url_path = "/api/v2/validators/data"
+
+            mocked.post(
+                url_path,
+                status=status_code,
+                body=json.dumps(mock_response_data).encode("utf-8"),
+            )
+
+            with pytest.raises(ClientResponseError) as e:
+                await client_test_env.post_predictions(predictions=predictions)
+
+            mocked.assert_called_with(url=url_path, method="POST", json=predictions)
 
             # Assert the exception
             assert e.value.status == status_code

@@ -96,3 +96,17 @@ class IfGamesClient:
                 response.raise_for_status()
 
                 return await response.json()
+
+    async def post_predictions(self, predictions: list[dict]):
+        if not isinstance(predictions, list):
+            raise ValueError("Invalid parameter")
+
+        assert len(predictions) > 0
+
+        async with self.create_session() as session:
+            path = "/api/v2/validators/data"
+
+            async with session.post(path, json=predictions) as response:
+                response.raise_for_status()
+
+                return await response.json()

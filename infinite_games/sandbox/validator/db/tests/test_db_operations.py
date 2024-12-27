@@ -8,6 +8,7 @@ from infinite_games.sandbox.validator.db.client import Client
 from infinite_games.sandbox.validator.db.operations import DatabaseOperations
 from infinite_games.sandbox.validator.models.event import EventsModel, EventStatus
 from infinite_games.sandbox.validator.models.miner import MinersModel
+from infinite_games.sandbox.validator.models.prediction import PredictionExportedStatus
 from infinite_games.sandbox.validator.utils.logger.logger import AbstractLogger
 
 
@@ -236,6 +237,170 @@ class TestDbOperations:
         assert len(result) == 1
         assert result[0][0] == event_to_predict_id
 
+    async def test_get_predictions_to_export(
+        self, db_client: Client, db_operations: DatabaseOperations
+    ):
+        events = [
+            (
+                "unique_event_id_1",
+                "event_1",
+                "truncated_market1",
+                "market_1",
+                "desc1",
+                "2024-12-02",
+                "2024-12-03",
+                "outcome1",
+                "status1",
+                '{"key": "value"}',
+                "2000-12-02T14:30:00+00:00",
+                "2000-12-02T14:30:00+00:00",
+                "2000-12-03T14:30:00+00:00",
+            ),
+            (
+                "unique_event_id_2",
+                "event_2",
+                "truncated_market2",
+                "market_2",
+                "desc2",
+                "2024-12-02",
+                "2024-12-03",
+                "outcome2",
+                "status2",
+                '{"key": "value"}',
+                "2000-12-02T14:30:00+00:00",
+                "2000-12-02T14:30:00+00:00",
+                "2000-12-03T14:30:00+00:00",
+            ),
+            (
+                "unique_event_id_3",
+                "event_3",
+                "truncated_market3",
+                "market_3",
+                "desc3",
+                "2024-12-02",
+                "2024-12-03",
+                "outcome3",
+                "status3",
+                '{"key": "value"}',
+                "2000-12-02T14:30:00+00:00",
+                "2000-12-02T14:30:00+00:00",
+                "2000-12-03T14:30:00+00:00",
+            ),
+        ]
+
+        predictions = [
+            (
+                "unique_event_id_1",
+                "neuronHotkey_1",
+                "neuronUid_1",
+                "1",
+                10,
+                "1",
+                1,
+                "1",
+            ),
+            (
+                "unique_event_id_2",
+                "neuronHotkey_2",
+                "neuronUid_2",
+                "1",
+                10,
+                "1",
+                1,
+                "1",
+            ),
+            (
+                "unique_event_id_3",
+                "neuronHotkey_3",
+                "neuronUid_3",
+                "1",
+                10,
+                "1",
+                1,
+                "1",
+            ),
+        ]
+
+        await db_operations.upsert_events(events=events)
+
+        await db_operations.upsert_predictions(predictions)
+
+        # Mark one prediction as exported
+        await db_client.update(
+            """
+                UPDATE predictions SET exported = ? WHERE unique_event_id = ?
+            """,
+            [PredictionExportedStatus.EXPORTED, "unique_event_id_2"],
+        )
+
+        result = await db_operations.get_predictions_to_export(batch_size=1)
+
+        assert len(result) == 1
+        assert result[0][1] == "unique_event_id_1"
+
+        result = await db_operations.get_predictions_to_export(batch_size=2)
+
+        assert len(result) == 2
+
+    async def test_mark_predictions_as_exported(
+        self, db_client: Client, db_operations: DatabaseOperations
+    ):
+        predictions = [
+            (
+                "unique_event_id_1",
+                "neuronHotkey_1",
+                "neuronUid_1",
+                "1",
+                10,
+                "1",
+                1,
+                "1",
+            ),
+            (
+                "unique_event_id_2",
+                "neuronHotkey_2",
+                "neuronUid_2",
+                "1",
+                10,
+                "1",
+                1,
+                "1",
+            ),
+            (
+                "unique_event_id_3",
+                "neuronHotkey_3",
+                "neuronUid_3",
+                "1",
+                10,
+                "1",
+                1,
+                "1",
+            ),
+        ]
+
+        await db_operations.upsert_predictions(predictions=predictions)
+
+        result = await db_operations.mark_predictions_as_exported(ids=["2"])
+
+        # Updated row id is correct
+        assert result[0][0] == 2
+
+        result = await db_client.many(
+            """
+                SELECT
+                    ROWID,
+                    unique_event_id,
+                    exported
+                FROM
+                    predictions
+            """
+        )
+
+        assert result[1][1] == "unique_event_id_2"
+        assert result[0][2] == PredictionExportedStatus.NOT_EXPORTED
+        assert result[1][2] == PredictionExportedStatus.EXPORTED
+        assert result[2][2] == PredictionExportedStatus.NOT_EXPORTED
+
     async def test_resolve_event(self, db_client: Client, db_operations: DatabaseOperations):
         event_id = "event1"
         outcome = 1
@@ -269,7 +434,7 @@ class TestDbOperations:
 
         result = await db_client.many(
             """
-                SELECT event_id, status, outcome, resolved_at FROM events
+                SELECT event_id, status, outcome, resolved_at, local_updated_at FROM events
             """
         )
 
@@ -278,6 +443,7 @@ class TestDbOperations:
         assert result[0][1] == str(EventStatus.SETTLED.value)
         assert result[0][2] == str(outcome)
         assert result[0][3] == resolved_at
+        assert isinstance(result[0][4], str)
 
     async def test_upsert_events(self, db_operations: DatabaseOperations, db_client: Client):
         events = [
@@ -553,12 +719,13 @@ class TestDbOperations:
     async def test_mark_event_as_processed(
         self, db_operations: DatabaseOperations, db_client: Client
     ):
-        unique_event_id = "event1"
+        unique_event_id = "unique_event1"
 
         events = [
             (
                 unique_event_id,
                 "event1",
+                "truncated_market1",
                 "market1",
                 "desc1",
                 "2024-12-02",
@@ -571,9 +738,10 @@ class TestDbOperations:
                 "2000-12-31T14:30:00+00:00",
             ),
             (
+                "unique_event2",
                 "event2",
-                "event2",
-                "market1",
+                "truncated_market2",
+                "market2",
                 "desc1",
                 "2024-12-02",
                 "2024-12-03",
@@ -600,19 +768,20 @@ class TestDbOperations:
         assert result[0][0] == unique_event_id
         assert result[0][1] == 1
         assert result[0][2] == 0
-        assert result[1][0] == "event2"
+        assert result[1][0] == "unique_event2"
         assert result[1][1] == 0
         assert result[1][2] == 0
 
     async def test_mark_event_as_exported(
         self, db_operations: DatabaseOperations, db_client: Client
     ):
-        unique_event_id = "event1"
+        unique_event_id = "unique_event1"
 
         events = [
             (
                 unique_event_id,
                 "event1",
+                "truncated_market1",
                 "market1",
                 "desc1",
                 "2024-12-02",
@@ -625,9 +794,10 @@ class TestDbOperations:
                 "2000-12-31T14:30:00+00:00",
             ),
             (
+                "unique_event2",
                 "event2",
-                "event2",
-                "market1",
+                "truncated_market2",
+                "market2",
                 "desc1",
                 "2024-12-02",
                 "2024-12-03",
@@ -653,5 +823,5 @@ class TestDbOperations:
         assert len(result) == 2
         assert result[0][0] == unique_event_id
         assert result[0][1] == 1
-        assert result[1][0] == "event2"
+        assert result[1][0] == "unique_event2"
         assert result[1][1] == 0
