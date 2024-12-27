@@ -312,3 +312,23 @@ class DatabaseOperations:
                 db_logger.exception("Error parsing miner", extra={"row": row[0]})
 
         return miners
+
+    async def mark_event_as_processed(self, unique_event_id: str) -> None:
+        return await self.__db_client.update(
+            """
+                UPDATE events
+                SET processed = true
+                WHERE unique_event_id = ?
+            """,
+            parameters=(unique_event_id,),
+        )
+
+    async def mark_event_as_exported(self, unique_event_id: str) -> None:
+        return await self.__db_client.update(
+            """
+                UPDATE events
+                SET exported = true
+                WHERE unique_event_id = ?
+            """,
+            parameters=(unique_event_id,),
+        )

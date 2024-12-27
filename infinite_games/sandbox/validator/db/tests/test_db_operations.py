@@ -549,3 +549,109 @@ class TestDbOperations:
         assert result[1].miner_uid == miner_2.miner_uid
         assert result[1].miner_hotkey == miner_2.miner_hotkey
         assert result[1].registered_date == miner_2.registered_date
+
+    async def test_mark_event_as_processed(
+        self, db_operations: DatabaseOperations, db_client: Client
+    ):
+        unique_event_id = "event1"
+
+        events = [
+            (
+                unique_event_id,
+                "event1",
+                "market1",
+                "desc1",
+                "2024-12-02",
+                "2024-12-03",
+                None,
+                EventStatus.PENDING,
+                '{"key": "value"}',
+                "2000-12-02T14:30:00+00:00",
+                "2000-12-30T14:30:00+00:00",
+                "2000-12-31T14:30:00+00:00",
+            ),
+            (
+                "event2",
+                "event2",
+                "market1",
+                "desc1",
+                "2024-12-02",
+                "2024-12-03",
+                None,
+                EventStatus.PENDING,
+                '{"key": "value"}',
+                "2000-12-02T14:30:00+00:00",
+                "2000-12-30T14:30:00+00:00",
+                "2000-12-31T14:30:00+00:00",
+            ),
+        ]
+
+        await db_operations.upsert_events(events)
+
+        await db_operations.mark_event_as_processed(unique_event_id=unique_event_id)
+
+        result = await db_client.many(
+            """
+                SELECT unique_event_id, processed, exported FROM events ORDER BY unique_event_id
+            """
+        )
+
+        assert len(result) == 2
+        assert result[0][0] == unique_event_id
+        assert result[0][1] == 1
+        assert result[0][2] == 0
+        assert result[1][0] == "event2"
+        assert result[1][1] == 0
+        assert result[1][2] == 0
+
+    async def test_mark_event_as_exported(
+        self, db_operations: DatabaseOperations, db_client: Client
+    ):
+        unique_event_id = "event1"
+
+        events = [
+            (
+                unique_event_id,
+                "event1",
+                "market1",
+                "desc1",
+                "2024-12-02",
+                "2024-12-03",
+                None,
+                EventStatus.PENDING,
+                '{"key": "value"}',
+                "2000-12-02T14:30:00+00:00",
+                "2000-12-30T14:30:00+00:00",
+                "2000-12-31T14:30:00+00:00",
+            ),
+            (
+                "event2",
+                "event2",
+                "market1",
+                "desc1",
+                "2024-12-02",
+                "2024-12-03",
+                None,
+                EventStatus.PENDING,
+                '{"key": "value"}',
+                "2000-12-02T14:30:00+00:00",
+                "2000-12-30T14:30:00+00:00",
+                "2000-12-31T14:30:00+00:00",
+            ),
+        ]
+
+        await db_operations.upsert_events(events)
+
+        await db_operations.mark_event_as_exported(unique_event_id=unique_event_id)
+
+        result = await db_client.many(
+            """
+                SELECT unique_event_id, exported FROM events ORDER BY unique_event_id
+            """
+        )
+
+        assert len(result) == 2
+        assert result[0][0] == unique_event_id
+        assert result[0][1] == 1
+        assert result[1][0] == "event2"
+        assert result[1][1] == 0

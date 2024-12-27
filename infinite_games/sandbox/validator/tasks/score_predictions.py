@@ -1,13 +1,19 @@
+import base64
 import copy
+import json
 import math
-from datetime import datetime, now, timezone
+from datetime import datetime, now, timedelta, timezone
 
+import backoff
 import bittensor as bt
 import numpy as np
 import pandas as pd
+import requests
 import torch
 from bittensor.core.metagraph import MetagraphMixin
+from bittensor_wallet.wallet import Wallet
 
+from infinite_games import __spec_version__ as spec_version
 from infinite_games.sandbox.validator.db.operations import DatabaseOperations
 from infinite_games.sandbox.validator.if_games.client import IfGamesClient
 from infinite_games.sandbox.validator.models.event import EventsModel
@@ -26,6 +32,7 @@ RESET_INTERVAL_SECONDS = 60 * 60 * 24  # 24 hours
 
 EXP_FACTOR_K = 30
 NEURON_MOVING_AVERAGE_ALPHA = 0.8
+EXPORT_SCORES_ENDPOINT = "/api/v1/validators/results"
 
 
 class ScorePredictions(AbstractTask):
@@ -41,6 +48,8 @@ class ScorePredictions(AbstractTask):
         db_operations: DatabaseOperations,
         metagraph: MetagraphMixin,
         config: bt.Config,
+        subtensor: bt.Subtensor,
+        wallet: Wallet,  # type: ignore
     ):
         if not isinstance(interval_seconds, float) or interval_seconds <= 0:
             raise ValueError("interval_seconds must be a positive number (float).")
@@ -57,6 +66,20 @@ class ScorePredictions(AbstractTask):
         self.current_uids = copy.deepcopy(self.metagraph.uids)
 
         self.config = config
+        self.subtensor = subtensor
+        self.wallet = wallet
+        self.vali_uid = self.metagraph.hotkeys.index(self.wallet.hotkey.ss58_address)
+        self.spec_version = spec_version
+        self.is_test = self.subtensor.network in ["test", "mock", "local"]
+        self.base_api_url = "https://stage.ifgames.win" if self.is_test else "https://ifgames.win"
+        logger.info(
+            "Init info.",
+            extra={
+                "vali_uid": self.vali_uid,
+                "spec_version": self.spec_version,
+                "is_test": self.is_test,
+            },
+        )
 
         self.interval = interval_seconds
         self.db_operations = db_operations
@@ -82,23 +105,26 @@ class ScorePredictions(AbstractTask):
             logger.exception("Failed to save state.")
         logger.debug("State saved.")
 
-    def load_state(self) -> pd.DataFrame:
+    def load_state(self) -> dict:
         if not self.state_file.exists():
             # reconstruct the state file
             state = {}
-            state["step"] = 0
+            state["step"] = 0  # unused but kept for compatibility
             state["hotkeys"] = self.current_hotkeys
             state["scores"] = torch.zeros((self.n_hotkeys), dtype=torch.float32)
             state["average_scores"] = torch.zeros((self.n_hotkeys), dtype=torch.float32)
             state["previous_average_scores"] = torch.zeros((self.n_hotkeys), dtype=torch.float32)
             state["scoring_iterations"] = 0
-            state["latest_reset_date"] = now(timezone.utc).isoformat()
+            state["latest_reset_date"] = now(timezone.utc) - timedelta(
+                seconds=RESET_INTERVAL_SECONDS + 1
+            )
         else:
             state = torch.load(self.state_file)
 
         if "miner_uids" not in state:
             state["miner_uids"] = self.current_uids
-            return state
+
+        return state
 
     def minutes_since_epoch(self, dt: datetime) -> int:
         """Convert a given datetime to the 'minutes since the reference date'."""
@@ -111,121 +137,9 @@ class ScorePredictions(AbstractTask):
         """
         return minutes_since - (minutes_since % AGGREGATION_INTERVAL_LENGTH_MINUTES)
 
-    async def run(self):
-        self.load_state()
-
-        miners_last_reg_rows = await self.db_operations.get_miners_last_registration()
-        self.miners_last_reg = pydantic_models_to_dataframe(miners_last_reg_rows)
-        events_to_score = await self.db_operations.get_events_for_scoring()
-
-        if not events_to_score:
-            logger.debug("No events to score.")
-            return
-
-        for event in events_to_score:
-            await self.score_event(event)
-
-        pass
-
-    async def score_event(self, event: EventsModel, predictions: list[PredictionsModel]):
-        if not event.cutoff:
-            logger.error("Event has no cutoff date.", extra={"event_id": event.unique_event_id})
-            return
-
-        event_id = event.unique_event_id
-
-        # TODO: cleanup this after we have resolve date for all events in DB
-        # https://linear.app/infinite-games/issue/INF-203/events-solved-before-cutoff
-        if event.resolve_date:
-            effective_cutoff = min(event.cutoff, event.resolve_date)
-        else:
-            effective_cutoff = min(event.cutoff, now(timezone.utc))
-        # dirty: mutate the event object
-        event.cutoff = effective_cutoff
-
-        predictions = await self.db_operations.get_predictions_for_scoring(event_id)
-
-        if not predictions:
-            logger.warning(
-                "There are no predictions for a settled event.",
-                extra_info={"event_id": event_id, "event_cutoff": event.cutoff},
-            )
-            return
-
-        scores = self.score_predictions(event, predictions)
-        logger.debug("Scores calculated, sample below.", extra={"scores": scores.head(n=5)})
-
-        norm_scores = self.normalize_scores(scores)
-
-        self.update_daily_scores(norm_scores)
-
-        self.check_reset_daily_scores()
-
-        # set weights
-
-        # export scores
-
-    def score_predictions(self, event, predictions):
-        # Convert cutoff and now to minutes since epoch, then align them to the interval start
-        effective_cutoff_minutes = self.minutes_since_epoch(event.cutoff)
-        effective_cutoff_start_minutes = self.align_to_interval(effective_cutoff_minutes)
-
-        # Determine when we started, based on registered_date
-        registered_date_minutes = self.minutes_since_epoch(event.cutoff)
-        registered_date_start_minutes = self.align_to_interval(registered_date_minutes)
-
-        n_intervals = (
-            effective_cutoff_start_minutes - registered_date_start_minutes
-        ) // AGGREGATION_INTERVAL_LENGTH_MINUTES
-
-        scores = pd.DataFrame(
-            columns=[
-                "miner_uid",
-                "hotkey",
-                "rema_brier_score",
-            ]
-        )
-
-        for miner in self.miners_last_reg.itertuples():
-            miner_uid = int(miner.uid)
-            miner_hotkey = miner.hotkey
-            miner_predictions = pydantic_models_to_dataframe(
-                [p for p in predictions if p.miner_uid == miner_uid]
-            )
-            context = {
-                "miner_uid": miner_uid,
-                "registered_date_start_minutes": registered_date_start_minutes,
-                "n_intervals": n_intervals,
-            }
-
-            miner_rema_brier_score = self.process_miner_event_score(
-                event, miner_predictions, context
-            )
-
-            scores = scores.append(
-                {
-                    "miner_uid": miner_uid,
-                    "miner_hotkey": miner_hotkey,
-                    "rema_brier_score": miner_rema_brier_score,
-                },
-                ignore_index=True,
-            )
-
-        # if any score is outside the range [0, 1] or None, log an error
-        if scores["rema_brier_score"].isnull().any():
-            logger.error(
-                "Some Brier scores are None for an event.",
-                extra={"event_id": event.unique_event_id},
-            )
-        if (scores["rema_brier_score"] < 0).any() or (scores["rema_brier_score"] > 1).any():
-            logger.error(
-                "Scores outside the range [0, 1] for an event.",
-                extra={"event_id": event.unique_event_id},
-            )
-
-        return scores
-
-    def process_miner_event_score(self, event, miner_predictions, context) -> float:
+    def process_miner_event_score(
+        self, event: EventsModel, miner_predictions: pd.DataFrame, context: dict
+    ) -> float:
         # Removed the special treatment for azuro events, made no sense
 
         # clamp predictions between 0 and 1
@@ -289,11 +203,75 @@ class ScorePredictions(AbstractTask):
 
         return rema_brier_score
 
-    def normalize_scores(self, scores):
+    def score_predictions(
+        self, event: EventsModel, predictions: list[PredictionsModel]
+    ) -> pd.DataFrame:
+        # Convert cutoff and now to minutes since epoch, then align them to the interval start
+        effective_cutoff_minutes = self.minutes_since_epoch(event.cutoff)
+        effective_cutoff_start_minutes = self.align_to_interval(effective_cutoff_minutes)
+
+        # Determine when we started, based on registered_date
+        registered_date_minutes = self.minutes_since_epoch(event.cutoff)
+        registered_date_start_minutes = self.align_to_interval(registered_date_minutes)
+
+        n_intervals = (
+            effective_cutoff_start_minutes - registered_date_start_minutes
+        ) // AGGREGATION_INTERVAL_LENGTH_MINUTES
+
+        scores = pd.DataFrame(
+            columns=[
+                "miner_uid",
+                "hotkey",
+                "rema_brier_score",
+            ]
+        )
+
+        for miner in self.miners_last_reg.itertuples():
+            miner_uid = int(miner.uid)
+            miner_hotkey = miner.hotkey
+            miner_predictions = pydantic_models_to_dataframe(
+                [p for p in predictions if p.miner_uid == miner_uid]
+            )
+            context = {
+                "miner_uid": miner_uid,
+                "registered_date_start_minutes": registered_date_start_minutes,
+                "n_intervals": n_intervals,
+            }
+
+            miner_rema_brier_score = self.process_miner_event_score(
+                event, miner_predictions, context
+            )
+
+            scores = scores.append(
+                {
+                    "miner_uid": miner_uid,
+                    "miner_hotkey": miner_hotkey,
+                    "rema_brier_score": miner_rema_brier_score,
+                },
+                ignore_index=True,
+            )
+
+        # if any score is outside the range [0, 1] or None, log an error
+        if scores["rema_brier_score"].isnull().any():
+            logger.error(
+                "Some Brier scores are None for an event.",
+                extra={"event_id": event.unique_event_id},
+            )
+        if (scores["rema_brier_score"] < 0).any() or (scores["rema_brier_score"] > 1).any():
+            logger.error(
+                "Scores outside the range [0, 1] for an event.",
+                extra={"event_id": event.unique_event_id},
+            )
+
+        return scores
+
+    def normalize_scores(self, scores: pd.DataFrame) -> pd.DataFrame:
         processed_scores = scores.copy()
         # TODO: check what happens if all scores are 0
 
-        processed_scores["normalized_score"] = np.exp(EXP_FACTOR_K * processed_scores["scores"])
+        processed_scores["normalized_score"] = np.exp(
+            EXP_FACTOR_K * processed_scores["rema_brier_score"]
+        )
         logger.debug(
             "Scores exponentiation sample.", extra={"processed_scores": processed_scores.head(n=5)}
         )
@@ -306,24 +284,7 @@ class ScorePredictions(AbstractTask):
 
         return processed_scores
 
-    def update_state(self, norm_scores_extended: pd.DataFrame):
-        # update and save the state
-        self.state["scoring_iterations"] += 1
-        self.state["scores"] = torch.tensor(
-            norm_scores_extended["eff_scores"].values, dtype=torch.float32
-        )
-        self.state["average_scores"] = torch.tensor(
-            norm_scores_extended["average_scores"].values, dtype=torch.float32
-        )
-        self.state["previous_average_scores"] = torch.tensor(
-            norm_scores_extended["previous_average_scores"].values, dtype=torch.float32
-        )
-        self.state["miner_uids"] = torch.tensor(
-            norm_scores_extended["miner_uid"].values, dtype=torch.int32
-        )
-        self.state["hotkeys"] = torch.tensor(norm_scores_extended["hotkey"].values)
-
-    def update_daily_scores(self, norm_scores: pd.DataFrame):
+    def update_daily_scores(self, norm_scores: pd.DataFrame) -> pd.DataFrame:
         # if the miners are not anymore in the current uid - hotkeys, remove them
         miners_df = pd.DataFrame(
             {
@@ -344,7 +305,8 @@ class ScorePredictions(AbstractTask):
         )
 
         norm_scores = pd.merge(norm_scores, state_df, on=["miner_uid", "hotkey"], how="left")
-        # if the miner is not in the state, it gets NAs -> fill them with 0
+        # miner can be new -> not in the state file which can be hours old
+        # it gets NAs -> fill them with 0
         norm_scores.fillna(0.0, inplace=True)
 
         # update the daily average
@@ -366,8 +328,264 @@ class ScorePredictions(AbstractTask):
                 + (1 - NEURON_MOVING_AVERAGE_ALPHA) * norm_scores["eff_scores"]
             )
 
-        self.update_state(norm_scores)
-        self.save_state()
+    def update_state(self, norm_scores_extended: pd.DataFrame):
+        # update the state to the last scores and current hotkeys & uids
+        self.metagraph.sync(lite=True)
+        self.current_hotkeys = copy.deepcopy(self.metagraph.hotkeys)
+        self.n_hotkeys = len(self.current_hotkeys)
+        self.current_uids = copy.deepcopy(self.metagraph.uids)
+        self.state["scoring_iterations"] += 1
+
+        # realign the scores to the current hotkeys - right join:
+        # - new hotkeys get 0 scores
+        # - remove the hotkeys that are not in the current hotkeys
+        norm_scores_aligned = norm_scores_extended.merge(
+            pd.DataFrame(
+                {
+                    "miner_uid": self.current_uids.tolist(),
+                    "hotkey": self.current_hotkeys.tolist(),
+                }
+            ),
+            on=["miner_uid", "hotkey"],
+            how="right",
+        )
+        # new miners get NAs -> fill them with 0
+        norm_scores_aligned.fillna(0.0, inplace=True)
+
+        # if there are duplicates, log error
+        if norm_scores_aligned.duplicated(subset=["miner_uid", "miner_hotkey"]).any():
+            logger.error(
+                "Duplicated miner_uid-hotkey pairs in the normalized scores.",
+                extra={"norm_scores_extended": norm_scores_aligned[["miner_uid", "miner_hotkey"]]},
+            )
+            norm_scores_aligned.drop_duplicates(subset=["miner_uid", "miner_hotkey"], inplace=True)
+
+        self.state["scores"] = torch.tensor(
+            norm_scores_aligned["eff_scores"].values, dtype=torch.float32
+        )
+        self.state["average_scores"] = torch.tensor(
+            norm_scores_aligned["average_scores"].values, dtype=torch.float32
+        )
+        self.state["previous_average_scores"] = torch.tensor(
+            norm_scores_aligned["previous_average_scores"].values, dtype=torch.float32
+        )
+        self.state["miner_uids"] = torch.tensor(
+            norm_scores_aligned["miner_uid"].values, dtype=torch.long
+        )
+        self.state["hotkeys"] = torch.tensor(norm_scores_aligned["hotkey"].values)
+
+        # this is what we will export to the Clickhouse DB
+        # reflects what we use for the weights
+        return norm_scores_aligned
+
+    def set_weights(self):
+        # re-normalize the scores for the weights
+        raw_weights = torch.nn.functional.normalize(self.state["scores"], p=1, dim=0)
+
+        # this is only for logging purposes
+        sorted_indices = torch.argsort(raw_weights, descending=True)
+        logger.debug(
+            "Top 10 and bottom 10 weights.",
+            extra={
+                "top_10_weights": raw_weights[sorted_indices][:10].tolist(),
+                "top_10_uids": self.state["miner_uids"][sorted_indices][:10].tolist(),
+                "bottom_10_weights": raw_weights[sorted_indices][-10:].tolist(),
+                "bottom_10_uids": self.state["miner_uids"][sorted_indices][-10:].tolist(),
+            },
+        )
+
+        # set the weights in the metagraph
+        processed_uids, processed_weights = bt.utils.weights_utils.process_weights(
+            uids=self.state["miner_uids"].to("cpu"),
+            weights=raw_weights.to("cpu"),
+            metagraph=self.metagraph,
+            netuid=self.config.netuid,
+            subtensor=self.subtensor,
+        )
+
+        if processed_uids is None or processed_weights is None:
+            logger.error(
+                "Failed to process the weights - received None.",
+                extra={"processed_uids": processed_uids, "processed_weights": processed_weights},
+            )
+            return
+
+        if processed_uids != self.state["miner_uids"]:
+            logger.error(
+                "Processed UIDs do not match the original UIDs.",
+                extra={"processed_uids": processed_uids, "original_uids": self.state["miner_uids"]},
+            )
+            return
+
+        if processed_weights != raw_weights:
+            logger.warning(
+                "Processed weights do not match the original weights.",
+                extra={"processed_weights": processed_weights, "original_weights": raw_weights},
+            )
+
+        successful, msg = self.subtensor.set_weights(
+            wallet=self.wallet,
+            netuid=self.config.netuid,
+            uids=processed_uids,
+            weights=processed_weights,
+            version_key=self.spec_version,
+            wait_for_inclusion=False,
+            wait_for_finalization=False,
+            max_retries=5,
+        )
+
+        if not successful:
+            logger.error(
+                "Failed to set the weights.",
+                extra={
+                    "msg": msg,
+                    "processed_uids": processed_uids,
+                    "processed_weights": processed_weights,
+                },
+            )
+        else:
+            logger.debug("Weights set successfully.")
+
+    @backoff.on_exception(
+        backoff.expo,
+        requests.exceptions.RequestException,
+        max_tries=3,
+        factor=2,
+        on_backoff=lambda details: logger.warning(
+            "Retrying export scores.",
+            extra={"details": details},
+        ),
+        on_giveup=lambda details: logger.error(
+            "Failed to export scores.",
+            extra={"details": details},
+        ),
+    )
+    def export_scores(self, event: EventsModel, final_scores: pd.DataFrame):
+        scores_df = final_scores[["miner_uid", "hotkey", "rema_brier_score", "eff_scores"]].copy()
+        scores_df.rename(
+            columns={
+                "hotkey": "miner_hotkey",
+                "rema_brier_score": "miner_score",
+                "eff_scores": "miner_effective_score",
+            },
+            inplace=True,
+        )
+        scores_df["event_id"] = event.unique_event_id
+        scores_df["provider_type"] = event.market_type
+        scores_df["title"] = event.description[:50]  # as in the original
+        scores_df["description"] = event.description
+        scores_df["category"] = "event"  # as in the original
+        scores_df["start_date"] = event.starts.isoformat() if event.starts else None
+        scores_df["end_date"] = (
+            event.resolve_date.isoformat() if event.resolve_date else None
+        )  # as in the original
+        scores_df["resolve_date"] = event.resolve_date.isoformat() if event.resolve_date else None
+        scores_df["settle_date"] = event.cutoff.isoformat()  # as in the original
+        scores_df["prediction"] = -999  # as in the original, not nullable, we need to fix this
+        scores_df["answer"] = float(event.outcome)
+        scores_df["validator_hotkey"] = self.wallet.get_hotkey().ss58_address
+        scores_df["validator_uid"] = int(self.vali_uid)
+        scores_df["metadata"] = event.metadata
+        scores_df["spec_version"] = str(self.spec_version)
+
+        body = {
+            "results": scores_df.to_json(orient="records"),
+        }
+
+        hk = self.wallet.get_hotkey()
+        signed = base64.b64encode(hk.sign(json.dumps(body))).decode("utf-8")
+        res = requests.post(
+            f"{self.base_api_url}{EXPORT_SCORES_ENDPOINT}",
+            headers={
+                "Authorization": f"Bearer {signed}",
+                "Validator": self.wallet.get_hotkey().ss58_address,
+            },
+            json=body,
+        )
+        res.raise_for_status()
 
     def check_reset_daily_scores(self):
-        pass
+        now_dt = now(timezone.utc)
+        seconds_since_reset = (now_dt - self.state["latest_reset_date"]).total_seconds()
+
+        # if it's past 10am and it's been more than 24 hours since the last reset
+        # keep the existing logic for the transition period
+        if seconds_since_reset < RESET_INTERVAL_SECONDS or now_dt.hour < 10:
+            return
+
+        # if all average scores are 0
+        if (self.state["average_scores"] == 0).all():
+            logger.error("Reset daily scores: average scores are 0, not resetting.")
+        else:
+            logger.debug(
+                "Resetting daily scores.", extra={"seconds_since_reset": seconds_since_reset}
+            )
+            self.state["previous_average_scores"] = self.state["average_scores"]
+            self.state["average_scores"] = torch.zeros((self.n_hotkeys), dtype=torch.float32)
+            self.state["latest_reset_date"] = now_dt
+            self.state["scoring_iterations"] = 0
+            self.save_state()
+
+    async def score_event(self, event: EventsModel, predictions: list[PredictionsModel]):
+        if not event.cutoff:
+            logger.error("Event has no cutoff date.", extra={"event_id": event.unique_event_id})
+            return
+
+        event_id = event.unique_event_id
+
+        # TODO: cleanup this after we have resolve date for all events in DB
+        # https://linear.app/infinite-games/issue/INF-203/events-solved-before-cutoff
+        if event.resolve_date:
+            effective_cutoff = min(event.cutoff, event.resolve_date)
+        else:
+            effective_cutoff = min(event.cutoff, now(timezone.utc))
+        # dirty: mutate the event object
+        event.cutoff = effective_cutoff
+
+        predictions = await self.db_operations.get_predictions_for_scoring(event_id)
+
+        if not predictions:
+            logger.warning(
+                "There are no predictions for a settled event.",
+                extra_info={"event_id": event_id, "event_cutoff": event.cutoff},
+            )
+            return
+
+        scores = self.score_predictions(event=event, predictions=predictions)
+        logger.debug("Scores calculated, sample below.", extra={"scores": scores.head(n=5)})
+
+        norm_scores = self.normalize_scores(scores=scores)
+
+        norm_scores_extended = self.update_daily_scores(norm_scores=norm_scores)
+
+        norm_scores_aligned = self.update_state(norm_scores_extended=norm_scores_extended)
+
+        self.save_state()
+
+        self.set_weights()
+
+        self.db_operations.mark_event_as_processed(unique_event_id=event.unique_event_id)
+
+        self.export_scores(event=event, final_scores=norm_scores_aligned)
+
+        self.db_operations.mark_event_as_exported(unique_event_id=event.unique_event_id)
+
+        self.check_reset_daily_scores()
+
+    async def run(self):
+        self.load_state()
+
+        miners_last_reg_rows = await self.db_operations.get_miners_last_registration()
+        self.miners_last_reg = pydantic_models_to_dataframe(miners_last_reg_rows)
+        events_to_score = await self.db_operations.get_events_for_scoring()
+
+        if not events_to_score:
+            logger.debug("No events to score.")
+            return
+        else:
+            logger.debug("Found events to score.", extra={"n_events": len(events_to_score)})
+
+        for event in events_to_score:
+            await self.score_event(event)
+
+        logger.debug("All events scored, weights set, scores exported.")
