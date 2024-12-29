@@ -160,6 +160,10 @@ class QueryMiners(AbstractTask):
         for unique_event_id, event_prediction in neuron_predictions.events.items():
             answer = event_prediction.get("probability")
 
+            # Drop null predictions
+            if answer is None:
+                continue
+
             prediction = (
                 unique_event_id,
                 axon_hotkey,
@@ -229,7 +233,8 @@ class QueryMiners(AbstractTask):
                 neuron_predictions=neuron_predictions,
             )
 
-            # Batch upsert neuron predictions
-            await self.db_operations.upsert_predictions(
-                predictions=parsed_neuron_predictions_for_insertion
-            )
+            if len(parsed_neuron_predictions_for_insertion) > 0:
+                # Batch upsert neuron predictions
+                await self.db_operations.upsert_predictions(
+                    predictions=parsed_neuron_predictions_for_insertion
+                )

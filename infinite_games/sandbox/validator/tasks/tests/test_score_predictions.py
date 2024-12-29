@@ -22,7 +22,6 @@ from infinite_games.sandbox.validator.utils.logger.logger import AbstractLogger
 CURRENT_DIR = Path(__file__).parent
 
 
-@freeze_time("2024-12-27 07:00:00")
 class TestScorePredictions:
     @pytest.fixture(scope="function", autouse=True)
     async def setup_test_dir(self):
@@ -67,15 +66,16 @@ class TestScorePredictions:
         subtensor.network = "mock"
 
         config.neuron.full_path = setup_test_dir
-        return ScorePredictions(
-            interval_seconds=60.0,
-            db_operations=db_operations,
-            api_client=api_client,
-            metagraph=metagraph,
-            config=config,
-            wallet=wallet,
-            subtensor=subtensor,
-        )
+        with freeze_time("2024-12-27 07:00:00"):
+            return ScorePredictions(
+                interval_seconds=60.0,
+                db_operations=db_operations,
+                api_client=api_client,
+                metagraph=metagraph,
+                config=config,
+                wallet=wallet,
+                subtensor=subtensor,
+            )
 
     def test_init(self, score_predictions_task: ScorePredictions):
         unit = score_predictions_task

@@ -217,6 +217,18 @@ class TestQueryMiners:
                     "resolve_date": 1354458600,
                     "end_date": 1354545000,
                 },
+                "azuro-event3": {
+                    "event_id": "event3",
+                    "market_type": "azuro",
+                    # None predictions are dropped
+                    "probability": None,
+                    "miner_answered": False,
+                    "description": "Test match 2",
+                    "cutoff": 1354458600,
+                    "starts": 1354458600,
+                    "resolve_date": 1354458600,
+                    "end_date": 1354545000,
+                },
             }
         )
 
