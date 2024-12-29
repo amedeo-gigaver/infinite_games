@@ -26,7 +26,11 @@ class IfGamesClient:
             "Validator-Hash": commit_short_hash,
         }
 
-    def create_session(self):
+    def create_session(self, other_headers: dict = None) -> aiohttp.ClientSession:
+        headers = self.__headers.copy()
+        if other_headers:
+            headers.update(other_headers)
+
         trace_config = aiohttp.TraceConfig()
         trace_config.on_request_start.append(self.on_request_start)
         trace_config.on_request_end.append(self.on_request_end)
@@ -35,7 +39,7 @@ class IfGamesClient:
         return aiohttp.ClientSession(
             base_url=self.__base_url,
             timeout=self.__timeout,
-            headers=self.__headers,
+            headers=headers,
             trace_configs=[trace_config],
         )
 
@@ -107,6 +111,23 @@ class IfGamesClient:
             path = "/api/v2/validators/data"
 
             async with session.post(path, json=predictions) as response:
+                response.raise_for_status()
+
+                return await response.json()
+
+    async def post_scores(self, scores: list[dict], signing_headers: dict):
+        if not isinstance(scores, list):
+            raise ValueError("Invalid parameter")
+
+        if not isinstance(signing_headers, dict):
+            raise ValueError("Invalid signing headers")
+
+        assert len(scores) > 0
+
+        async with self.create_session(other_headers=signing_headers) as session:
+            path = "/api/v1/validators/results"
+
+            async with session.post(path, json=scores) as response:
                 response.raise_for_status()
 
                 return await response.json()

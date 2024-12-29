@@ -327,3 +327,68 @@ class TestIfGamesClient:
 
             # Assert the exception
             assert e.value.status == status_code
+
+    async def test_post_scores(self, client_test_env: IfGamesClient):
+        # Define mock response data
+        mock_response_data = {"fake_response": "ok"}
+
+        scores = [{"fake_data": "fake_data"}]
+        signing_headers = {"fake_data": "fake_data"}
+
+        with aioresponses() as mocked:
+            url_path = "/api/v1/validators/results"
+
+            mocked.post(
+                url_path,
+                status=200,
+                body=json.dumps(mock_response_data).encode("utf-8"),
+            )
+
+            result = await client_test_env.post_scores(
+                scores=scores, signing_headers=signing_headers
+            )
+
+            mocked.assert_called_with(url=url_path, method="POST", json=scores)
+
+            # Verify the response matches
+            assert result == mock_response_data
+
+    async def test_post_scores_error_raised(self, client_test_env: IfGamesClient):
+        # Define mock response data
+        mock_response_data = {"fake_response": "ok"}
+
+        scores = [{"fake_data": "fake_data"}]
+        signing_headers = {"fake_data": "fake_data"}
+
+        status_code = 500
+
+        with aioresponses() as mocked:
+            url_path = "/api/v1/validators/results"
+
+            mocked.post(
+                url_path,
+                status=status_code,
+                body=json.dumps(mock_response_data).encode("utf-8"),
+            )
+
+            with pytest.raises(ClientResponseError) as e:
+                await client_test_env.post_scores(scores=scores, signing_headers=signing_headers)
+
+            mocked.assert_called_with(
+                url=url_path,
+                method="POST",
+                json=scores,
+            )
+
+            # Assert the exception
+            assert e.value.status == status_code
+
+            mocked.post(
+                url_path,
+                status=200,
+                body=json.dumps(mock_response_data).encode("utf-8"),
+            )
+            with pytest.raises(ValueError) as e:
+                await client_test_env.post_scores(scores=scores, signing_headers=None)
+
+            assert str(e.value) == "Invalid signing headers"

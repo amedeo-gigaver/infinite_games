@@ -2,7 +2,8 @@ import base64
 import copy
 import json
 import math
-from datetime import datetime, now, timedelta, timezone
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 import backoff
 import bittensor as bt
@@ -46,6 +47,7 @@ class ScorePredictions(AbstractTask):
         self,
         interval_seconds: float,
         db_operations: DatabaseOperations,
+        api_client: IfGamesClient,
         metagraph: MetagraphMixin,
         config: bt.Config,
         subtensor: bt.Subtensor,
@@ -83,12 +85,15 @@ class ScorePredictions(AbstractTask):
 
         self.interval = interval_seconds
         self.db_operations = db_operations
+        self.api_client = api_client
         self.miners_last_reg = None
 
         # /home/vscode/.bittensor/miners/validator/default/netuid155/validator/state.pt
-        self.state_file = self.config.neuron.full_path + "/state.pt"
+        self.state_file = Path(self.config.neuron.full_path, "state.pt")
 
+        # load last object state
         self.state = None
+        self.load_state()
 
     @property
     def name(self):
@@ -115,16 +120,18 @@ class ScorePredictions(AbstractTask):
             state["average_scores"] = torch.zeros((self.n_hotkeys), dtype=torch.float32)
             state["previous_average_scores"] = torch.zeros((self.n_hotkeys), dtype=torch.float32)
             state["scoring_iterations"] = 0
-            state["latest_reset_date"] = now(timezone.utc) - timedelta(
-                seconds=RESET_INTERVAL_SECONDS + 1
-            )
+            # reset the state to the previous day midnight
+            # it will be updated to the current day midnight after the first event
+            state["latest_reset_date"] = (
+                datetime.now(timezone.utc) - timedelta(seconds=RESET_INTERVAL_SECONDS)
+            ).replace(hour=0, minute=0, second=0, microsecond=0)
         else:
             state = torch.load(self.state_file)
 
         if "miner_uids" not in state:
             state["miner_uids"] = self.current_uids
 
-        return state
+        self.state = state
 
     def minutes_since_epoch(self, dt: datetime) -> int:
         """Convert a given datetime to the 'minutes since the reference date'."""
@@ -142,6 +149,9 @@ class ScorePredictions(AbstractTask):
     ) -> float:
         # Removed the special treatment for azuro events, made no sense
 
+        # outcome is text in DB :|
+        outcome = float(event.outcome)
+
         # clamp predictions between 0 and 1
         miner_predictions["interval_agg_prediction"] = miner_predictions[
             "interval_agg_prediction"
@@ -150,12 +160,28 @@ class ScorePredictions(AbstractTask):
         # if miners could have predicted but didn't, gets a score of 0
         miner_reg_date = self.miners_last_reg[self.miners_last_reg["uid"] == context["miner_uid"]][
             "registered_date"
-        ]
-        if miner_reg_date < event.registered_date and not miner_predictions:
-            return 0.0
+        ].iloc[
+            0
+        ]  # DB primary key ensures only one row
+        if miner_reg_date < event.registered_date and miner_predictions.empty:
+            logger.debug(
+                "Miner did not predict for an event.",
+                extra={
+                    "miner_uid": context["miner_uid"],
+                    "event_id": event.unique_event_id,
+                    "miner_reg_date": miner_reg_date.strftime("%Y-%m-%d %H:%M:%S"),
+                    "event_reg_date": event.registered_date.strftime("%Y-%m-%d %H:%M:%S"),
+                },
+            )
+            return {
+                "rema_brier_score": 0.0,
+                "rema_prediction": -999,
+            }
 
         weights_brier_sum = 0
+        weights_pred_sum = 0
         weights_sum = 0
+        miner_reg_date_since_epoch = self.minutes_since_epoch(miner_reg_date)
 
         for interval_idx in range(context["n_intervals"]):
             interval_start = (
@@ -164,25 +190,28 @@ class ScorePredictions(AbstractTask):
             )
             interval_end = interval_start + AGGREGATION_INTERVAL_LENGTH_MINUTES
 
-            if miner_reg_date > interval_end:
+            if miner_reg_date_since_epoch > interval_end:
                 # if miner registered after the interval, gets a neutral score
-                m1_brier_score = 1 - ((0.5 - event.outcome) ** 2)
+                ans = 0.5
             else:
                 agg_predictions = miner_predictions[
                     miner_predictions["interval_start_minutes"] == interval_start
                 ]["interval_agg_prediction"]
 
                 if agg_predictions.empty:
-                    # if miner should have answered but didn't, gets m1_brier_score of 0
-                    m1_brier_score = 0
+                    # if miner should have answered but didn't, assume wrong prediction
+                    # and will get a m1_brier_score of 0
+                    ans = 1 - outcome
                 else:
                     # DB primary key for predictions ensures maximum one prediction
                     ans = agg_predictions.iloc[0]
-                    m1_brier_score = 1 - ((ans - event.outcome) ** 2)
+
+            m1_brier_score = 1 - ((ans - outcome) ** 2)
 
             # reverse exponential MA (rema): oldest interval gets the highest weight = 1
             wk = math.exp(-(context["n_intervals"] / (context["n_intervals"] - interval_idx)) + 1)
             weights_sum += wk
+            weights_pred_sum += wk * ans
             weights_brier_sum += wk * m1_brier_score
 
         if weights_sum < 0.01:
@@ -193,15 +222,21 @@ class ScorePredictions(AbstractTask):
                     "event_id": event.unique_event_id,
                     "weights_sum": weights_sum,
                     "n_intervals": context["n_intervals"],
-                    "miner_reg_date": miner_reg_date,
-                    "event_reg_date": event.registered_date,
+                    "miner_reg_date": miner_reg_date.strftime("%Y-%m-%d %H:%M:%S"),
+                    "event_reg_date": event.registered_date.strftime("%Y-%m-%d %H:%M:%S"),
                 },
             )
             rema_brier_score = 0.0
+            rema_prediction = -99
         else:
             rema_brier_score = weights_brier_sum / weights_sum
+            rema_prediction = weights_pred_sum / weights_sum
 
-        return rema_brier_score
+        remas = {
+            "rema_brier_score": rema_brier_score,
+            "rema_prediction": rema_prediction,
+        }
+        return remas
 
     def score_predictions(
         self, event: EventsModel, predictions: list[PredictionsModel]
@@ -211,26 +246,20 @@ class ScorePredictions(AbstractTask):
         effective_cutoff_start_minutes = self.align_to_interval(effective_cutoff_minutes)
 
         # Determine when we started, based on registered_date
-        registered_date_minutes = self.minutes_since_epoch(event.cutoff)
+        registered_date_minutes = self.minutes_since_epoch(event.registered_date)
         registered_date_start_minutes = self.align_to_interval(registered_date_minutes)
 
         n_intervals = (
             effective_cutoff_start_minutes - registered_date_start_minutes
         ) // AGGREGATION_INTERVAL_LENGTH_MINUTES
 
-        scores = pd.DataFrame(
-            columns=[
-                "miner_uid",
-                "hotkey",
-                "rema_brier_score",
-            ]
-        )
+        scores_ls = []
 
         for miner in self.miners_last_reg.itertuples():
             miner_uid = int(miner.uid)
             miner_hotkey = miner.hotkey
             miner_predictions = pydantic_models_to_dataframe(
-                [p for p in predictions if p.miner_uid == miner_uid]
+                [p for p in predictions if int(p.minerUid) == miner_uid]
             )
             context = {
                 "miner_uid": miner_uid,
@@ -238,32 +267,41 @@ class ScorePredictions(AbstractTask):
                 "n_intervals": n_intervals,
             }
 
-            miner_rema_brier_score = self.process_miner_event_score(
-                event, miner_predictions, context
-            )
+            miner_remas = self.process_miner_event_score(event, miner_predictions, context)
 
-            scores = scores.append(
+            scores_ls.append(
                 {
                     "miner_uid": miner_uid,
-                    "miner_hotkey": miner_hotkey,
-                    "rema_brier_score": miner_rema_brier_score,
+                    "hotkey": miner_hotkey,
+                    "rema_brier_score": miner_remas["rema_brier_score"],
+                    "rema_prediction": miner_remas["rema_prediction"],
                 },
-                ignore_index=True,
+            )
+
+        scores_df = pd.DataFrame(scores_ls)
+
+        if scores_df.empty:
+            logger.error(
+                "No scores calculated for an event.",
+                extra={"event_id": event.unique_event_id},
+            )
+            return pd.DataFrame(
+                columns=["miner_uid", "hotkey", "rema_brier_score", "rema_prediction"]
             )
 
         # if any score is outside the range [0, 1] or None, log an error
-        if scores["rema_brier_score"].isnull().any():
+        if scores_df["rema_brier_score"].isnull().any():
             logger.error(
                 "Some Brier scores are None for an event.",
                 extra={"event_id": event.unique_event_id},
             )
-        if (scores["rema_brier_score"] < 0).any() or (scores["rema_brier_score"] > 1).any():
+        if (scores_df["rema_brier_score"] < 0).any() or (scores_df["rema_brier_score"] > 1).any():
             logger.error(
                 "Scores outside the range [0, 1] for an event.",
                 extra={"event_id": event.unique_event_id},
             )
 
-        return scores
+        return scores_df
 
     def normalize_scores(self, scores: pd.DataFrame) -> pd.DataFrame:
         processed_scores = scores.copy()
@@ -461,11 +499,14 @@ class ScorePredictions(AbstractTask):
         ),
     )
     def export_scores(self, event: EventsModel, final_scores: pd.DataFrame):
-        scores_df = final_scores[["miner_uid", "hotkey", "rema_brier_score", "eff_scores"]].copy()
+        scores_df = final_scores[
+            ["miner_uid", "hotkey", "rema_brier_score", "rema_prediction", "eff_scores"]
+        ].copy()
         scores_df.rename(
             columns={
                 "hotkey": "miner_hotkey",
                 "rema_brier_score": "miner_score",
+                "rema_prediction": "prediction",
                 "eff_scores": "miner_effective_score",
             },
             inplace=True,
@@ -481,7 +522,6 @@ class ScorePredictions(AbstractTask):
         )  # as in the original
         scores_df["resolve_date"] = event.resolve_date.isoformat() if event.resolve_date else None
         scores_df["settle_date"] = event.cutoff.isoformat()  # as in the original
-        scores_df["prediction"] = -999  # as in the original, not nullable, we need to fix this
         scores_df["answer"] = float(event.outcome)
         scores_df["validator_hotkey"] = self.wallet.get_hotkey().ss58_address
         scores_df["validator_uid"] = int(self.vali_uid)
@@ -489,29 +529,26 @@ class ScorePredictions(AbstractTask):
         scores_df["spec_version"] = str(self.spec_version)
 
         body = {
-            "results": scores_df.to_json(orient="records"),
+            "results": scores_df.to_dict(orient="records"),
         }
 
         hk = self.wallet.get_hotkey()
         signed = base64.b64encode(hk.sign(json.dumps(body))).decode("utf-8")
-        res = requests.post(
-            f"{self.base_api_url}{EXPORT_SCORES_ENDPOINT}",
-            headers={
-                "Authorization": f"Bearer {signed}",
-                "Validator": self.wallet.get_hotkey().ss58_address,
-            },
-            json=body,
-        )
-        res.raise_for_status()
+        signing_headers = {
+            "Authorization": f"Bearer {signed}",
+            "Validator": hk.ss58_address,
+        }
+        _ = self.api_client.post_scores(scores=body, signing_headers=signing_headers)
 
     def check_reset_daily_scores(self):
-        now_dt = now(timezone.utc)
+        now_dt = datetime.now(timezone.utc)
         seconds_since_reset = (now_dt - self.state["latest_reset_date"]).total_seconds()
 
-        # if it's past 10am and it's been more than 24 hours since the last reset
-        # keep the existing logic for the transition period
-        if seconds_since_reset < RESET_INTERVAL_SECONDS or now_dt.hour < 10:
+        # change previous logic - adjust to reset to every midnight
+        if seconds_since_reset <= RESET_INTERVAL_SECONDS:
             return
+
+        today_midnight = now_dt.replace(hour=0, minute=0, second=0, microsecond=0)
 
         # if all average scores are 0
         if (self.state["average_scores"] == 0).all():
@@ -522,7 +559,7 @@ class ScorePredictions(AbstractTask):
             )
             self.state["previous_average_scores"] = self.state["average_scores"]
             self.state["average_scores"] = torch.zeros((self.n_hotkeys), dtype=torch.float32)
-            self.state["latest_reset_date"] = now_dt
+            self.state["latest_reset_date"] = today_midnight
             self.state["scoring_iterations"] = 0
             self.save_state()
 
@@ -538,7 +575,7 @@ class ScorePredictions(AbstractTask):
         if event.resolve_date:
             effective_cutoff = min(event.cutoff, event.resolve_date)
         else:
-            effective_cutoff = min(event.cutoff, now(timezone.utc))
+            effective_cutoff = min(event.cutoff, datetime.now(timezone.utc))
         # dirty: mutate the event object
         event.cutoff = effective_cutoff
 
@@ -573,8 +610,6 @@ class ScorePredictions(AbstractTask):
         self.check_reset_daily_scores()
 
     async def run(self):
-        self.load_state()
-
         miners_last_reg_rows = await self.db_operations.get_miners_last_registration()
         self.miners_last_reg = pydantic_models_to_dataframe(miners_last_reg_rows)
         events_to_score = await self.db_operations.get_events_for_scoring()
