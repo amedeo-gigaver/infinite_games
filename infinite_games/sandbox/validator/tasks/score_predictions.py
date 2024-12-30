@@ -1,6 +1,4 @@
-import base64
 import copy
-import json
 import math
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -33,7 +31,6 @@ RESET_INTERVAL_SECONDS = 60 * 60 * 24  # 24 hours
 
 EXP_FACTOR_K = 30
 NEURON_MOVING_AVERAGE_ALPHA = 0.8
-EXPORT_SCORES_ENDPOINT = "/api/v1/validators/results"
 
 
 class ScorePredictions(AbstractTask):
@@ -532,13 +529,7 @@ class ScorePredictions(AbstractTask):
             "results": scores_df.to_dict(orient="records"),
         }
 
-        hk = self.wallet.get_hotkey()
-        signed = base64.b64encode(hk.sign(json.dumps(body))).decode("utf-8")
-        signing_headers = {
-            "Authorization": f"Bearer {signed}",
-            "Validator": hk.ss58_address,
-        }
-        _ = self.api_client.post_scores(scores=body, signing_headers=signing_headers)
+        _ = self.api_client.post_scores(scores=body)
 
     def check_reset_daily_scores(self):
         now_dt = datetime.now(timezone.utc)

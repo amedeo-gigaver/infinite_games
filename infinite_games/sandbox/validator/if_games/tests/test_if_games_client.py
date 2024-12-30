@@ -1,3 +1,4 @@
+import base64
 import json
 from types import SimpleNamespace
 from unittest.mock import MagicMock
@@ -6,6 +7,7 @@ import pytest
 from aiohttp import ClientResponseError
 from aiohttp.web import Response
 from aioresponses import aioresponses
+from bittensor_wallet import Wallet
 from yarl import URL
 
 from infinite_games import __version__
@@ -19,17 +21,32 @@ class TestIfGamesClient:
     def client_test_env(self):
         logger = MagicMock(spec=AbstractLogger)
 
-        return IfGamesClient(env="test", logger=logger)
+        hotkey_mock = MagicMock()
+        hotkey_mock.sign = MagicMock(side_effect=lambda x: x.encode("utf-8"))
+        hotkey_mock.ss58_address = "ss58_address"
+
+        bt_wallet = MagicMock(spec=Wallet)
+        bt_wallet.get_hotkey = MagicMock(return_value=hotkey_mock)
+
+        return IfGamesClient(env="test", logger=logger, bt_wallet=bt_wallet)
 
     @pytest.mark.parametrize(
         "client,expected_base_url",
         [
             (
-                IfGamesClient(env="test", logger=MagicMock(spec=AbstractLogger)),
+                IfGamesClient(
+                    env="test",
+                    logger=MagicMock(spec=AbstractLogger),
+                    bt_wallet=MagicMock(spec=Wallet),
+                ),
                 "https://stage.ifgames.win",
             ),
             (
-                IfGamesClient(env="prod", logger=MagicMock(spec=AbstractLogger)),
+                IfGamesClient(
+                    env="prod",
+                    logger=MagicMock(spec=AbstractLogger),
+                    bt_wallet=MagicMock(spec=Wallet),
+                ),
                 "https://ifgames.win",
             ),
         ],
@@ -281,6 +298,18 @@ class TestIfGamesClient:
             # Assert the exception
             assert e.value.status == status_code
 
+    def test_make_auth_headers(self, client_test_env: IfGamesClient):
+        body = {"fake": "body"}
+
+        auth_headers = client_test_env.make_auth_headers(body=body)
+
+        encoded = base64.b64encode(json.dumps(body).encode("utf-8")).decode("utf-8")
+
+        assert auth_headers == {
+            "Authorization": f"Bearer {encoded}",
+            "Validator": "ss58_address",
+        }
+
     async def test_post_predictions(self, client_test_env: IfGamesClient):
         # Define mock response data
         mock_response_data = {"fake_response": "ok"}
@@ -288,7 +317,7 @@ class TestIfGamesClient:
         predictions = [{"fake_data": "fake_data"}]
 
         with aioresponses() as mocked:
-            url_path = "/api/v2/validators/data"
+            url_path = "/api/v1/validators/data"
 
             mocked.post(
                 url_path,
@@ -312,7 +341,7 @@ class TestIfGamesClient:
         status_code = 500
 
         with aioresponses() as mocked:
-            url_path = "/api/v2/validators/data"
+            url_path = "/api/v1/validators/data"
 
             mocked.post(
                 url_path,
@@ -333,7 +362,6 @@ class TestIfGamesClient:
         mock_response_data = {"fake_response": "ok"}
 
         scores = [{"fake_data": "fake_data"}]
-        signing_headers = {"fake_data": "fake_data"}
 
         with aioresponses() as mocked:
             url_path = "/api/v1/validators/results"
@@ -344,9 +372,7 @@ class TestIfGamesClient:
                 body=json.dumps(mock_response_data).encode("utf-8"),
             )
 
-            result = await client_test_env.post_scores(
-                scores=scores, signing_headers=signing_headers
-            )
+            result = await client_test_env.post_scores(scores=scores)
 
             mocked.assert_called_with(url=url_path, method="POST", json=scores)
 
@@ -358,7 +384,6 @@ class TestIfGamesClient:
         mock_response_data = {"fake_response": "ok"}
 
         scores = [{"fake_data": "fake_data"}]
-        signing_headers = {"fake_data": "fake_data"}
 
         status_code = 500
 
@@ -372,7 +397,7 @@ class TestIfGamesClient:
             )
 
             with pytest.raises(ClientResponseError) as e:
-                await client_test_env.post_scores(scores=scores, signing_headers=signing_headers)
+                await client_test_env.post_scores(scores=scores)
 
             mocked.assert_called_with(
                 url=url_path,
@@ -382,13 +407,3 @@ class TestIfGamesClient:
 
             # Assert the exception
             assert e.value.status == status_code
-
-            mocked.post(
-                url_path,
-                status=200,
-                body=json.dumps(mock_response_data).encode("utf-8"),
-            )
-            with pytest.raises(ValueError) as e:
-                await client_test_env.post_scores(scores=scores, signing_headers=None)
-
-            assert str(e.value) == "Invalid signing headers"

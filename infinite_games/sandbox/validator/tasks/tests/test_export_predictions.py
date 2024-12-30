@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from bittensor_wallet import Wallet
 
 from infinite_games.sandbox.validator.db.client import Client
 from infinite_games.sandbox.validator.db.operations import DatabaseOperations
@@ -32,8 +33,21 @@ class TestExportPredictions:
         return DatabaseOperations(db_client=db_client)
 
     @pytest.fixture
-    def export_predictions_task(self, db_operations: DatabaseOperations):
-        api_client = IfGamesClient(env="test", logger=MagicMock(spec=AbstractLogger))
+    def bt_wallet(self):
+        hotkey_mock = MagicMock()
+        hotkey_mock.sign = MagicMock(side_effect=lambda x: x.encode("utf-8"))
+        hotkey_mock.ss58_address = "ss58_address"
+
+        bt_wallet = MagicMock(spec=Wallet)
+        bt_wallet.get_hotkey = MagicMock(return_value=hotkey_mock)
+
+        return bt_wallet
+
+    @pytest.fixture
+    def export_predictions_task(self, db_operations: DatabaseOperations, bt_wallet: Wallet):
+        api_client = IfGamesClient(
+            env="test", logger=MagicMock(spec=AbstractLogger), bt_wallet=bt_wallet
+        )
 
         return ExportPredictions(
             interval_seconds=60.0,

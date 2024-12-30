@@ -1,8 +1,11 @@
+import base64
+import json
 import time
 from typing import Literal
 
 import aiohttp
 import aiohttp.typedefs
+from bittensor_wallet import Wallet
 
 from infinite_games import __version__
 from infinite_games.sandbox.validator.utils.git import commit_short_hash
@@ -16,15 +19,29 @@ class IfGamesClient:
     __timeout: aiohttp.ClientTimeout
     __headers: aiohttp.typedefs.LooseHeaders
     __logger: AbstractLogger
+    __bt_wallet: Wallet
 
-    def __init__(self, env: EnvType, logger: AbstractLogger) -> None:
+    def __init__(self, env: EnvType, logger: AbstractLogger, bt_wallet: Wallet) -> None:
+        # Validate env
+        if not isinstance(env, str):
+            raise TypeError("env must be an instance of str.")
+
+        # Validate logger
+        if not isinstance(logger, AbstractLogger):
+            raise TypeError("logger must be an instance of AbstractLogger.")
+
+        # Validate bt_wallet
+        if not isinstance(bt_wallet, Wallet):
+            raise TypeError("bt_wallet must be an instance of Wallet.")
+
         self.__logger = logger
-        self.__base_url = "https://stage.ifgames.win" if env == "test" else "https://ifgames.win"
+        self.__base_url = "https://ifgames.win" if env == "prod" else "https://stage.ifgames.win"
         self.__timeout = aiohttp.ClientTimeout(total=90)  # In seconds
         self.__headers = {
             "Validator-Version": __version__,
             "Validator-Hash": commit_short_hash,
         }
+        self.__bt_wallet = bt_wallet
 
     def create_session(self, other_headers: dict = None) -> aiohttp.ClientSession:
         headers = self.__headers.copy()
@@ -76,6 +93,15 @@ class IfGamesClient:
 
         self.__logger.exception("Http request exception", extra=extra)
 
+    def make_auth_headers(self, body: any) -> dict[str, str]:
+        hot_key = self.__bt_wallet.get_hotkey()
+        signed = base64.b64encode(hot_key.sign(json.dumps(body))).decode("utf-8")
+
+        return {
+            "Authorization": f"Bearer {signed}",
+            "Validator": hot_key.ss58_address,
+        }
+
     async def get_events(self, from_date: int, offset: int, limit: int):
         # Check that all parameters are provided
         if from_date is None or offset is None or limit is None:
@@ -101,30 +127,31 @@ class IfGamesClient:
 
                 return await response.json()
 
-    async def post_predictions(self, predictions: list[dict]):
+    async def post_predictions(self, predictions: dict[any]):
         if not isinstance(predictions, list):
             raise ValueError("Invalid parameter")
 
         assert len(predictions) > 0
 
-        async with self.create_session() as session:
-            path = "/api/v2/validators/data"
+        auth_headers = self.make_auth_headers(body=predictions)
+
+        async with self.create_session(other_headers=auth_headers) as session:
+            path = "/api/v1/validators/data"
 
             async with session.post(path, json=predictions) as response:
                 response.raise_for_status()
 
                 return await response.json()
 
-    async def post_scores(self, scores: list[dict], signing_headers: dict):
+    async def post_scores(self, scores: list[dict]):
         if not isinstance(scores, list):
             raise ValueError("Invalid parameter")
 
-        if not isinstance(signing_headers, dict):
-            raise ValueError("Invalid signing headers")
-
         assert len(scores) > 0
 
-        async with self.create_session(other_headers=signing_headers) as session:
+        auth_headers = self.make_auth_headers(body=scores)
+
+        async with self.create_session(other_headers=auth_headers) as session:
             path = "/api/v1/validators/results"
 
             async with session.post(path, json=scores) as response:

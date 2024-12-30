@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from aioresponses import aioresponses
+from bittensor_wallet import Wallet
 
 from infinite_games.sandbox.validator.db.client import Client
 from infinite_games.sandbox.validator.db.operations import DatabaseOperations
@@ -43,9 +44,22 @@ class TestPullEventsTask:
         return db_client
 
     @pytest.fixture
-    def pull_events_task(self, db_client):
+    def bt_wallet(self):
+        hotkey_mock = MagicMock()
+        hotkey_mock.sign = MagicMock(side_effect=lambda x: x.encode("utf-8"))
+        hotkey_mock.ss58_address = "ss58_address"
+
+        bt_wallet = MagicMock(spec=Wallet)
+        bt_wallet.get_hotkey = MagicMock(return_value=hotkey_mock)
+
+        return bt_wallet
+
+    @pytest.fixture
+    def pull_events_task(self, db_client: Client, bt_wallet: Wallet):
         db_operations = DatabaseOperations(db_client=db_client)
-        api_client = IfGamesClient(env="test", logger=MagicMock(spec=AbstractLogger))
+        api_client = IfGamesClient(
+            env="test", logger=MagicMock(spec=AbstractLogger), bt_wallet=bt_wallet
+        )
 
         return PullEvents(
             interval_seconds=60.0,

@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from aioresponses import aioresponses
+from bittensor_wallet import Wallet
 
 from infinite_games.sandbox.validator.db.client import Client
 from infinite_games.sandbox.validator.db.operations import DatabaseOperations
@@ -27,6 +28,17 @@ class TestResolveEventsTask:
 
         return api_client
 
+    @pytest.fixture
+    def bt_wallet(self):
+        hotkey_mock = MagicMock()
+        hotkey_mock.sign = MagicMock(side_effect=lambda x: x.encode("utf-8"))
+        hotkey_mock.ss58_address = "ss58_address"
+
+        bt_wallet = MagicMock(spec=Wallet)
+        bt_wallet.get_hotkey = MagicMock(return_value=hotkey_mock)
+
+        return bt_wallet
+
     @pytest.fixture(scope="function")
     async def db_client(self):
         temp_db = tempfile.NamedTemporaryFile(delete=False)
@@ -46,8 +58,10 @@ class TestResolveEventsTask:
         return DatabaseOperations(db_client=db_client)
 
     @pytest.fixture
-    def resolve_events_task(self, db_operations: DatabaseOperations):
-        api_client = IfGamesClient(env="test", logger=MagicMock(spec=AbstractLogger))
+    def resolve_events_task(self, db_operations: DatabaseOperations, bt_wallet: Wallet):
+        api_client = IfGamesClient(
+            env="test", logger=MagicMock(spec=AbstractLogger), bt_wallet=bt_wallet
+        )
 
         return ResolveEvents(
             interval_seconds=60.0,
@@ -56,12 +70,13 @@ class TestResolveEventsTask:
         )
 
     async def test_run_no_pending_events(
-        self,
-        db_operations_mock: DatabaseOperations,
+        self, db_operations_mock: DatabaseOperations, bt_wallet: Wallet
     ):
         """Test the run method when there are no pending events."""
         # Arrange
-        api_client = IfGamesClient(env="test", logger=MagicMock(spec=AbstractLogger))
+        api_client = IfGamesClient(
+            env="test", logger=MagicMock(spec=AbstractLogger), bt_wallet=bt_wallet
+        )
 
         resolve_events_task = ResolveEvents(
             interval_seconds=60.0,

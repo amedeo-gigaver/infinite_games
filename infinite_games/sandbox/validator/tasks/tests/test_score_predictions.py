@@ -8,7 +8,7 @@ import pandas as pd
 import pytest
 import torch
 from bittensor.core.metagraph import MetagraphMixin
-from bittensor_wallet.wallet import Wallet
+from bittensor_wallet import Wallet
 from freezegun import freeze_time
 
 from infinite_games.sandbox.validator.db.client import Client
@@ -51,8 +51,23 @@ class TestScorePredictions:
         return DatabaseOperations(db_client=db_client)
 
     @pytest.fixture
-    def score_predictions_task(self, db_operations: DatabaseOperations, setup_test_dir):
-        api_client = IfGamesClient(env="test", logger=MagicMock(spec=AbstractLogger))
+    def bt_wallet(self):
+        hotkey_mock = MagicMock()
+        hotkey_mock.sign = MagicMock(side_effect=lambda x: x.encode("utf-8"))
+        hotkey_mock.ss58_address = "ss58_address"
+
+        bt_wallet = MagicMock(spec=Wallet)
+        bt_wallet.get_hotkey = MagicMock(return_value=hotkey_mock)
+
+        return bt_wallet
+
+    @pytest.fixture
+    def score_predictions_task(
+        self, db_operations: DatabaseOperations, setup_test_dir, bt_wallet: Wallet
+    ):
+        api_client = IfGamesClient(
+            env="test", logger=MagicMock(spec=AbstractLogger), bt_wallet=bt_wallet
+        )
         metagraph = MagicMock(spec=MetagraphMixin)
         config = MagicMock(spec=bt.Config)
         config.neuron = MagicMock()
