@@ -1,6 +1,8 @@
+import asyncio
 import base64
 import json
 import time
+from logging import Logger
 from typing import Literal
 
 import aiohttp
@@ -27,8 +29,8 @@ class IfGamesClient:
             raise TypeError("env must be an instance of str.")
 
         # Validate logger
-        if not isinstance(logger, AbstractLogger):
-            raise TypeError("logger must be an instance of AbstractLogger.")
+        if not isinstance(logger, Logger):
+            raise TypeError("logger must be an instance of Logger.")
 
         # Validate bt_wallet
         if not isinstance(bt_wallet, Wallet):
@@ -83,6 +85,12 @@ class IfGamesClient:
     async def on_request_exception(
         self, _, trace_config_ctx, params: aiohttp.TraceRequestExceptionParams
     ):
+        exception = params.exception
+
+        # Ignore cancelled exceptions
+        if isinstance(exception, asyncio.exceptions.CancelledError):
+            return
+
         elapsed_time_ms = round((time.time() - trace_config_ctx.start_time) * 1000)
 
         extra = {

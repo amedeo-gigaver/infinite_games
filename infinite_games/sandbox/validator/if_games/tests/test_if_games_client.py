@@ -1,3 +1,4 @@
+import asyncio
 import base64
 import json
 from types import SimpleNamespace
@@ -139,6 +140,25 @@ class TestIfGamesClient:
                 "elapsed_time_ms": pytest.approx(100, abs=100),
             },
         )
+
+    async def test_logger_interceptors_cancelled_error_exception(
+        self, client_test_env: IfGamesClient
+    ):
+        logger = client_test_env._IfGamesClient__logger
+
+        context = SimpleNamespace()
+        method = "GET"
+        url = "/test"
+
+        await client_test_env.on_request_start(None, context, None)
+        await client_test_env.on_request_exception(
+            None,
+            context,
+            MagicMock(method=method, url=URL(url), exception=asyncio.exceptions.CancelledError()),
+        )
+
+        # Verify no log call
+        logger.exception.assert_not_called()
 
     @pytest.mark.parametrize(
         "from_date,offset,limit",
