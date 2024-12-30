@@ -7,7 +7,6 @@ import backoff
 import bittensor as bt
 import numpy as np
 import pandas as pd
-import requests
 import torch
 from bittensor.core.metagraph import MetagraphMixin
 from bittensor_wallet.wallet import Wallet
@@ -116,7 +115,7 @@ class ScorePredictions(AbstractTask):
             state["scores"] = torch.zeros((self.n_hotkeys), dtype=torch.float32)
             state["average_scores"] = torch.zeros((self.n_hotkeys), dtype=torch.float32)
             state["previous_average_scores"] = torch.zeros((self.n_hotkeys), dtype=torch.float32)
-            state["scoring_iterations"] = 0
+            state["scoring_iterations"] = 0  # TODO: change this to a list for new miners
             # reset the state to the previous day midnight
             # it will be updated to the current day midnight after the first event
             state["latest_reset_date"] = (
@@ -302,19 +301,20 @@ class ScorePredictions(AbstractTask):
 
     def normalize_scores(self, scores: pd.DataFrame) -> pd.DataFrame:
         processed_scores = scores.copy()
-        # TODO: check what happens if all scores are 0
 
         processed_scores["normalized_score"] = np.exp(
             EXP_FACTOR_K * processed_scores["rema_brier_score"]
         )
         logger.debug(
-            "Scores exponentiation sample.", extra={"processed_scores": processed_scores.head(n=5)}
+            "Scores exponentiation sample.",
+            extra={"processed_scores": processed_scores.head(n=5).to_json()},
         )
 
         # Normalize the scores - sum cannot be 0, all elements are >= 1
         processed_scores["normalized_score"] /= processed_scores["normalized_score"].sum()
         logger.debug(
-            "Scores normalization sample.", extra={"processed_scores": processed_scores.head(n=5)}
+            "Scores normalization sample.",
+            extra={"processed_scores": processed_scores.head(n=5).to_json()},
         )
 
         return processed_scores
@@ -324,44 +324,66 @@ class ScorePredictions(AbstractTask):
         miners_df = pd.DataFrame(
             {
                 "miner_uid": self.current_uids.tolist(),
-                "hotkey": self.current_hotkeys.tolist(),
+                "hotkey": self.current_hotkeys,
             }
         )
-        norm_scores = pd.merge(norm_scores, miners_df, on=["miner_uid", "hotkey"], how="inner")
+        norm_scores_ext = pd.merge(norm_scores, miners_df, on=["miner_uid", "hotkey"], how="inner")
 
         state_df = pd.DataFrame(
             {
-                "miner_uid": self.state["miner_uids"].to_list(),
-                "hotkey": self.state["hotkeys"].to_list(),
-                "eff_scores": self.state["scores"].to_list(),
-                "average_scores": self.state["average_scores"].to_list(),
-                "previous_average_scores": self.state["previous_average_scores"].to_list(),
+                "miner_uid": self.state["miner_uids"].tolist(),
+                "hotkey": self.state["hotkeys"],
+                "eff_scores": self.state["scores"].tolist(),
+                "average_scores": self.state["average_scores"].tolist(),
+                "previous_average_scores": self.state["previous_average_scores"].tolist(),
             }
         )
 
-        norm_scores = pd.merge(norm_scores, state_df, on=["miner_uid", "hotkey"], how="left")
+        norm_scores_ext = pd.merge(
+            norm_scores_ext, state_df, on=["miner_uid", "hotkey"], how="left"
+        )
         # miner can be new -> not in the state file which can be hours old
-        # it gets NAs -> fill them with 0
-        norm_scores.fillna(0.0, inplace=True)
+        # it gets NAs -> set the average score and previous_average to normalized score
+        norm_scores_ext["average_scores"] = norm_scores_ext["average_scores"].fillna(
+            norm_scores_ext["normalized_score"]
+        )
+        # TODO: confirm we want to do this - or we set to 0.0
+        norm_scores_ext["previous_average_scores"] = norm_scores_ext[
+            "previous_average_scores"
+        ].fillna(norm_scores_ext["normalized_score"])
 
         # update the daily average
-        norm_scores["average_scores"] = (
-            norm_scores["average_scores"] * self.state["scoring_iterations"]
-            + norm_scores["normalized_score"]
+        norm_scores_ext["average_scores"] = (
+            norm_scores_ext["average_scores"] * self.state["scoring_iterations"]
+            + norm_scores_ext["normalized_score"]
         ).div(self.state["scoring_iterations"] + 1)
 
         # update the moving average - we could be missing the state file
-        if (norm_scores["previous_average_scores"] == 0).all():
-            norm_scores["eff_scores"] = (
-                NEURON_MOVING_AVERAGE_ALPHA * norm_scores["average_scores"]
-                + (1 - NEURON_MOVING_AVERAGE_ALPHA) * norm_scores["previous_average_scores"]
+        if (norm_scores_ext["previous_average_scores"] == 0).all():
+            logger.warning("Missing the first iteration for moving average.")
+            # TODO: kept it like the original code, but should be revisited
+            norm_scores_ext["eff_scores"] = (
+                NEURON_MOVING_AVERAGE_ALPHA * norm_scores_ext["average_scores"]
+                + (1 - NEURON_MOVING_AVERAGE_ALPHA) * norm_scores_ext["eff_scores"]
             )
         else:
-            logger.warning("Missing the first iteration for moving average.")
-            norm_scores["eff_scores"] = (
-                NEURON_MOVING_AVERAGE_ALPHA * norm_scores["average_scores"]
-                + (1 - NEURON_MOVING_AVERAGE_ALPHA) * norm_scores["eff_scores"]
+            norm_scores_ext["eff_scores"] = (
+                NEURON_MOVING_AVERAGE_ALPHA * norm_scores_ext["average_scores"]
+                + (1 - NEURON_MOVING_AVERAGE_ALPHA) * norm_scores_ext["previous_average_scores"]
             )
+
+        if norm_scores_ext.isnull().any().any():
+            logger.error(
+                "Some entries in norm_scores are None.",
+                extra={
+                    "norm_scores_ext": norm_scores_ext[norm_scores_ext.isnull().any(axis=1)]
+                    .head(n=5)
+                    .to_json()
+                },
+            )
+            norm_scores_ext.fillna(0.0, inplace=True)
+
+        return norm_scores_ext
 
     def update_state(self, norm_scores_extended: pd.DataFrame):
         # update the state to the last scores and current hotkeys & uids
@@ -378,7 +400,7 @@ class ScorePredictions(AbstractTask):
             pd.DataFrame(
                 {
                     "miner_uid": self.current_uids.tolist(),
-                    "hotkey": self.current_hotkeys.tolist(),
+                    "hotkey": self.current_hotkeys,
                 }
             ),
             on=["miner_uid", "hotkey"],
@@ -388,12 +410,15 @@ class ScorePredictions(AbstractTask):
         norm_scores_aligned.fillna(0.0, inplace=True)
 
         # if there are duplicates, log error
-        if norm_scores_aligned.duplicated(subset=["miner_uid", "miner_hotkey"]).any():
+        if norm_scores_aligned.duplicated(subset=["miner_uid", "hotkey"]).any():
+            duplicated_rows = norm_scores_aligned[
+                norm_scores_aligned.duplicated(subset=["miner_uid", "hotkey"], keep=False)
+            ]
             logger.error(
                 "Duplicated miner_uid-hotkey pairs in the normalized scores.",
-                extra={"norm_scores_extended": norm_scores_aligned[["miner_uid", "miner_hotkey"]]},
+                extra={"norm_scores_extended": duplicated_rows.to_json()},
             )
-            norm_scores_aligned.drop_duplicates(subset=["miner_uid", "miner_hotkey"], inplace=True)
+            norm_scores_aligned.drop_duplicates(subset=["miner_uid", "hotkey"], inplace=True)
 
         self.state["scores"] = torch.tensor(
             norm_scores_aligned["eff_scores"].values, dtype=torch.float32
@@ -407,10 +432,9 @@ class ScorePredictions(AbstractTask):
         self.state["miner_uids"] = torch.tensor(
             norm_scores_aligned["miner_uid"].values, dtype=torch.long
         )
-        self.state["hotkeys"] = torch.tensor(norm_scores_aligned["hotkey"].values)
+        self.state["hotkeys"] = norm_scores_aligned["hotkey"].tolist()
 
-        # this is what we will export to the Clickhouse DB
-        # reflects what we use for the weights
+        # this is what we will export to the Clickhouse DB and used to set the weights
         return norm_scores_aligned
 
     def set_weights(self):
@@ -419,18 +443,19 @@ class ScorePredictions(AbstractTask):
 
         # this is only for logging purposes
         sorted_indices = torch.argsort(raw_weights, descending=True)
+        sorted_indices_rev = sorted_indices.flip(dims=[0])
         logger.debug(
             "Top 10 and bottom 10 weights.",
             extra={
                 "top_10_weights": raw_weights[sorted_indices][:10].tolist(),
                 "top_10_uids": self.state["miner_uids"][sorted_indices][:10].tolist(),
-                "bottom_10_weights": raw_weights[sorted_indices][-10:].tolist(),
-                "bottom_10_uids": self.state["miner_uids"][sorted_indices][-10:].tolist(),
+                "bottom_10_weights": raw_weights[sorted_indices_rev][:10].tolist(),
+                "bottom_10_uids": self.state["miner_uids"][sorted_indices_rev][:10].tolist(),
             },
         )
 
         # set the weights in the metagraph
-        processed_uids, processed_weights = bt.utils.weights_utils.process_weights(
+        processed_uids, processed_weights = bt.utils.weight_utils.process_weights_for_netuid(
             uids=self.state["miner_uids"].to("cpu"),
             weights=raw_weights.to("cpu"),
             metagraph=self.metagraph,
@@ -441,21 +466,34 @@ class ScorePredictions(AbstractTask):
         if processed_uids is None or processed_weights is None:
             logger.error(
                 "Failed to process the weights - received None.",
-                extra={"processed_uids": processed_uids, "processed_weights": processed_weights},
+                extra={
+                    "processed_uids": (
+                        processed_uids.tolist() if processed_uids is not None else None
+                    ),
+                    "processed_weights": (
+                        processed_weights.tolist() if processed_weights is not None else None
+                    ),
+                },
             )
-            return
+            return False, "Failed to process the weights."
 
-        if processed_uids != self.state["miner_uids"]:
+        if not torch.equal(processed_uids, self.state["miner_uids"]):
             logger.error(
                 "Processed UIDs do not match the original UIDs.",
-                extra={"processed_uids": processed_uids, "original_uids": self.state["miner_uids"]},
+                extra={
+                    "processed_uids": processed_uids.tolist(),
+                    "original_uids": self.state["miner_uids"].tolist(),
+                },
             )
-            return
+            return False, "Processed UIDs do not match the original UIDs."
 
-        if processed_weights != raw_weights:
+        if not torch.equal(processed_weights, raw_weights):
             logger.warning(
                 "Processed weights do not match the original weights.",
-                extra={"processed_weights": processed_weights, "original_weights": raw_weights},
+                extra={
+                    "processed_weights": processed_weights.tolist(),
+                    "original_weights": raw_weights.tolist(),
+                },
             )
 
         successful, msg = self.subtensor.set_weights(
@@ -474,18 +512,21 @@ class ScorePredictions(AbstractTask):
                 "Failed to set the weights.",
                 extra={
                     "msg": msg,
-                    "processed_uids": processed_uids,
-                    "processed_weights": processed_weights,
+                    "processed_uids": processed_uids.tolist(),
+                    "processed_weights": processed_weights.tolist(),
                 },
             )
         else:
             logger.debug("Weights set successfully.")
 
+        return successful, msg
+
     @backoff.on_exception(
         backoff.expo,
-        requests.exceptions.RequestException,
+        Exception,  # TODO: specify the exception
         max_tries=3,
         factor=2,
+        max_time=60,
         on_backoff=lambda details: logger.warning(
             "Retrying export scores.",
             extra={"details": details},
@@ -495,7 +536,7 @@ class ScorePredictions(AbstractTask):
             extra={"details": details},
         ),
     )
-    def export_scores(self, event: EventsModel, final_scores: pd.DataFrame):
+    async def export_scores(self, event: EventsModel, final_scores: pd.DataFrame):
         scores_df = final_scores[
             ["miner_uid", "hotkey", "rema_brier_score", "rema_prediction", "eff_scores"]
         ].copy()
@@ -529,7 +570,7 @@ class ScorePredictions(AbstractTask):
             "results": scores_df.to_dict(orient="records"),
         }
 
-        _ = self.api_client.post_scores(scores=body)
+        await self.api_client.post_scores(scores=body)
 
     def check_reset_daily_scores(self):
         now_dt = datetime.now(timezone.utc)
@@ -557,16 +598,19 @@ class ScorePredictions(AbstractTask):
     async def score_event(self, event: EventsModel, predictions: list[PredictionsModel]):
         if not event.cutoff:
             logger.error("Event has no cutoff date.", extra={"event_id": event.unique_event_id})
-            return
 
         event_id = event.unique_event_id
 
         # TODO: cleanup this after we have resolve date for all events in DB
         # https://linear.app/infinite-games/issue/INF-203/events-solved-before-cutoff
-        if event.resolve_date:
+        if event.resolve_date and event.cutoff:
             effective_cutoff = min(event.cutoff, event.resolve_date)
-        else:
+        elif event.cutoff:
             effective_cutoff = min(event.cutoff, datetime.now(timezone.utc))
+        elif event.resolve_date:
+            effective_cutoff = min(event.resolve_date, datetime.now(timezone.utc))
+        else:
+            effective_cutoff = datetime.now(timezone.utc)
         # dirty: mutate the event object
         event.cutoff = effective_cutoff
 
@@ -575,7 +619,7 @@ class ScorePredictions(AbstractTask):
         if not predictions:
             logger.warning(
                 "There are no predictions for a settled event.",
-                extra_info={"event_id": event_id, "event_cutoff": event.cutoff},
+                extra={"event_id": event_id, "event_cutoff": event.cutoff},
             )
             return
 
@@ -584,17 +628,17 @@ class ScorePredictions(AbstractTask):
 
         norm_scores = self.normalize_scores(scores=scores)
 
-        norm_scores_extended = self.update_daily_scores(norm_scores=norm_scores)
+        norm_scores_extended = self.update_daily_scores(norm_scores_ex=norm_scores)
 
         norm_scores_aligned = self.update_state(norm_scores_extended=norm_scores_extended)
 
         self.save_state()
 
-        self.set_weights()
+        _, _ = self.set_weights()
 
         self.db_operations.mark_event_as_processed(unique_event_id=event.unique_event_id)
 
-        self.export_scores(event=event, final_scores=norm_scores_aligned)
+        await self.export_scores(event=event, final_scores=norm_scores_aligned)
 
         self.db_operations.mark_event_as_exported(unique_event_id=event.unique_event_id)
 
