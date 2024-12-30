@@ -1,7 +1,7 @@
 import subprocess
 
 
-def get_commit_short_hash():
+def get_commit_short_hash() -> str:
     try:
         commit_short_hash = (
             subprocess.check_output(["git", "rev-parse", "--short", "HEAD"]).strip().decode("utf-8")
@@ -9,7 +9,7 @@ def get_commit_short_hash():
 
         return commit_short_hash
     except Exception:
-        return None
+        return ""
 
 
 commit_short_hash = get_commit_short_hash()
