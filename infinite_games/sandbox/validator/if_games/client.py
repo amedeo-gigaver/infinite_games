@@ -2,7 +2,6 @@ import asyncio
 import base64
 import json
 import time
-from logging import Logger
 from typing import Literal
 
 import aiohttp
@@ -11,7 +10,7 @@ from bittensor_wallet import Wallet
 
 from infinite_games import __version__
 from infinite_games.sandbox.validator.utils.git import commit_short_hash
-from infinite_games.sandbox.validator.utils.logger.logger import AbstractLogger
+from infinite_games.sandbox.validator.utils.logger.logger import InfiniteGamesLogger
 
 EnvType = Literal["test", "prod"]
 
@@ -20,17 +19,17 @@ class IfGamesClient:
     __base_url: str
     __timeout: aiohttp.ClientTimeout
     __headers: aiohttp.typedefs.LooseHeaders
-    __logger: AbstractLogger
+    __logger: InfiniteGamesLogger
     __bt_wallet: Wallet
 
-    def __init__(self, env: EnvType, logger: AbstractLogger, bt_wallet: Wallet) -> None:
+    def __init__(self, env: EnvType, logger: InfiniteGamesLogger, bt_wallet: Wallet) -> None:
         # Validate env
         if not isinstance(env, str):
             raise TypeError("env must be an instance of str.")
 
         # Validate logger
-        if not isinstance(logger, Logger):
-            raise TypeError("logger must be an instance of Logger.")
+        if not isinstance(logger, InfiniteGamesLogger):
+            raise TypeError("logger must be an instance of InfiniteGamesLogger.")
 
         # Validate bt_wallet
         if not isinstance(bt_wallet, Wallet):

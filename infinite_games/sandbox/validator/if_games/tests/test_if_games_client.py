@@ -14,13 +14,13 @@ from yarl import URL
 from infinite_games import __version__
 from infinite_games.sandbox.validator.if_games.client import IfGamesClient
 from infinite_games.sandbox.validator.utils.git import commit_short_hash
-from infinite_games.sandbox.validator.utils.logger.logger import AbstractLogger
+from infinite_games.sandbox.validator.utils.logger.logger import InfiniteGamesLogger
 
 
 class TestIfGamesClient:
     @pytest.fixture
     def client_test_env(self):
-        logger = MagicMock(spec=AbstractLogger)
+        logger = MagicMock(spec=InfiniteGamesLogger)
 
         hotkey_mock = MagicMock()
         hotkey_mock.sign = MagicMock(side_effect=lambda x: x.encode("utf-8"))
@@ -37,7 +37,7 @@ class TestIfGamesClient:
             (
                 IfGamesClient(
                     env="test",
-                    logger=MagicMock(spec=AbstractLogger),
+                    logger=MagicMock(spec=InfiniteGamesLogger),
                     bt_wallet=MagicMock(spec=Wallet),
                 ),
                 "https://stage.ifgames.win",
@@ -45,7 +45,7 @@ class TestIfGamesClient:
             (
                 IfGamesClient(
                     env="prod",
-                    logger=MagicMock(spec=AbstractLogger),
+                    logger=MagicMock(spec=InfiniteGamesLogger),
                     bt_wallet=MagicMock(spec=Wallet),
                 ),
                 "https://ifgames.win",

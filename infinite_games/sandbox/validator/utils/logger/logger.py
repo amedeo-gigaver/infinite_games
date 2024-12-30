@@ -1,17 +1,20 @@
 import logging
-from abc import ABC
 
 from infinite_games.sandbox.validator.utils.logger.context import start_session, start_trace
 from infinite_games.sandbox.validator.utils.logger.formatters import ConsoleFormatter, JSONFormatter
 
 
-# Abstract logger class for typing
-class AbstractLogger(logging.Logger, ABC):
-    def start_session(self) -> None:
-        pass
+class InfiniteGamesLogger(logging.Logger):
+    @property
+    def start_session(self):
+        return start_session
 
-    def start_trace(self) -> None:
-        pass
+    @property
+    def start_trace(self):
+        return start_trace
+
+
+logging.setLoggerClass(InfiniteGamesLogger)
 
 
 # Override the default logging.Logger.makeRecord method to keep extra data
@@ -29,7 +32,7 @@ logging.Logger.makeRecord = make_record_with_extra
 
 
 # Factory function to create and configure a logger with multiple handlers
-def create_logger(name: str = None, level: any = logging.DEBUG) -> AbstractLogger:
+def create_logger(name: str = None, level: any = logging.DEBUG) -> InfiniteGamesLogger:
     # Console message handler
     console_handler = logging.StreamHandler()
     console_handler.setFormatter(ConsoleFormatter())
@@ -46,10 +49,6 @@ def create_logger(name: str = None, level: any = logging.DEBUG) -> AbstractLogge
     # Add handlers
     logger.addHandler(console_handler)
     logger.addHandler(json_handler)
-
-    # Attach the start methods to the logger
-    logger.start_session = start_session
-    logger.start_trace = start_trace
 
     return logger
 

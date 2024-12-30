@@ -4,12 +4,12 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from infinite_games.sandbox.validator.db.client import Client
+from infinite_games.sandbox.validator.db.client import DatabaseClient
 from infinite_games.sandbox.validator.db.operations import DatabaseOperations
 from infinite_games.sandbox.validator.models.event import EventsModel, EventStatus
 from infinite_games.sandbox.validator.models.miner import MinersModel
 from infinite_games.sandbox.validator.models.prediction import PredictionExportedStatus
-from infinite_games.sandbox.validator.utils.logger.logger import AbstractLogger
+from infinite_games.sandbox.validator.utils.logger.logger import InfiniteGamesLogger
 
 
 class TestDbOperations:
@@ -19,9 +19,9 @@ class TestDbOperations:
         db_path = temp_db.name
         temp_db.close()
 
-        logger = MagicMock(spec=AbstractLogger)
+        logger = MagicMock(spec=InfiniteGamesLogger)
 
-        db_client = Client(db_path, logger)
+        db_client = DatabaseClient(db_path, logger)
 
         await db_client.migrate()
 
@@ -33,7 +33,7 @@ class TestDbOperations:
 
         return db_operations
 
-    async def test_delete_event(self, db_operations: DatabaseOperations, db_client: Client):
+    async def test_delete_event(self, db_operations: DatabaseOperations, db_client: DatabaseClient):
         event_id_to_keep = "event1"
         event_id_to_delete = "event2"
 
@@ -238,7 +238,7 @@ class TestDbOperations:
         assert result[0][0] == event_to_predict_id
 
     async def test_get_predictions_to_export(
-        self, db_client: Client, db_operations: DatabaseOperations
+        self, db_client: DatabaseClient, db_operations: DatabaseOperations
     ):
         events = [
             (
@@ -343,7 +343,7 @@ class TestDbOperations:
         assert len(result) == 2
 
     async def test_mark_predictions_as_exported(
-        self, db_client: Client, db_operations: DatabaseOperations
+        self, db_client: DatabaseClient, db_operations: DatabaseOperations
     ):
         predictions = [
             (
@@ -401,7 +401,9 @@ class TestDbOperations:
         assert result[1][2] == PredictionExportedStatus.EXPORTED
         assert result[2][2] == PredictionExportedStatus.NOT_EXPORTED
 
-    async def test_resolve_event(self, db_client: Client, db_operations: DatabaseOperations):
+    async def test_resolve_event(
+        self, db_client: DatabaseClient, db_operations: DatabaseOperations
+    ):
         event_id = "event1"
         outcome = 1
         resolved_at = "2000-12-31T14:30:00+00:00"
@@ -445,7 +447,9 @@ class TestDbOperations:
         assert result[0][3] == resolved_at
         assert isinstance(result[0][4], str)
 
-    async def test_upsert_events(self, db_operations: DatabaseOperations, db_client: Client):
+    async def test_upsert_events(
+        self, db_operations: DatabaseOperations, db_client: DatabaseClient
+    ):
         events = [
             (
                 "unique1",
@@ -503,7 +507,9 @@ class TestDbOperations:
 
         await db_operations.upsert_events(events)
 
-    async def test_upsert_predictions(self, db_operations: DatabaseOperations, db_client: Client):
+    async def test_upsert_predictions(
+        self, db_operations: DatabaseOperations, db_client: DatabaseClient
+    ):
         interval_start_minutes = 5
         block = 1
 
@@ -620,7 +626,7 @@ class TestDbOperations:
         assert result[0].status == EventStatus.SETTLED
 
     async def test_get_predictions_for_scoring(
-        self, db_operations: DatabaseOperations, db_client: Client
+        self, db_operations: DatabaseOperations, db_client: DatabaseClient
     ):
         expected_event_id = "_event1"
 
@@ -664,7 +670,7 @@ class TestDbOperations:
         assert result[0].unique_event_id == expected_event_id
 
     async def test_get_miners_last_registration(
-        self, db_operations: DatabaseOperations, db_client: Client
+        self, db_operations: DatabaseOperations, db_client: DatabaseClient
     ):
         miner_1 = MinersModel(
             miner_hotkey="hotkey1",
@@ -717,7 +723,7 @@ class TestDbOperations:
         assert result[1].registered_date == miner_2.registered_date
 
     async def test_mark_event_as_processed(
-        self, db_operations: DatabaseOperations, db_client: Client
+        self, db_operations: DatabaseOperations, db_client: DatabaseClient
     ):
         unique_event_id = "unique_event1"
 
@@ -773,7 +779,7 @@ class TestDbOperations:
         assert result[1][2] == 0
 
     async def test_mark_event_as_exported(
-        self, db_operations: DatabaseOperations, db_client: Client
+        self, db_operations: DatabaseOperations, db_client: DatabaseClient
     ):
         unique_event_id = "unique_event1"
 

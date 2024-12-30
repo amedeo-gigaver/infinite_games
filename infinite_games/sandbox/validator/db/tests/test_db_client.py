@@ -3,8 +3,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from infinite_games.sandbox.validator.db.client import Client
-from infinite_games.sandbox.validator.utils.logger.logger import AbstractLogger
+from infinite_games.sandbox.validator.db.client import DatabaseClient
+from infinite_games.sandbox.validator.utils.logger.logger import InfiniteGamesLogger
 
 
 class TestDbClient:
@@ -12,7 +12,7 @@ class TestDbClient:
     def logger(self):
         # Mock logger
 
-        return MagicMock(spec=AbstractLogger)
+        return MagicMock(spec=InfiniteGamesLogger)
 
     @pytest.fixture(scope="function")
     async def client(self, logger):
@@ -20,7 +20,7 @@ class TestDbClient:
         db_path = temp_db.name
         temp_db.close()
 
-        client = Client(db_path, logger)
+        client = DatabaseClient(db_path, logger)
 
         # Prepare database schema
         await client.script(

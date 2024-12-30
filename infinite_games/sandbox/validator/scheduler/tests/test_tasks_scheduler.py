@@ -5,7 +5,7 @@ import pytest
 
 from infinite_games.sandbox.validator.scheduler.task import AbstractTask
 from infinite_games.sandbox.validator.scheduler.tasks_scheduler import TasksScheduler
-from infinite_games.sandbox.validator.utils.logger.logger import AbstractLogger
+from infinite_games.sandbox.validator.utils.logger.logger import InfiniteGamesLogger
 
 
 class TestTasksScheduler:
@@ -21,7 +21,7 @@ class TestTasksScheduler:
 
     @pytest.fixture
     def logger(self):
-        return MagicMock(spec=AbstractLogger)
+        return MagicMock(spec=InfiniteGamesLogger)
 
     @pytest.fixture(scope="function")
     def scheduler(self, logger):

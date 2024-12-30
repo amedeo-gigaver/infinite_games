@@ -9,14 +9,14 @@ from bittensor.core.chain_data import AxonInfo
 from bittensor.core.dendrite import DendriteMixin
 from bittensor.core.metagraph import MetagraphMixin
 
-from infinite_games.sandbox.validator.db.client import Client
+from infinite_games.sandbox.validator.db.client import DatabaseClient
 from infinite_games.sandbox.validator.db.operations import DatabaseOperations
 from infinite_games.sandbox.validator.models.event import EventStatus
 from infinite_games.sandbox.validator.models.events_prediction_synapse import (
     EventsPredictionSynapse,
 )
 from infinite_games.sandbox.validator.tasks.query_miners import QueryMiners
-from infinite_games.sandbox.validator.utils.logger.logger import AbstractLogger
+from infinite_games.sandbox.validator.utils.logger.logger import InfiniteGamesLogger
 
 
 class TestQueryMiners:
@@ -26,16 +26,16 @@ class TestQueryMiners:
         db_path = temp_db.name
         temp_db.close()
 
-        logger = MagicMock(spec=AbstractLogger)
+        logger = MagicMock(spec=InfiniteGamesLogger)
 
-        db_client = Client(db_path, logger)
+        db_client = DatabaseClient(db_path, logger)
 
         await db_client.migrate()
 
         return db_client
 
     @pytest.fixture
-    def db_operations(self, db_client: Client):
+    def db_operations(self, db_client: DatabaseClient):
         return DatabaseOperations(db_client=db_client)
 
     @pytest.fixture
@@ -276,7 +276,7 @@ class TestQueryMiners:
         assert response["1"] == synapse
         assert response["50"] == synapse
 
-    async def test_store_miners(self, db_client: Client, query_miners_task: QueryMiners):
+    async def test_store_miners(self, db_client: DatabaseClient, query_miners_task: QueryMiners):
         block = 12345
         axons = {"uid_1": MagicMock(hotkey="hotkey_1", ip="ip_1")}
 
@@ -437,7 +437,10 @@ class TestQueryMiners:
         ]
 
     async def test_run(
-        self, db_client: Client, db_operations: DatabaseOperations, query_miners_task: QueryMiners
+        self,
+        db_client: DatabaseClient,
+        db_operations: DatabaseOperations,
+        query_miners_task: QueryMiners,
     ):
         # Set events to query & predict
         cutoff_future = (datetime.now(timezone.utc) + timedelta(seconds=2)).isoformat()

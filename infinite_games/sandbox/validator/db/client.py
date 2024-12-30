@@ -3,14 +3,22 @@ from typing import Any, Awaitable, Callable, Iterable, Optional
 
 import aiosqlite
 
-from infinite_games.sandbox.validator.utils.logger.logger import AbstractLogger
+from infinite_games.sandbox.validator.utils.logger.logger import InfiniteGamesLogger
 
 
-class Client:
+class DatabaseClient:
     __db_path: str
-    __logger: AbstractLogger
+    __logger: InfiniteGamesLogger
 
-    def __init__(self, db_path: str, logger: AbstractLogger) -> None:
+    def __init__(self, db_path: str, logger: InfiniteGamesLogger) -> None:
+        # Validate db_path
+        if not isinstance(db_path, str):
+            raise TypeError("db_path must be an instance of str.")
+
+        # Validate logger
+        if not isinstance(logger, InfiniteGamesLogger):
+            raise TypeError("logger must be an instance of InfiniteGamesLogger.")
+
         self.__db_path = db_path
         self.__logger = logger
 

@@ -8,12 +8,12 @@ import pytest
 from aioresponses import aioresponses
 from bittensor_wallet import Wallet
 
-from infinite_games.sandbox.validator.db.client import Client
+from infinite_games.sandbox.validator.db.client import DatabaseClient
 from infinite_games.sandbox.validator.db.operations import DatabaseOperations
 from infinite_games.sandbox.validator.if_games.client import IfGamesClient
 from infinite_games.sandbox.validator.models.event import EventStatus
 from infinite_games.sandbox.validator.tasks.pull_events import PullEvents
-from infinite_games.sandbox.validator.utils.logger.logger import AbstractLogger
+from infinite_games.sandbox.validator.utils.logger.logger import InfiniteGamesLogger
 
 
 class TestPullEventsTask:
@@ -35,9 +35,9 @@ class TestPullEventsTask:
         db_path = temp_db.name
         temp_db.close()
 
-        logger = MagicMock(spec=AbstractLogger)
+        logger = MagicMock(spec=InfiniteGamesLogger)
 
-        db_client = Client(db_path, logger)
+        db_client = DatabaseClient(db_path, logger)
 
         await db_client.migrate()
 
@@ -55,10 +55,10 @@ class TestPullEventsTask:
         return bt_wallet
 
     @pytest.fixture
-    def pull_events_task(self, db_client: Client, bt_wallet: Wallet):
+    def pull_events_task(self, db_client: DatabaseClient, bt_wallet: Wallet):
         db_operations = DatabaseOperations(db_client=db_client)
         api_client = IfGamesClient(
-            env="test", logger=MagicMock(spec=AbstractLogger), bt_wallet=bt_wallet
+            env="test", logger=MagicMock(spec=InfiniteGamesLogger), bt_wallet=bt_wallet
         )
 
         return PullEvents(
@@ -134,7 +134,7 @@ class TestPullEventsTask:
         db_operations_mock.upsert_events.assert_not_called()
 
     async def test_start_from_empty_integration(
-        self, db_client: Client, pull_events_task: PullEvents
+        self, db_client: DatabaseClient, pull_events_task: PullEvents
     ):
         """Test that pulls events from 0 and iterates until the end."""
         # Arrange
@@ -219,7 +219,7 @@ class TestPullEventsTask:
         assert response[1][1] == mock_response_data_2["items"][0]["event_id"]
 
     async def test_start_from_last_integration(
-        self, db_client: Client, pull_events_task: PullEvents
+        self, db_client: DatabaseClient, pull_events_task: PullEvents
     ):
         """Test that pulls events from where it left and iterates until the end."""
         # Arrange

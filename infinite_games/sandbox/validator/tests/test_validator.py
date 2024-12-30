@@ -8,12 +8,14 @@ class TestValidator:
     def test_main(self):
         # Patch key dependencies inside the method
         with (
-            patch("infinite_games.sandbox.validator.validator.Client", spec=True) as MockClient,
+            patch(
+                "infinite_games.sandbox.validator.validator.DatabaseClient", spec=True
+            ) as MockClient,
             patch(
                 "infinite_games.sandbox.validator.validator.TasksScheduler"
             ) as MockTasksScheduler,
         ):
-            # Mock Client
+            # Mock Database Client
             mock_client = MockClient.return_value
             mock_client.migrate = AsyncMock()
 

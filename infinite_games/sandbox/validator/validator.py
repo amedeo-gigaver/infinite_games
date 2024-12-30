@@ -3,7 +3,7 @@ import asyncio
 
 import bittensor as bt
 
-from infinite_games.sandbox.validator.db.client import Client
+from infinite_games.sandbox.validator.db.client import DatabaseClient
 from infinite_games.sandbox.validator.db.operations import DatabaseOperations
 from infinite_games.sandbox.validator.if_games.client import IfGamesClient
 from infinite_games.sandbox.validator.scheduler.tasks_scheduler import TasksScheduler
@@ -27,7 +27,7 @@ async def main():
     # Set dependencies
     config = get_config()
 
-    db_client = Client(db_path="new_validator.db", logger=logger)
+    db_client = DatabaseClient(db_path="new_validator.db", logger=logger)
     await db_client.migrate()
 
     bt_wallet = bt.wallet(config=config)

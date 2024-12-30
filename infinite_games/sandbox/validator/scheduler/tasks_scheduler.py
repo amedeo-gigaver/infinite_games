@@ -2,7 +2,7 @@ import asyncio
 import time
 
 from infinite_games.sandbox.validator.scheduler.task import AbstractTask, TaskStatus
-from infinite_games.sandbox.validator.utils.logger.logger import AbstractLogger
+from infinite_games.sandbox.validator.utils.logger.logger import InfiniteGamesLogger
 
 
 class TasksScheduler:
@@ -10,9 +10,16 @@ class TasksScheduler:
     Scheduler for managing and running multiple asynchronous tasks.
     """
 
-    def __init__(self, logger: AbstractLogger):
-        self.__tasks: list[AbstractTask] = []  # List to store tasks
-        self.__logger = logger  # Logger
+    __tasks: list[AbstractTask]
+    __logger: InfiniteGamesLogger
+
+    def __init__(self, logger: InfiniteGamesLogger):
+        # Validate logger
+        if not isinstance(logger, InfiniteGamesLogger):
+            raise TypeError("logger must be an instance of InfiniteGamesLogger.")
+
+        self.__tasks = []  # List to store tasks
+        self.__logger = logger
 
     async def __schedule_task(self, task: AbstractTask):
         """

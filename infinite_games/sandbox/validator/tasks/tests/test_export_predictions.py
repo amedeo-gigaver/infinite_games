@@ -5,12 +5,12 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from bittensor_wallet import Wallet
 
-from infinite_games.sandbox.validator.db.client import Client
+from infinite_games.sandbox.validator.db.client import DatabaseClient
 from infinite_games.sandbox.validator.db.operations import DatabaseOperations
 from infinite_games.sandbox.validator.if_games.client import IfGamesClient
 from infinite_games.sandbox.validator.models.prediction import PredictionExportedStatus
 from infinite_games.sandbox.validator.tasks.export_predictions import ExportPredictions
-from infinite_games.sandbox.validator.utils.logger.logger import AbstractLogger
+from infinite_games.sandbox.validator.utils.logger.logger import InfiniteGamesLogger
 
 
 class TestExportPredictions:
@@ -20,16 +20,16 @@ class TestExportPredictions:
         db_path = temp_db.name
         temp_db.close()
 
-        logger = MagicMock(spec=AbstractLogger)
+        logger = MagicMock(spec=InfiniteGamesLogger)
 
-        db_client = Client(db_path, logger)
+        db_client = DatabaseClient(db_path, logger)
 
         await db_client.migrate()
 
         return db_client
 
     @pytest.fixture
-    def db_operations(self, db_client: Client):
+    def db_operations(self, db_client: DatabaseClient):
         return DatabaseOperations(db_client=db_client)
 
     @pytest.fixture
@@ -46,7 +46,7 @@ class TestExportPredictions:
     @pytest.fixture
     def export_predictions_task(self, db_operations: DatabaseOperations, bt_wallet: Wallet):
         api_client = IfGamesClient(
-            env="test", logger=MagicMock(spec=AbstractLogger), bt_wallet=bt_wallet
+            env="test", logger=MagicMock(spec=InfiniteGamesLogger), bt_wallet=bt_wallet
         )
 
         return ExportPredictions(
@@ -116,7 +116,7 @@ class TestExportPredictions:
 
     async def test_run(
         self,
-        db_client: Client,
+        db_client: DatabaseClient,
         db_operations: DatabaseOperations,
         export_predictions_task: ExportPredictions,
     ):

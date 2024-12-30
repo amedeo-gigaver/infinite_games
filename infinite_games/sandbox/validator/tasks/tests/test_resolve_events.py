@@ -7,12 +7,12 @@ import pytest
 from aioresponses import aioresponses
 from bittensor_wallet import Wallet
 
-from infinite_games.sandbox.validator.db.client import Client
+from infinite_games.sandbox.validator.db.client import DatabaseClient
 from infinite_games.sandbox.validator.db.operations import DatabaseOperations
 from infinite_games.sandbox.validator.if_games.client import IfGamesClient
 from infinite_games.sandbox.validator.models.event import EventStatus
 from infinite_games.sandbox.validator.tasks.resolve_events import ResolveEvents
-from infinite_games.sandbox.validator.utils.logger.logger import AbstractLogger
+from infinite_games.sandbox.validator.utils.logger.logger import InfiniteGamesLogger
 
 
 class TestResolveEventsTask:
@@ -45,22 +45,22 @@ class TestResolveEventsTask:
         db_path = temp_db.name
         temp_db.close()
 
-        logger = MagicMock(spec=AbstractLogger)
+        logger = MagicMock(spec=InfiniteGamesLogger)
 
-        db_client = Client(db_path, logger)
+        db_client = DatabaseClient(db_path, logger)
 
         await db_client.migrate()
 
         return db_client
 
     @pytest.fixture
-    def db_operations(self, db_client: Client):
+    def db_operations(self, db_client: DatabaseClient):
         return DatabaseOperations(db_client=db_client)
 
     @pytest.fixture
     def resolve_events_task(self, db_operations: DatabaseOperations, bt_wallet: Wallet):
         api_client = IfGamesClient(
-            env="test", logger=MagicMock(spec=AbstractLogger), bt_wallet=bt_wallet
+            env="test", logger=MagicMock(spec=InfiniteGamesLogger), bt_wallet=bt_wallet
         )
 
         return ResolveEvents(
@@ -75,7 +75,7 @@ class TestResolveEventsTask:
         """Test the run method when there are no pending events."""
         # Arrange
         api_client = IfGamesClient(
-            env="test", logger=MagicMock(spec=AbstractLogger), bt_wallet=bt_wallet
+            env="test", logger=MagicMock(spec=InfiniteGamesLogger), bt_wallet=bt_wallet
         )
 
         resolve_events_task = ResolveEvents(
@@ -93,7 +93,7 @@ class TestResolveEventsTask:
 
     async def test_resolve_events(
         self,
-        db_client: Client,
+        db_client: DatabaseClient,
         db_operations: DatabaseOperations,
         resolve_events_task: ResolveEvents,
     ):
@@ -217,7 +217,7 @@ class TestResolveEventsTask:
 
     async def test_resolve_events_404_410_errors(
         self,
-        db_client: Client,
+        db_client: DatabaseClient,
         db_operations: DatabaseOperations,
         resolve_events_task: ResolveEvents,
     ):

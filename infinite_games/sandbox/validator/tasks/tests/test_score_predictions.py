@@ -13,14 +13,14 @@ from bittensor.core.metagraph import MetagraphMixin
 from bittensor_wallet import Wallet
 from freezegun import freeze_time
 
-from infinite_games.sandbox.validator.db.client import Client
+from infinite_games.sandbox.validator.db.client import DatabaseClient
 from infinite_games.sandbox.validator.db.operations import DatabaseOperations
 from infinite_games.sandbox.validator.if_games.client import IfGamesClient
 from infinite_games.sandbox.validator.models.event import EventsModel
 from infinite_games.sandbox.validator.models.miner import MinersModel
 from infinite_games.sandbox.validator.models.prediction import PredictionsModel
 from infinite_games.sandbox.validator.tasks.score_predictions import ScorePredictions
-from infinite_games.sandbox.validator.utils.logger.logger import AbstractLogger
+from infinite_games.sandbox.validator.utils.logger.logger import InfiniteGamesLogger
 
 CURRENT_DIR = Path(__file__).parent
 
@@ -41,16 +41,16 @@ class TestScorePredictions:
         db_path = temp_db.name
         temp_db.close()
 
-        logger = MagicMock(spec=AbstractLogger)
+        logger = MagicMock(spec=InfiniteGamesLogger)
 
-        db_client = Client(db_path, logger)
+        db_client = DatabaseClient(db_path, logger)
 
         await db_client.migrate()
 
         return db_client
 
     @pytest.fixture
-    def db_operations(self, db_client: Client):
+    def db_operations(self, db_client: DatabaseClient):
         return DatabaseOperations(db_client=db_client)
 
     @pytest.fixture
@@ -70,7 +70,7 @@ class TestScorePredictions:
         self, db_operations: DatabaseOperations, setup_test_dir, bt_wallet: Wallet
     ):
         api_client = IfGamesClient(
-            env="test", logger=MagicMock(spec=AbstractLogger), bt_wallet=bt_wallet
+            env="test", logger=MagicMock(spec=InfiniteGamesLogger), bt_wallet=bt_wallet
         )
         metagraph = MagicMock(spec=MetagraphMixin)
         config = MagicMock(spec=bt.Config)

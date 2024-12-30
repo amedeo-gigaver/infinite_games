@@ -1,6 +1,6 @@
 from typing import Iterable
 
-from infinite_games.sandbox.validator.db.client import Client
+from infinite_games.sandbox.validator.db.client import DatabaseClient
 from infinite_games.sandbox.validator.models.event import EVENTS_FIELDS, EventsModel, EventStatus
 from infinite_games.sandbox.validator.models.miner import MINERS_FIELDS, MinersModel
 from infinite_games.sandbox.validator.models.prediction import (
@@ -12,10 +12,10 @@ from infinite_games.sandbox.validator.utils.logger.logger import db_logger
 
 
 class DatabaseOperations:
-    __db_client: Client
+    __db_client: DatabaseClient
 
-    def __init__(self, db_client: Client):
-        if not isinstance(db_client, Client):
+    def __init__(self, db_client: DatabaseClient):
+        if not isinstance(db_client, DatabaseClient):
             raise ValueError("Invalid db_client arg")
 
         self.__db_client = db_client
