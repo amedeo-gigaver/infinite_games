@@ -47,7 +47,7 @@ def create_logger(name: str = None, level: any = logging.DEBUG) -> InfiniteGames
     logger.handlers.clear()
 
     # Add handlers
-    logger.addHandler(console_handler)
+    # logger.addHandler(console_handler)
     logger.addHandler(json_handler)
 
     return logger
