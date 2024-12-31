@@ -537,26 +537,35 @@ class TestScorePredictions:
             # Case 2: New miners with no previous state
             (
                 pd.DataFrame(
-                    {"miner_uid": [3, 4], "hotkey": ["hk3", "hk4"], "normalized_score": [0.8, 0.2]}
+                    {
+                        "miner_uid": [1, 3, 4],
+                        "hotkey": ["hk1", "hk3", "hk4"],
+                        "normalized_score": [1.0, 0.8, 0.2],
+                    }
                 ),
-                torch.tensor([3, 4], dtype=torch.int32),
-                ["hk3", "hk4"],
+                torch.tensor([1, 3, 4], dtype=torch.int32),
+                ["hk1", "hk3", "hk4"],
                 {
-                    "miner_uids": torch.tensor([], dtype=torch.int32),
-                    "hotkeys": [],
-                    "scores": torch.tensor([], dtype=torch.float32),
-                    "average_scores": torch.tensor([], dtype=torch.float32),
-                    "previous_average_scores": torch.tensor([], dtype=torch.float32),
+                    "miner_uids": torch.tensor(
+                        [
+                            1,
+                        ],
+                        dtype=torch.int32,
+                    ),
+                    "hotkeys": ["hk1"],
+                    "scores": torch.tensor([1.0], dtype=torch.float32),
+                    "average_scores": torch.tensor([1.0], dtype=torch.float32),
+                    "previous_average_scores": torch.tensor([1.0], dtype=torch.float32),
                 },
                 1,
                 pd.DataFrame(
                     {
-                        "miner_uid": [3, 4],
-                        "hotkey": ["hk3", "hk4"],
-                        "normalized_score": [0.8, 0.2],
-                        "eff_scores": [0.8, 0.2],
-                        "average_scores": [0.8, 0.2],
-                        "previous_average_scores": [0.8, 0.2],
+                        "miner_uid": [1, 3, 4],
+                        "hotkey": ["hk1", "hk3", "hk4"],
+                        "normalized_score": [1.0, 0.8, 0.2],
+                        "eff_scores": [1.0, 0.92, 0.68],
+                        "average_scores": [1.0, 0.9, 0.6],
+                        "previous_average_scores": [1.0, 1.0, 1.0],
                     }
                 ),
             ),
@@ -578,6 +587,7 @@ class TestScorePredictions:
         unit.current_hotkeys = current_hotkeys
         unit.state = state
         unit.state["scoring_iterations"] = scoring_iterations
+        unit.metagraph_lite_sync = MagicMock()
 
         # Call the method
         result = unit.update_daily_scores(norm_scores)
@@ -657,8 +667,8 @@ class TestScorePredictions:
                 1,
                 {
                     "scores": torch.tensor([0.6, 0.0], dtype=torch.float32),
-                    "average_scores": torch.tensor([0.55, 0.0], dtype=torch.float32),
-                    "previous_average_scores": torch.tensor([0.5, 0.0], dtype=torch.float32),
+                    "average_scores": torch.tensor([0.55, 0.55], dtype=torch.float32),
+                    "previous_average_scores": torch.tensor([0.5, 0.5], dtype=torch.float32),
                     "miner_uids": torch.tensor([1, 2], dtype=torch.long),
                     "hotkeys": ["hk1", "hk2"],
                 },
@@ -667,8 +677,8 @@ class TestScorePredictions:
                         "miner_uid": [1, 2],
                         "hotkey": ["hk1", "hk2"],
                         "eff_scores": [0.6, 0.0],
-                        "average_scores": [0.55, 0.0],
-                        "previous_average_scores": [0.5, 0.0],
+                        "average_scores": [0.55, 0.55],
+                        "previous_average_scores": [0.5, 0.5],
                     }
                 ),
             ),

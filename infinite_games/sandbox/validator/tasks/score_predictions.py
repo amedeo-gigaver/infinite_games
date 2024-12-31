@@ -56,12 +56,13 @@ class ScorePredictions(AbstractTask):
         if not isinstance(db_operations, DatabaseOperations):
             raise TypeError("db_operations must be an instance of DatabaseOperations.")
 
-        # get current hotkeys and uids; regularly update these after each event scoring
+        # get current hotkeys and uids
+        # regularly update these during and after each event scoring
         self.metagraph = metagraph
-        self.metagraph.sync(lite=True)
-        self.current_hotkeys = copy.deepcopy(self.metagraph.hotkeys)
-        self.n_hotkeys = len(self.current_hotkeys)
-        self.current_uids = copy.deepcopy(self.metagraph.uids)
+        self.current_hotkeys = None
+        self.n_hotkeys = None
+        self.current_uids = None
+        self.metagraph_lite_sync()
 
         self.config = config
         self.subtensor = subtensor
@@ -98,6 +99,13 @@ class ScorePredictions(AbstractTask):
     @property
     def interval_seconds(self):
         return self.interval
+
+    def metagraph_lite_sync(self):
+        # sync the metagraph in lite mode
+        self.metagraph.sync(lite=True)
+        self.current_hotkeys = copy.deepcopy(self.metagraph.hotkeys)
+        self.n_hotkeys = len(self.current_hotkeys)
+        self.current_uids = copy.deepcopy(self.metagraph.uids)
 
     def save_state(self):
         try:
@@ -320,7 +328,9 @@ class ScorePredictions(AbstractTask):
         return processed_scores
 
     def update_daily_scores(self, norm_scores: pd.DataFrame) -> pd.DataFrame:
+        self.metagraph_lite_sync()
         # if the miners are not anymore in the current uid - hotkeys, remove them
+        # TODO: add new miners to each event immediately? = right join
         miners_df = pd.DataFrame(
             {
                 "miner_uid": self.current_uids.tolist(),
@@ -342,15 +352,19 @@ class ScorePredictions(AbstractTask):
         norm_scores_ext = pd.merge(
             norm_scores_ext, state_df, on=["miner_uid", "hotkey"], how="left"
         )
+
         # miner can be new -> not in the state file which can be hours old
-        # it gets NAs -> set the average score and previous_average to normalized score
+        # calculate the 80th (lowest) percentile = quantile 0.2 for existing scores
+        avg_quantile_20 = norm_scores_ext["average_scores"].dropna().quantile(0.2)
+        prev_avg_quantile_20 = norm_scores_ext["previous_average_scores"].dropna().quantile(0.2)
+
+        # fill the NAs with the quantile 20
         norm_scores_ext["average_scores"] = norm_scores_ext["average_scores"].fillna(
-            norm_scores_ext["normalized_score"]
+            avg_quantile_20
         )
-        # TODO: confirm we want to do this - or we set to 0.0
         norm_scores_ext["previous_average_scores"] = norm_scores_ext[
             "previous_average_scores"
-        ].fillna(norm_scores_ext["normalized_score"])
+        ].fillna(prev_avg_quantile_20)
 
         # update the daily average
         norm_scores_ext["average_scores"] = (
@@ -386,16 +400,19 @@ class ScorePredictions(AbstractTask):
         return norm_scores_ext
 
     def update_state(self, norm_scores_extended: pd.DataFrame):
-        # update the state to the last scores and current hotkeys & uids
-        self.metagraph.sync(lite=True)
-        self.current_hotkeys = copy.deepcopy(self.metagraph.hotkeys)
-        self.n_hotkeys = len(self.current_hotkeys)
-        self.current_uids = copy.deepcopy(self.metagraph.uids)
+        """
+        Update the state to the last scores and current hotkeys & uids
+        """
+
+        self.metagraph_lite_sync()
         self.state["scoring_iterations"] += 1
 
         # realign the scores to the current hotkeys - right join:
-        # - new hotkeys get 0 scores
+        # - new hotkeys get effective score 0 right after registration
+        #  but quantile 20 for the averages (p80 below median)
         # - remove the hotkeys that are not in the current hotkeys
+        # this seems to be redundant to update_daily_scores,
+        # but miner can be new and without predictions for the event
         norm_scores_aligned = norm_scores_extended.merge(
             pd.DataFrame(
                 {
@@ -406,8 +423,15 @@ class ScorePredictions(AbstractTask):
             on=["miner_uid", "hotkey"],
             how="right",
         )
-        # new miners get NAs -> fill them with 0
-        norm_scores_aligned.fillna(0.0, inplace=True)
+        norm_scores_aligned["eff_scores"] = norm_scores_aligned["eff_scores"].fillna(0.0)
+        avg_quantile_20 = norm_scores_aligned["average_scores"].dropna().quantile(0.2)
+        prev_avg_quantile_20 = norm_scores_aligned["previous_average_scores"].dropna().quantile(0.2)
+        norm_scores_aligned["average_scores"] = norm_scores_aligned["average_scores"].fillna(
+            avg_quantile_20
+        )
+        norm_scores_aligned["previous_average_scores"] = norm_scores_aligned[
+            "previous_average_scores"
+        ].fillna(prev_avg_quantile_20)
 
         # if there are duplicates, log error
         if norm_scores_aligned.duplicated(subset=["miner_uid", "hotkey"]).any():
@@ -438,8 +462,16 @@ class ScorePredictions(AbstractTask):
         return norm_scores_aligned
 
     def set_weights(self):
-        # re-normalize the scores for the weights
+        # re-normalize the scores for the weights - should be already normalized
         raw_weights = torch.nn.functional.normalize(self.state["scores"], p=1, dim=0)
+        if not torch.equal(raw_weights, self.state["scores"]):
+            logger.warning(
+                "Scores normalized for the weights.",
+                extra={
+                    "scores": self.state["scores"].tolist(),
+                    "weights": raw_weights.tolist(),
+                },
+            )
 
         # this is only for logging purposes
         sorted_indices = torch.argsort(raw_weights, descending=True)
