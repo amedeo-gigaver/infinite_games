@@ -58,30 +58,37 @@ class TestResolveEventsTask:
         return DatabaseOperations(db_client=db_client)
 
     @pytest.fixture
-    def resolve_events_task(self, db_operations: DatabaseOperations, bt_wallet: Wallet):
-        api_client = IfGamesClient(
-            env="test", logger=MagicMock(spec=InfiniteGamesLogger), bt_wallet=bt_wallet
-        )
+    def logger_mock(self):
+        return MagicMock(spec=InfiniteGamesLogger)
+
+    @pytest.fixture
+    def resolve_events_task(
+        self, db_operations: DatabaseOperations, bt_wallet: Wallet, logger_mock: InfiniteGamesLogger
+    ):
+        api_client = IfGamesClient(env="test", logger=logger_mock, bt_wallet=bt_wallet)
 
         return ResolveEvents(
             interval_seconds=60.0,
             db_operations=db_operations,
             api_client=api_client,
+            logger=logger_mock,
         )
 
     async def test_run_no_pending_events(
-        self, db_operations_mock: DatabaseOperations, bt_wallet: Wallet
+        self,
+        db_operations_mock: DatabaseOperations,
+        bt_wallet: Wallet,
+        logger_mock: InfiniteGamesLogger,
     ):
         """Test the run method when there are no pending events."""
         # Arrange
-        api_client = IfGamesClient(
-            env="test", logger=MagicMock(spec=InfiniteGamesLogger), bt_wallet=bt_wallet
-        )
+        api_client = IfGamesClient(env="test", logger=logger_mock, bt_wallet=bt_wallet)
 
         resolve_events_task = ResolveEvents(
             interval_seconds=60.0,
             db_operations=db_operations_mock,
             api_client=api_client,
+            logger=logger_mock,
         )
         db_operations_mock.get_pending_events.return_value = []
 

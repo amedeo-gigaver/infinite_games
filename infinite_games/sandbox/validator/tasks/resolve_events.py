@@ -5,18 +5,21 @@ import aiohttp
 from infinite_games.sandbox.validator.db.operations import DatabaseOperations
 from infinite_games.sandbox.validator.if_games.client import IfGamesClient
 from infinite_games.sandbox.validator.scheduler.task import AbstractTask
+from infinite_games.sandbox.validator.utils.logger.logger import InfiniteGamesLogger
 
 
 class ResolveEvents(AbstractTask):
     interval: float
     api_client: IfGamesClient
     db_operations: DatabaseOperations
+    logger: InfiniteGamesLogger
 
     def __init__(
         self,
         interval_seconds: float,
         db_operations: DatabaseOperations,
         api_client: IfGamesClient,
+        logger: InfiniteGamesLogger,
     ):
         if not isinstance(interval_seconds, float) or interval_seconds <= 0:
             raise ValueError("interval_seconds must be a positive number (float).")
@@ -29,9 +32,14 @@ class ResolveEvents(AbstractTask):
         if not isinstance(api_client, IfGamesClient):
             raise TypeError("api_client must be an instance of IfGamesClient.")
 
+        # Validate logger
+        if not isinstance(logger, InfiniteGamesLogger):
+            raise TypeError("logger must be an instance of InfiniteGamesLogger.")
+
         self.interval = interval_seconds
         self.db_operations = db_operations
         self.api_client = api_client
+        self.logger = logger
 
     @property
     def name(self):
@@ -68,10 +76,17 @@ class ResolveEvents(AbstractTask):
                         resolved_at=resolved_at,
                     )
 
+                    self.logger.debug("Event resolved", extra={"event_id": event_id})
+
             except aiohttp.ClientResponseError as error:
                 # Clear deleted events
                 if error.status in [404, 410]:
                     await self.db_operations.delete_event(event_id=event_id)
+
+                    self.logger.debug(
+                        "Event deleted",
+                        extra={"event_id": event_id, "request_status": error.status},
+                    )
 
                     continue
 

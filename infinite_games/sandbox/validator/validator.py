@@ -40,7 +40,7 @@ async def main():
     )
 
     resolve_events_task = ResolveEvents(
-        interval_seconds=1800.0, db_operations=db_operations, api_client=api_client
+        interval_seconds=1800.0, db_operations=db_operations, api_client=api_client, logger=logger
     )
 
     # Set scheduler and add tasks
