@@ -1,3 +1,4 @@
+import sys
 import time
 from typing import Any, Awaitable, Callable, Iterable, Optional
 
@@ -22,6 +23,12 @@ class DatabaseClient:
         self.__db_path = db_path
         self.__logger = logger
 
+    def __get_caller_name(self) -> str:
+        try:
+            return sys._getframe(3).f_code.co_name
+        except Exception:
+            return "unknown"
+
     async def __wrap_execution(
         self, operation: Callable[[aiosqlite.Connection], Awaitable[any]]
     ) -> Awaitable[Any]:
@@ -31,13 +38,15 @@ class DatabaseClient:
             connection = await aiosqlite.connect(self.__db_path)
             return await operation(connection)
         finally:
-            if connection is not None:
+            if isinstance(connection, aiosqlite.Connection):
                 await connection.close()
 
             elapsed_time_ms = round((time.time() - start_time) * 1000)
 
             log = "SQL executed"
-            extra = {"elapsed_time_ms": elapsed_time_ms}
+
+            caller = self.__get_caller_name()
+            extra = {"elapsed_time_ms": elapsed_time_ms, "caller": caller}
 
             if elapsed_time_ms > 500:
                 self.__logger.warning(log, extra=extra)

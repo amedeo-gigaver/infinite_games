@@ -12,6 +12,7 @@
         "executemany",
         "executescript",
         "freezegun",
+        "getframe",
         "giveup",
         "ifgames",
         "iloc",
