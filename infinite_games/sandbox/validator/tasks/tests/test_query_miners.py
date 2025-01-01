@@ -42,12 +42,14 @@ class TestQueryMiners:
     def query_miners_task(self, db_operations: DatabaseOperations):
         dendrite = MagicMock(spec=DendriteMixin)
         metagraph = MagicMock(spec=MetagraphMixin)
+        logger = MagicMock(spec=InfiniteGamesLogger)
 
         return QueryMiners(
             interval_seconds=60.0,
             db_operations=db_operations,
             dendrite=dendrite,
             metagraph=metagraph,
+            logger=logger,
         )
 
     def test_get_axons(

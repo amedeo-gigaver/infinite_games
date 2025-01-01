@@ -1,4 +1,5 @@
 import json
+import time
 from datetime import datetime, timezone
 from typing import Iterable
 
@@ -11,6 +12,7 @@ from infinite_games.sandbox.validator.models.events_prediction_synapse import (
     EventsPredictionSynapse,
 )
 from infinite_games.sandbox.validator.scheduler.task import AbstractTask
+from infinite_games.sandbox.validator.utils.logger.logger import InfiniteGamesLogger
 
 AxonInfoByUidType = dict[int, AxonInfo]
 SynapseResponseByUidType = dict[int, EventsPredictionSynapse]
@@ -24,6 +26,7 @@ class QueryMiners(AbstractTask):
     db_operations: DatabaseOperations
     dendrite: DendriteMixin
     metagraph: MetagraphMixin
+    logger: InfiniteGamesLogger
 
     def __init__(
         self,
@@ -31,6 +34,7 @@ class QueryMiners(AbstractTask):
         db_operations: DatabaseOperations,
         dendrite: DendriteMixin,
         metagraph: MetagraphMixin,
+        logger: InfiniteGamesLogger,
     ):
         if not isinstance(interval_seconds, float) or interval_seconds <= 0:
             raise ValueError("interval_seconds must be a positive number (float).")
@@ -47,10 +51,15 @@ class QueryMiners(AbstractTask):
         if not isinstance(metagraph, MetagraphMixin):
             raise TypeError("metagraph must be an instance of MetagraphMixin.")
 
+        # Validate logger
+        if not isinstance(logger, InfiniteGamesLogger):
+            raise TypeError("logger must be an instance of InfiniteGamesLogger.")
+
         self.interval = interval_seconds
         self.db_operations = db_operations
         self.dendrite = dendrite
         self.metagraph = metagraph
+        self.logger = logger
 
     @property
     def name(self):
@@ -186,6 +195,8 @@ class QueryMiners(AbstractTask):
 
         axons_list = list(axons_by_uid.values())
 
+        start_time = time.time()
+
         # Use forward directly to make it async
         responses: list[EventsPredictionSynapse] = await self.dendrite.forward(
             # Send the query to selected miner axons in the network.
@@ -194,6 +205,13 @@ class QueryMiners(AbstractTask):
             # Do not deserialize the response so that we have access to the raw response.
             deserialize=False,
             timeout=timeout,
+        )
+
+        elapsed_time_ms = round((time.time() - start_time) * 1000)
+
+        self.logger.debug(
+            "Miners queried",
+            extra={"miners_count": len(axons_list), "elapsed_time_ms": elapsed_time_ms},
         )
 
         responses_by_uid: SynapseResponseByUidType = {}
