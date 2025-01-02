@@ -40,7 +40,7 @@ class ExportPredictions(AbstractTask):
             raise ValueError("batch_size must be a positive integer.")
 
         # Validate validator_uid
-        if not isinstance(validator_uid, int) or validator_uid <= 0 or validator_uid > 256:
+        if not isinstance(validator_uid, int) or validator_uid < 0 or validator_uid > 256:
             raise ValueError("validator_uid must be a positive integer.")
 
         # Validate validator_hotkey

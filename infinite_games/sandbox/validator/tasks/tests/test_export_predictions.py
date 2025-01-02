@@ -54,7 +54,7 @@ class TestExportPredictions:
             db_operations=db_operations,
             api_client=api_client,
             batch_size=1,
-            validator_uid=11,
+            validator_uid=0,
             validator_hotkey="validator_hotkey_test",
         )
 
@@ -91,7 +91,7 @@ class TestExportPredictions:
         assert submission["miner_hotkey"] == "miner_key_1"
         assert submission["miner_uid"] == "miner_uid_1"
         assert submission["validator_hotkey"] == "validator_hotkey_test"
-        assert submission["validator_uid"] == 11
+        assert submission["validator_uid"] == 0
         assert submission["title"] is None
         assert submission["outcome"] is None
 
@@ -211,7 +211,7 @@ class TestExportPredictions:
                             "miner_hotkey": "neuronHotkey_1",
                             "miner_uid": "neuronUid_1",
                             "validator_hotkey": "validator_hotkey_test",
-                            "validator_uid": 11,
+                            "validator_uid": 0,
                             "title": None,
                             "outcome": None,
                         }
@@ -236,7 +236,7 @@ class TestExportPredictions:
                             "miner_hotkey": "neuronHotkey_2",
                             "miner_uid": "neuronUid_2",
                             "validator_hotkey": "validator_hotkey_test",
-                            "validator_uid": 11,
+                            "validator_uid": 0,
                             "title": None,
                             "outcome": None,
                         }

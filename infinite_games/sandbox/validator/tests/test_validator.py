@@ -13,6 +13,7 @@ class TestValidator:
         with (
             patch("infinite_games.sandbox.validator.validator.get_config") as mock_get_config,
             patch("infinite_games.sandbox.validator.validator.Dendrite", spec=True),
+            patch("infinite_games.sandbox.validator.validator.Wallet", spec=True),
             patch(
                 "infinite_games.sandbox.validator.validator.Subtensor", spec=True
             ) as MockSubtensor,
@@ -23,6 +24,7 @@ class TestValidator:
                 "infinite_games.sandbox.validator.validator.TasksScheduler"
             ) as MockTasksScheduler,
             patch("infinite_games.sandbox.validator.validator.logger", spec=True) as mock_logger,
+            patch("infinite_games.sandbox.validator.validator.ExportPredictions", spec=True),
             patch("infinite_games.sandbox.validator.validator.ScorePredictions", spec=True),
         ):
             # Mock Config
@@ -49,7 +51,7 @@ class TestValidator:
             # Mock Logger
             mock_logger.start_session = MagicMock()
 
-            # Run the event loop to test the async function
+            # Run the validator
             asyncio.run(main())
 
             # Verify start session called
@@ -62,4 +64,4 @@ class TestValidator:
             mock_scheduler.start.assert_awaited_once()
 
             # Verify tasks
-            assert mock_scheduler.add.call_count == 4
+            assert mock_scheduler.add.call_count == 5

@@ -7,6 +7,7 @@ from infinite_games.sandbox.validator.db.client import DatabaseClient
 from infinite_games.sandbox.validator.db.operations import DatabaseOperations
 from infinite_games.sandbox.validator.if_games.client import IfGamesClient
 from infinite_games.sandbox.validator.scheduler.tasks_scheduler import TasksScheduler
+from infinite_games.sandbox.validator.tasks.export_predictions import ExportPredictions
 from infinite_games.sandbox.validator.tasks.pull_events import PullEvents
 from infinite_games.sandbox.validator.tasks.query_miners import QueryMiners
 from infinite_games.sandbox.validator.tasks.resolve_events import ResolveEvents
@@ -22,9 +23,6 @@ async def main():
     # Set dependencies
     config = get_config()
 
-    db_client = DatabaseClient(db_path="new_validator.db", logger=logger)
-    await db_client.migrate()
-
     # Bittensor stuff
     bt_netuid = config.get("netuid")
     bt_network = config.get("subtensor").get("network")
@@ -33,9 +31,18 @@ async def main():
     bt_subtensor = Subtensor(config=config)
     bt_metagraph = bt_subtensor.metagraph(netuid=bt_netuid, lite=True)
 
+    validator_hotkey = bt_wallet.hotkey.ss58_address
+    validator_uid = bt_metagraph.hotkeys.index(validator_hotkey)
+
+    db_client = DatabaseClient(db_path="new_validator.db", logger=logger)
+
     db_operations = DatabaseOperations(db_client=db_client)
+
     env: IfGamesClient.EnvType = "prod" if bt_network == "finney" else "test"
     api_client = IfGamesClient(env=env, logger=logger, bt_wallet=bt_wallet)
+
+    # Migrate db
+    await db_client.migrate()
 
     # Set tasks
     pull_events_task = PullEvents(
@@ -47,11 +54,20 @@ async def main():
     )
 
     query_miners_task = QueryMiners(
-        interval_seconds=300.0,
+        interval_seconds=180.0,
         db_operations=db_operations,
         dendrite=bt_dendrite,
         metagraph=bt_metagraph,
         logger=logger,
+    )
+
+    export_predictions_task = ExportPredictions(
+        interval_seconds=180.0,
+        db_operations=db_operations,
+        api_client=api_client,
+        batch_size=200,
+        validator_uid=validator_uid,
+        validator_hotkey=validator_hotkey,
     )
 
     # TODO: add the logger to the ScorePredictions object
@@ -71,6 +87,7 @@ async def main():
     scheduler.add(task=pull_events_task)
     scheduler.add(task=resolve_events_task)
     scheduler.add(task=query_miners_task)
+    scheduler.add(task=export_predictions_task)
     scheduler.add(task=score_predictions_task)
 
     # Start tasks
