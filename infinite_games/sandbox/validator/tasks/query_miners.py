@@ -134,6 +134,7 @@ class QueryMiners(AbstractTask):
 
         for event in events:
             event_id = event[0]
+            truncated_market_type = event[1]
             description = event[2]
             cutoff = int(datetime.fromisoformat(event[3]).timestamp()) if event[3] else None
             resolve_date = int(datetime.fromisoformat(event[4]).timestamp()) if event[4] else None
@@ -141,7 +142,7 @@ class QueryMiners(AbstractTask):
             metadata = {**json.loads(event[6])}
             market_type = (metadata.get("market_type", event[1])).lower()
 
-            compiled_events[f"{market_type}-{event_id}"] = {
+            compiled_events[f"{truncated_market_type}-{event_id}"] = {
                 "event_id": event_id,
                 "market_type": market_type,
                 "probability": None,

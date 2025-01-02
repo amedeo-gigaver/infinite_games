@@ -141,7 +141,7 @@ class TestQueryMiners:
         assert len(synapse.events) == 2
 
         # Assert event 1
-        expected_key = "acled-event1"
+        expected_key = "ifgames-event1"
 
         assert expected_key in synapse.events
 
@@ -158,7 +158,7 @@ class TestQueryMiners:
         assert event_data["end_date"] == 1354545000
 
         # Assert event 2
-        expected_key = "azuro-event2"
+        expected_key = "ifgames-event2"
 
         assert expected_key in synapse.events
 
@@ -197,7 +197,7 @@ class TestQueryMiners:
 
         neuron_predictions = EventPredictionSynapse(
             events={
-                "acled-event1": {
+                "ifgames-event1": {
                     "event_id": "event1",
                     "market_type": "acled",
                     "probability": 0.5,
@@ -208,7 +208,7 @@ class TestQueryMiners:
                     "resolve_date": 1354458600,
                     "end_date": 1354545000,
                 },
-                "azuro-event2": {
+                "ifgames-event2": {
                     "event_id": "event2",
                     "market_type": "azuro",
                     "probability": 0.75,
@@ -219,7 +219,7 @@ class TestQueryMiners:
                     "resolve_date": 1354458600,
                     "end_date": 1354545000,
                 },
-                "azuro-event3": {
+                "ifgames-event3": {
                     "event_id": "event3",
                     "market_type": "azuro",
                     # None predictions are dropped
@@ -243,7 +243,7 @@ class TestQueryMiners:
 
         assert result == [
             (
-                "acled-event1",
+                "ifgames-event1",
                 query_miners_task.metagraph.axons[uid].hotkey,
                 uid,
                 0.5,
@@ -253,7 +253,7 @@ class TestQueryMiners:
                 0.5,
             ),
             (
-                "azuro-event2",
+                "ifgames-event2",
                 query_miners_task.metagraph.axons[uid].hotkey,
                 uid,
                 0.75,
@@ -527,7 +527,7 @@ class TestQueryMiners:
         assert predictions == [
             (
                 # unique_event_id
-                "sports-event1",
+                "ifgames-event1",
                 # minerHotkey
                 "hotkey_1",
                 # minerUid
@@ -552,7 +552,7 @@ class TestQueryMiners:
                 0,
             ),
             (
-                "acled-event2",
+                "ifgames-event2",
                 "hotkey_1",
                 "1",
                 "0.8",
@@ -566,7 +566,7 @@ class TestQueryMiners:
                 0,
             ),
             (
-                "sports-event1",
+                "ifgames-event1",
                 "hotkey_2",
                 "2",
                 "0.8",
@@ -580,7 +580,7 @@ class TestQueryMiners:
                 0,
             ),
             (
-                "acled-event2",
+                "ifgames-event2",
                 "hotkey_2",
                 "2",
                 "0.8",
@@ -597,11 +597,11 @@ class TestQueryMiners:
 
         miners = await db_client.many(
             """
-                    SELECT
-                        miner_uid,
-                        miner_hotkey
-                    FROM
-                        miners
+                SELECT
+                    miner_uid,
+                    miner_hotkey
+                FROM
+                    miners
                 """
         )
 
