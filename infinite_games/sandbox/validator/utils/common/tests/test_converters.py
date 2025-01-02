@@ -3,9 +3,14 @@ from typing import Optional
 
 import numpy as np
 import pandas as pd
+import pytest
+import torch
 from pydantic import BaseModel
 
-from infinite_games.sandbox.validator.utils.common.converters import pydantic_models_to_dataframe
+from infinite_games.sandbox.validator.utils.common.converters import (
+    pydantic_models_to_dataframe,
+    torch_or_numpy_to_int,
+)
 
 
 class TestModel(BaseModel):
@@ -100,3 +105,62 @@ class TestPydanticModelToDataFrame:
         assert df.loc[0, "custom_field"] == 3 + 4j
         # dtype might be object since no mapping was done
         assert df["custom_field"].dtype in (object, np.dtype("complex128"))
+
+
+class TestTorchOrNumpyToInteger:
+    def test_torch_tensor_single_value(self):
+        tensor = torch.tensor([42.0])
+        result = torch_or_numpy_to_int(tensor)
+        assert result == 42
+
+    def test_torch_parameter_single_value(self):
+        param = torch.nn.Parameter(torch.tensor([42.0]))
+        result = torch_or_numpy_to_int(param)
+        assert result == 42
+
+    def test_numpy_array_single_value(self):
+        ndarray = np.array([42])
+        result = torch_or_numpy_to_int(ndarray)
+        assert result == 42
+
+    def test_numpy_int64(self):
+        value = np.int64(42)
+        result = torch_or_numpy_to_int(value)
+        assert result == 42
+
+    def test_torch_tensor_zero_dimension(self):
+        tensor = torch.tensor(42)
+        result = torch_or_numpy_to_int(tensor)
+        assert result == 42
+
+    def test_numpy_array_zero_dimension(self):
+        ndarray = np.array(42)  # 0-D array
+        result = torch_or_numpy_to_int(ndarray)
+        assert result == 42
+
+    def test_torch_parameter_zero_dimension(self):
+        param = torch.nn.Parameter(torch.tensor(42.0))  # 0-D tensor
+        result = torch_or_numpy_to_int(param)
+        assert result == 42
+
+    def test_torch_tensor_multiple_values(self):
+        tensor = torch.tensor([1.0, 2.0, 3.0])
+        with pytest.raises(RuntimeError):
+            torch_or_numpy_to_int(tensor)
+
+    def test_torch_parameter_multiple_values(self):
+        param = torch.nn.Parameter(torch.tensor([1.0, 2.0, 3.0]))
+        with pytest.raises(RuntimeError):
+            torch_or_numpy_to_int(param)
+
+    def test_numpy_array_multiple_values(self):
+        ndarray = np.array([1, 2, 3])
+        with pytest.raises(
+            ValueError, match="NDArray contains multiple elements; cannot convert to int."
+        ):
+            torch_or_numpy_to_int(ndarray)
+
+    def test_unsupported_type(self):
+        value = "not_supported"
+        with pytest.raises(TypeError, match="Unsupported type for conversion to int."):
+            torch_or_numpy_to_int(value)

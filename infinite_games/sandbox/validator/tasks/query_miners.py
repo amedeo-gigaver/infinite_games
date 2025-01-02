@@ -12,6 +12,7 @@ from infinite_games.sandbox.validator.models.events_prediction_synapse import (
     EventsPredictionSynapse,
 )
 from infinite_games.sandbox.validator.scheduler.task import AbstractTask
+from infinite_games.sandbox.validator.utils.common.converters import torch_or_numpy_to_int
 from infinite_games.sandbox.validator.utils.logger.logger import InfiniteGamesLogger
 
 AxonInfoByUidType = dict[int, AxonInfo]
@@ -81,7 +82,7 @@ class QueryMiners(AbstractTask):
 
         # Sync metagraph & store the current block
         self.metagraph.sync(lite=True)
-        block = self.metagraph.block
+        block = torch_or_numpy_to_int(self.metagraph.block)
 
         # Get axons to query
         axons = self.get_axons()
@@ -110,8 +111,7 @@ class QueryMiners(AbstractTask):
         axons: AxonInfoByUidType = {}
 
         for uid in self.metagraph.uids:
-            # int_uid = uid.item()
-            int_uid = uid
+            int_uid = torch_or_numpy_to_int(uid)
 
             axon = self.metagraph.axons[int_uid]
 

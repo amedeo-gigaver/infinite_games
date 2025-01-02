@@ -4,7 +4,9 @@ import tempfile
 from datetime import datetime, timedelta, timezone
 from unittest.mock import ANY, AsyncMock, MagicMock, call, patch
 
+import numpy as np
 import pytest
+import torch
 from bittensor.core.chain_data import AxonInfo
 from bittensor.core.dendrite import DendriteMixin
 from bittensor.core.metagraph import MetagraphMixin
@@ -57,7 +59,7 @@ class TestQueryMiners:
         query_miners_task: QueryMiners,
     ):
         # Set up the mock attributes
-        query_miners_task.metagraph.uids = [1, 2, 3]  # UIDs in the metagraph
+        query_miners_task.metagraph.uids = np.array([1, 2, 3])  # UIDs in the metagraph
         query_miners_task.metagraph.axons = {
             1: MagicMock(is_serving=True),  # Valid axon
             2: MagicMock(is_serving=False),  # Not serving
@@ -76,7 +78,7 @@ class TestQueryMiners:
         query_miners_task: QueryMiners,
     ):
         # Set up the mock attributes
-        query_miners_task.metagraph.uids = []  # No UIDs in the metagraph
+        query_miners_task.metagraph.uids = np.array([])  # No UIDs in the metagraph
 
         # Call the method
         result = query_miners_task.get_axons()
@@ -185,7 +187,7 @@ class TestQueryMiners:
 
     def test_parse_neuron_predictions(self, query_miners_task: QueryMiners):
         # Set up the mock attributes
-        query_miners_task.metagraph.uids = [1, 2]
+        query_miners_task.metagraph.uids = np.array([1, 2])
         query_miners_task.metagraph.axons = {
             1: MagicMock(hotkey="hotkey1"),
             2: MagicMock(hotkey="hotkey2"),
@@ -483,10 +485,10 @@ class TestQueryMiners:
         await db_operations.upsert_events(events)
 
         # Set up the bittensor mocks
-        block = 101
+        block = 101.0
 
-        query_miners_task.metagraph.block = block
-        query_miners_task.metagraph.uids = [1, 2]
+        query_miners_task.metagraph.uids = torch.nn.Parameter(torch.tensor([1.0, 2.0]))
+        query_miners_task.metagraph.block = torch.nn.Parameter(torch.tensor(block))
         query_miners_task.metagraph.axons = {
             1: MagicMock(is_serving=True, hotkey="hotkey_1", ip="ip_1"),
             2: MagicMock(is_serving=True, hotkey="hotkey_2", ip="ip_2"),
@@ -623,8 +625,9 @@ class TestQueryMiners:
         self, db_operations: DatabaseOperations, query_miners_task: QueryMiners
     ):
         # Set up the mock attributes
-        query_miners_task.metagraph.uids = []
-        query_miners_task.metagraph.block = 99
+        query_miners_task.metagraph.uids = torch.nn.Parameter(torch.tensor([]))
+        query_miners_task.metagraph.block = torch.nn.Parameter(torch.tensor(99.0))
+
         query_miners_task.query_neurons = MagicMock()
         query_miners_task.make_predictions_synapse = MagicMock()
 

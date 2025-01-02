@@ -6,16 +6,28 @@ import torch
 from pydantic import BaseModel
 
 
-def torch_parameter_or_np_array_to_int(value: Union[torch.nn.Parameter, np.ndarray]) -> int:
-    if isinstance(value, torch.nn.Parameter):
+def torch_or_numpy_to_int(
+    value: Union[torch.Tensor, torch.nn.Parameter, np.ndarray, np.int64]
+) -> int:
+    if isinstance(value, torch.Tensor):
+        # Convert the Tensor to a scalar
+        return int(value.item())
+
+    elif isinstance(value, torch.nn.Parameter):
         # Convert the Parameter to a scalar if it contains a single value
         return int(value.data.item())
+
     elif isinstance(value, np.ndarray):
         # Convert ndarray to a scalar if it contains a single value
         if value.size == 1:  # Ensure it's a single element
             return int(value.item())
         else:
             raise ValueError("NDArray contains multiple elements; cannot convert to int.")
+
+    elif isinstance(value, np.int64):
+        # Convert Numpy value to int
+        return value.item()
+
     else:
         raise TypeError("Unsupported type for conversion to int.")
 
