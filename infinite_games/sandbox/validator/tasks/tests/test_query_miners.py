@@ -14,9 +14,7 @@ from bittensor.core.metagraph import MetagraphMixin
 from infinite_games.sandbox.validator.db.client import DatabaseClient
 from infinite_games.sandbox.validator.db.operations import DatabaseOperations
 from infinite_games.sandbox.validator.models.event import EventStatus
-from infinite_games.sandbox.validator.models.events_prediction_synapse import (
-    EventsPredictionSynapse,
-)
+from infinite_games.sandbox.validator.models.event_prediction_synapse import EventPredictionSynapse
 from infinite_games.sandbox.validator.tasks.query_miners import QueryMiners
 from infinite_games.sandbox.validator.utils.logger.logger import InfiniteGamesLogger
 
@@ -139,7 +137,7 @@ class TestQueryMiners:
 
         synapse = query_miners_task.make_predictions_synapse(events=events_from_db)
 
-        assert isinstance(synapse, EventsPredictionSynapse)
+        assert isinstance(synapse, EventPredictionSynapse)
         assert len(synapse.events) == 2
 
         # Assert event 1
@@ -182,7 +180,7 @@ class TestQueryMiners:
 
         result = query_miners_task.make_predictions_synapse(events=events)
 
-        assert isinstance(result, EventsPredictionSynapse)
+        assert isinstance(result, EventPredictionSynapse)
         assert len(result.events) == 0
 
     def test_parse_neuron_predictions(self, query_miners_task: QueryMiners):
@@ -197,7 +195,7 @@ class TestQueryMiners:
         block = 54321
         uid = 2
 
-        neuron_predictions = EventsPredictionSynapse(
+        neuron_predictions = EventPredictionSynapse(
             events={
                 "acled-event1": {
                     "event_id": "event1",
@@ -267,7 +265,7 @@ class TestQueryMiners:
         ]
 
     async def test_query_neurons(self, query_miners_task: QueryMiners):
-        synapse = EventsPredictionSynapse(events={})
+        synapse = EventPredictionSynapse(events={})
 
         axons_by_uid = {"1": MagicMock(spec=AxonInfo), "50": MagicMock(spec=AxonInfo)}
 
@@ -351,7 +349,7 @@ class TestQueryMiners:
         interval_start_minutes = 12345
         block = 54321
 
-        synapse = EventsPredictionSynapse(
+        synapse = EventPredictionSynapse(
             events={
                 "acled-event1": {
                     "event_id": "event1",
@@ -495,7 +493,7 @@ class TestQueryMiners:
         }
 
         async def forward(
-            axons: list[AxonInfo], synapse: EventsPredictionSynapse, deserialize: bool, timeout: int
+            axons: list[AxonInfo], synapse: EventPredictionSynapse, deserialize: bool, timeout: int
         ):
             # Add a fake probability to each event in synapse.events
             for _, event in synapse.events.items():

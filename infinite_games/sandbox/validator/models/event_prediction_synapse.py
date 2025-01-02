@@ -1,5 +1,5 @@
 from bittensor import Synapse
 
 
-class EventsPredictionSynapse(Synapse):
+class EventPredictionSynapse(Synapse):
     events: dict
