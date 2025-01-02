@@ -88,14 +88,13 @@ class ScorePredictions(AbstractTask):
         # keep the same path for backwards compatibility
         # /home/vscode/.bittensor/miners/validator/default/netuid155/validator/state.pt
         self.state_file = Path(
-            Path.home(),
             self.config.logging.logging_dir,
             self.config.wallet.name,
             self.config.wallet.hotkey,
             f"netuid{self.config.netuid}",
             "validator",  # hardcoded to validator, state.pt used only for validator
             "state.pt",
-        )
+        ).expanduser()
 
         self.errors_count = 0
 
