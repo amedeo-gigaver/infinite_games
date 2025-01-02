@@ -135,7 +135,7 @@ class IfGamesClient:
                 return await response.json()
 
     async def post_predictions(self, predictions: dict[any]):
-        if not isinstance(predictions, list):
+        if not isinstance(predictions, dict):
             raise ValueError("Invalid parameter")
 
         assert len(predictions) > 0

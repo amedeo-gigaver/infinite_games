@@ -334,7 +334,7 @@ class TestIfGamesClient:
         # Define mock response data
         mock_response_data = {"fake_response": "ok"}
 
-        predictions = [{"fake_data": "fake_data"}]
+        predictions = {"submissions": [{"fake_data": "fake_data"}], "events": None}
 
         with aioresponses() as mocked:
             url_path = "/api/v1/validators/data"
@@ -356,7 +356,7 @@ class TestIfGamesClient:
         # Define mock response data
         mock_response_data = {"fake_response": "ok"}
 
-        predictions = [{"fake_data": "fake_data"}]
+        predictions = {"submissions": [{"fake_data": "fake_data"}], "events": None}
 
         status_code = 500
 

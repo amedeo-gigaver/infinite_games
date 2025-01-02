@@ -24,6 +24,9 @@ def get_config():
 
 
 async def main():
+    # Start session id
+    logger.start_session()
+
     # Set dependencies
     config = get_config()
 
