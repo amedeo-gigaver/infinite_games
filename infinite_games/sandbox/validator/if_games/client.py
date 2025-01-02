@@ -150,8 +150,8 @@ class IfGamesClient:
 
                 return await response.json()
 
-    async def post_scores(self, scores: list[dict]):
-        if not isinstance(scores, list):
+    async def post_scores(self, scores: dict):
+        if not isinstance(scores, dict):
             raise ValueError("Invalid parameter")
 
         assert len(scores) > 0

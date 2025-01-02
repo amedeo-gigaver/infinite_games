@@ -556,7 +556,7 @@ class ScorePredictions(AbstractTask):
                 },
             )
 
-        successful, msg = self.subtensor.set_weights(
+        successful, sw_msg = self.subtensor.set_weights(
             wallet=self.wallet,
             netuid=self.config.netuid,
             uids=processed_uids,
@@ -572,7 +572,7 @@ class ScorePredictions(AbstractTask):
             logger.error(
                 "Failed to set the weights.",
                 extra={
-                    "msg": msg,
+                    "fail_msg": sw_msg,
                     "processed_uids": processed_uids.tolist(),
                     "processed_weights": processed_weights.tolist(),
                 },
@@ -580,7 +580,7 @@ class ScorePredictions(AbstractTask):
         else:
             logger.debug("Weights set successfully.")
 
-        return successful, msg
+        return successful, sw_msg
 
     @backoff.on_exception(
         backoff.expo,
@@ -590,11 +590,11 @@ class ScorePredictions(AbstractTask):
         max_time=60,
         on_backoff=lambda details: logger.warning(
             "Retrying export scores.",
-            extra={"details": details},
+            extra={"details": str(details.get("exception", "unknown exception"))},
         ),
         on_giveup=lambda details: logger.error(
             "Failed to export scores.",
-            extra={"details": details},
+            extra={"details": str(details.get("exception", "unknown exception"))},
         ),
     )
     async def export_scores(self, event: EventsModel, final_scores: pd.DataFrame):
@@ -722,13 +722,13 @@ class ScorePredictions(AbstractTask):
 
         self.save_state()
 
-        success, msg = self.set_weights()
+        success, sw_msg = self.set_weights()
 
         if not success:
             self.errors_count += 1
             logger.error(
                 "Failed to set the weights, event is not processed & exported.",
-                extra={"event_id": event_id, "fail_msg": msg},
+                extra={"event_id": event_id, "fail_msg": sw_msg},
             )
             return
 
