@@ -85,8 +85,17 @@ class ScorePredictions(AbstractTask):
         self.api_client = api_client
         self.miners_last_reg = None
 
+        # keep the same path for backwards compatibility
         # /home/vscode/.bittensor/miners/validator/default/netuid155/validator/state.pt
-        self.state_file = Path(self.config.neuron.full_path, "state.pt")
+        self.state_file = Path(
+            Path.home(),
+            self.config.logging.logging_dir,
+            self.config.wallet.name,
+            self.config.wallet.hotkey,
+            f"netuid{self.config.netuid}",
+            "validator",  # hardcoded to validator, state.pt used only for validator
+            "state.pt",
+        )
 
         self.errors_count = 0
 
@@ -111,6 +120,7 @@ class ScorePredictions(AbstractTask):
 
     def save_state(self):
         try:
+            self.state_file.parent.mkdir(parents=True, exist_ok=True)
             torch.save(self.state, self.state_file)
         except Exception:
             logger.exception("Failed to save state.")
@@ -120,7 +130,7 @@ class ScorePredictions(AbstractTask):
         if not self.state_file.exists():
             self.errors_count += 1
             logger.error(
-                "State file does not exist, creating a new one.",
+                "State file does not exist, creating a new state.",
                 extra={"state_file_path": str(self.state_file)},
             )
             # reconstruct the state file
@@ -733,6 +743,11 @@ class ScorePredictions(AbstractTask):
 
     async def run(self):
         miners_last_reg_rows = await self.db_operations.get_miners_last_registration()
+
+        if not miners_last_reg_rows:
+            logger.error("No miners found in the DB, skipping scoring!")
+            return
+
         self.miners_last_reg = pydantic_models_to_dataframe(miners_last_reg_rows)
         # for some reason, someone decided to store the miner_uid as a string in the DB
         self.miners_last_reg["miner_uid"] = self.miners_last_reg["miner_uid"].astype(

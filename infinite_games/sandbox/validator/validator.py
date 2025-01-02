@@ -71,7 +71,7 @@ async def main():
     scheduler.add(task=pull_events_task)
     scheduler.add(task=resolve_events_task)
     # scheduler.add(task=query_miners_task)
-    # scheduler.add(task=score_predictions_task)
+    scheduler.add(task=score_predictions_task)
 
     # Start tasks
     await scheduler.start()

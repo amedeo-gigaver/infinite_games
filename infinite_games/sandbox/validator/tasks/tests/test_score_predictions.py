@@ -1,4 +1,5 @@
 import logging
+import shutil
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
@@ -31,9 +32,7 @@ class TestScorePredictions:
         test_dir = CURRENT_DIR / "test_dir"
         test_dir.mkdir(exist_ok=True)
         yield test_dir
-        for file in test_dir.iterdir():
-            file.unlink()
-        test_dir.rmdir()
+        shutil.rmtree(test_dir, ignore_errors=True)
 
     @pytest.fixture(scope="function")
     async def db_client(self):
@@ -76,6 +75,8 @@ class TestScorePredictions:
         config = MagicMock(spec=bt.Config)
         config.neuron = MagicMock()
         config.netuid = 155
+        config.logging = MagicMock()
+        config.wallet = MagicMock(return_value=bt_wallet)
         subtensor = MagicMock(spec=bt.Subtensor)
 
         # Mock metagraph attributes
@@ -88,7 +89,7 @@ class TestScorePredictions:
         subtensor.max_weight_limit.return_value = 10  # Set maximum weight limit
         subtensor.network = "mock"
 
-        config.neuron.full_path = setup_test_dir
+        config.logging.logging_dir = setup_test_dir
         with freeze_time("2024-12-27 07:00:00"):
             return ScorePredictions(
                 interval_seconds=60.0,
@@ -110,7 +111,15 @@ class TestScorePredictions:
         assert unit.wallet.hotkey.ss58_address == "hotkey2"
         assert unit.vali_uid == 1
         assert unit.is_test is True
-        assert unit.state_file == Path(CURRENT_DIR, "test_dir/state.pt")
+        assert unit.state_file == Path(
+            CURRENT_DIR,
+            "test_dir",
+            unit.config.wallet.name,
+            unit.config.wallet.hotkey,
+            "netuid155",
+            "validator",
+            "state.pt",
+        )
 
     def test_load_save_state(self, score_predictions_task: ScorePredictions):
         unit = score_predictions_task
