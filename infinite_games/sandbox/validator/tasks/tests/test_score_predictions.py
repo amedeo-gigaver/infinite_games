@@ -79,9 +79,9 @@ class TestScorePredictions:
         subtensor = MagicMock(spec=bt.Subtensor)
 
         # Mock metagraph attributes
-        metagraph.uids = [1, 2, 3]
+        metagraph.uids = torch.tensor([1, 2, 3], dtype=torch.int32).to("cpu")
         metagraph.hotkeys = ["hotkey1", "hotkey2", "hotkey3"]
-        metagraph.n = 3
+        metagraph.n = torch.tensor(3, dtype=torch.int32).to("cpu")
 
         # Mock subtensor methods
         subtensor.min_allowed_weights.return_value = 1  # Set minimum allowed weights
@@ -104,7 +104,7 @@ class TestScorePredictions:
         unit = score_predictions_task
 
         assert isinstance(unit, ScorePredictions)
-        assert unit.current_uids == [1, 2, 3]
+        assert torch.equal(unit.current_uids, torch.tensor([1, 2, 3], dtype=torch.int32))
         assert unit.current_hotkeys == ["hotkey1", "hotkey2", "hotkey3"]
         assert unit.n_hotkeys == 3
         assert unit.wallet.hotkey.ss58_address == "hotkey2"
@@ -275,7 +275,7 @@ class TestScorePredictions:
         # Add miner's registration mock
         unit.miners_last_reg = pd.DataFrame(
             {
-                "uid": ["miner_1"],
+                "miner_uid": ["miner_1"],
                 "registered_date": [miner_reg_date],
             }
         )
@@ -292,7 +292,7 @@ class TestScorePredictions:
             # Case 0: No miners and no predictions
             (
                 [],  # Empty predictions
-                pd.DataFrame(columns=["uid", "hotkey", "registered_date"]),
+                pd.DataFrame(columns=["miner_uid", "miner_hotkey", "registered_date"]),
                 pd.DataFrame(
                     columns=["miner_uid", "hotkey", "rema_brier_score", "rema_prediction"]
                 ),
@@ -321,8 +321,8 @@ class TestScorePredictions:
                 ],
                 pd.DataFrame(
                     {
-                        "uid": [1],
-                        "hotkey": ["hotkey_1"],
+                        "miner_uid": [1],
+                        "miner_hotkey": ["hotkey_1"],
                         "registered_date": [datetime(2024, 12, 26, 0, 0, 0, 0, timezone.utc)],
                     }
                 ),
@@ -365,8 +365,8 @@ class TestScorePredictions:
                 ],
                 pd.DataFrame(
                     {
-                        "uid": [1, 2],
-                        "hotkey": ["hotkey_1", "hotkey_2"],
+                        "miner_uid": [1, 2],
+                        "miner_hotkey": ["hotkey_1", "hotkey_2"],
                         "registered_date": [
                             datetime(2024, 12, 26, 0, 0, 0, 0, timezone.utc),
                             datetime(2024, 12, 26, 0, 0, 0, 0, timezone.utc),
@@ -1210,8 +1210,8 @@ class TestScorePredictions:
 
         # Mock methods
         unit.db_operations.get_predictions_for_scoring = AsyncMock(return_value=predictions)
-        unit.db_operations.mark_event_as_processed = MagicMock()
-        unit.db_operations.mark_event_as_exported = MagicMock()
+        unit.db_operations.mark_event_as_processed = AsyncMock()
+        unit.db_operations.mark_event_as_exported = AsyncMock()
         unit.save_state = MagicMock()
         unit.set_weights = MagicMock(return_value=(True, "success"))
         unit.export_scores = AsyncMock()
@@ -1237,7 +1237,7 @@ class TestScorePredictions:
         unit.check_reset_daily_scores = MagicMock()
 
         # Call the method
-        await unit.score_event(event, predictions)
+        await unit.score_event(event)
 
         # Check logs
         error_calls = mock_logger.error.call_args_list
@@ -1257,7 +1257,8 @@ class TestScorePredictions:
                 assert warning_calls[0].args[0] == log["message"]
                 assert warning_calls[0].kwargs["extra"]["event_id"] == log["extra"]["event_id"]
                 assert (
-                    warning_calls[0].kwargs["extra"]["event_cutoff"] == log["extra"]["event_cutoff"]
+                    warning_calls[0].kwargs["extra"]["event_cutoff"]
+                    == log["extra"]["event_cutoff"].isoformat()
                 )
             elif log["level"] == "debug":
                 assert len(debug_calls) == 1
@@ -1362,7 +1363,8 @@ class TestScorePredictions:
                     },
                     {
                         "level": "debug",
-                        "message": "All events scored, weights set, scores exported.",
+                        "message": "Events scoring loop finished. Confirm that errors count in logs is 0!",
+                        "extra": {"errors_count_in_logs": 1},
                     },
                 ],
             ),
@@ -1407,3 +1409,156 @@ class TestScorePredictions:
                 unit.score_event.assert_any_await(event)
         else:
             unit.score_event.assert_not_called()
+
+    async def test_e2e_run(
+        self,
+        score_predictions_task,
+        db_client,
+    ):
+        # Mock dependencies
+        unit = score_predictions_task
+        unit.export_scores = AsyncMock()
+        unit.subtensor.set_weights.return_value = (True, "success")
+
+        # real db client
+        db_ops = unit.db_operations
+
+        expected_event_id = "event1"
+
+        events = [
+            EventsModel(
+                unique_event_id=expected_event_id,
+                event_id=expected_event_id,
+                market_type="truncated_market1",
+                event_type="market1",
+                description="desc1",
+                starts="2024-12-02",
+                resolve_date="2024-12-28",
+                outcome="1",
+                status=3,
+                metadata='{"key": "value"}',
+                created_at="2024-12-02T14:30:00+00:00",
+                cutoff="2024-12-27T14:30:00+00:00",
+                end_date="2024-12-30T14:30:00+00:00",
+            ),
+            EventsModel(
+                unique_event_id="unique2",
+                event_id="event2",
+                market_type="truncated_market2",
+                event_type="market2",
+                description="desc2",
+                starts="2024-12-03",
+                resolve_date="2024-12-04",
+                outcome=None,
+                status=2,
+                metadata='{"key": "value"}',
+                created_at="2024-12-02T14:30:00+00:00",
+                cutoff="2024-12-27T14:30:00+00:00",
+                end_date="2024-12-30T14:30:00+00:00",
+            ),
+        ]
+
+        fixed_timestamp = datetime(2024, 12, 26, 12, 0, 0, tzinfo=timezone.utc).isoformat()
+        await db_ops.upsert_pydantic_events(events)
+
+        # update the registered date to fixed timestamp
+        await db_client.update(f"UPDATE events SET registered_date = '{fixed_timestamp}'")
+
+        events_for_scoring = await db_ops.get_events_for_scoring()
+
+        assert len(events_for_scoring) == 1
+        assert events_for_scoring[0].event_id == expected_event_id
+
+        predictions = [
+            (
+                "unique2",
+                None,
+                "1",
+                None,
+                519840,
+                "1",
+                519840,
+                "1",
+            ),
+            (
+                expected_event_id,
+                None,
+                "2",
+                None,
+                519840,
+                "1",
+                519840,
+                "1",
+            ),
+            (
+                expected_event_id,
+                None,
+                "3",
+                None,
+                519840,
+                "1",
+                519840,
+                "1",
+            ),
+        ]
+
+        await db_ops.upsert_predictions(predictions)
+
+        preds = await db_ops.get_predictions_for_scoring(event_id=expected_event_id)
+        assert len(preds) == 2
+        assert preds[0].unique_event_id == expected_event_id
+        assert preds[1].unique_event_id == expected_event_id
+
+        miners = [
+            (
+                "1",
+                "hotkey1",
+                "0.0.0.0",
+                "2024-12-01",
+                "100",
+                "0.0.0.0",
+                "100",
+            ),
+            (
+                "2",
+                "hotkey2",
+                "0.0.0.0",
+                "2024-12-01",
+                "100",
+                "0.0.0.0",
+                "100",
+            ),
+        ]
+        await db_ops.upsert_miners(miners)
+
+        # Call the method
+        with freeze_time("2024-12-28 07:00:00"):
+            await unit.run()
+
+        assert unit.subtensor.set_weights.call_count == 1
+        call_args = unit.subtensor.set_weights.call_args
+        assert call_args.kwargs["weights"].tolist() == pytest.approx([0.0227541, 0.9772459])
+        assert call_args.kwargs["uids"].tolist() == [1, 2]
+
+        assert unit.export_scores.call_count == 1
+        assert unit.state["scoring_iterations"] == 0  # reset after scoring because state.pt missing
+        assert unit.state["latest_reset_date"] == datetime(
+            2024, 12, 28, 0, 0, 0, tzinfo=timezone.utc
+        )
+        assert unit.state["average_scores"].tolist() == [0.0, 0.0, 0.0]  # reset after scoring
+        assert unit.state["previous_average_scores"].tolist() == pytest.approx(
+            [0.0227541, 0.9772458, 0.2136524]
+        )
+        assert unit.state["miner_uids"].tolist() == [1, 2, 3]
+        assert unit.state["hotkeys"] == ["hotkey1", "hotkey2", "hotkey3"]
+        assert unit.state["scores"].tolist() == pytest.approx([0.01820328, 0.78179669, 0.0])
+
+        # check the event is marked as processed and exported
+        events = await db_client.many(
+            "SELECT unique_event_id, processed, exported FROM events ORDER BY unique_event_id"
+        )
+
+        assert len(events) == 2
+        assert events[0][0] == expected_event_id
+        assert events[0][1] == 1  # processed
+        assert events[0][2] == 1  # exported

@@ -24,6 +24,7 @@
         "netuid",
         "Opentensor",
         "polymarket",
+        "pydatetime",
         "pytest",
         "subtensor",
         "uids",

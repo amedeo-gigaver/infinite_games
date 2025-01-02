@@ -88,6 +88,8 @@ class ScorePredictions(AbstractTask):
         # /home/vscode/.bittensor/miners/validator/default/netuid155/validator/state.pt
         self.state_file = Path(self.config.neuron.full_path, "state.pt")
 
+        self.errors_count = 0
+
         # load last object state
         self.state = None
         self.load_state()
@@ -116,6 +118,11 @@ class ScorePredictions(AbstractTask):
 
     def load_state(self) -> dict:
         if not self.state_file.exists():
+            self.errors_count += 1
+            logger.error(
+                "State file does not exist, creating a new one.",
+                extra={"state_file_path": str(self.state_file)},
+            )
             # reconstruct the state file
             state = {}
             state["step"] = 0  # unused but kept for compatibility
@@ -156,23 +163,19 @@ class ScorePredictions(AbstractTask):
         # outcome is text in DB :|
         outcome = float(event.outcome)
 
-        # clamp predictions between 0 and 1
-        miner_predictions["interval_agg_prediction"] = miner_predictions[
-            "interval_agg_prediction"
-        ].clip(0, 1)
-
         # if miners could have predicted but didn't, gets a score of 0
-        miner_reg_date = self.miners_last_reg[self.miners_last_reg["uid"] == context["miner_uid"]][
-            "registered_date"
-        ].iloc[
+        miner_reg_date = self.miners_last_reg[
+            self.miners_last_reg["miner_uid"] == context["miner_uid"]
+        ]["registered_date"].iloc[
             0
         ]  # DB primary key ensures only one row
+        miner_reg_date = miner_reg_date.to_pydatetime().replace(tzinfo=timezone.utc)
         if miner_reg_date < event.registered_date and miner_predictions.empty:
             logger.debug(
-                "Miner did not predict for an event.",
+                "Miner did not predict for an event, gets 0.0 rema_brier_score.",
                 extra={
                     "miner_uid": context["miner_uid"],
-                    "event_id": event.unique_event_id,
+                    "unique_event_id": event.unique_event_id,
                     "miner_reg_date": miner_reg_date.strftime("%Y-%m-%d %H:%M:%S"),
                     "event_reg_date": event.registered_date.strftime("%Y-%m-%d %H:%M:%S"),
                 },
@@ -181,6 +184,11 @@ class ScorePredictions(AbstractTask):
                 "rema_brier_score": 0.0,
                 "rema_prediction": -999,
             }
+
+        # clamp predictions between 0 and 1
+        miner_predictions["interval_agg_prediction"] = miner_predictions[
+            "interval_agg_prediction"
+        ].clip(0, 1)
 
         weights_brier_sum = 0
         weights_pred_sum = 0
@@ -219,11 +227,12 @@ class ScorePredictions(AbstractTask):
             weights_brier_sum += wk * m1_brier_score
 
         if weights_sum < 0.01:
+            self.errors_count += 1
             logger.error(
                 "Weights sum is too low for an event-miner.",
                 extra={
                     "miner_uid": context["miner_uid"],
-                    "event_id": event.unique_event_id,
+                    "unique_event_id": event.unique_event_id,
                     "weights_sum": weights_sum,
                     "n_intervals": context["n_intervals"],
                     "miner_reg_date": miner_reg_date.strftime("%Y-%m-%d %H:%M:%S"),
@@ -256,12 +265,11 @@ class ScorePredictions(AbstractTask):
         n_intervals = (
             effective_cutoff_start_minutes - registered_date_start_minutes
         ) // AGGREGATION_INTERVAL_LENGTH_MINUTES
-
         scores_ls = []
 
         for miner in self.miners_last_reg.itertuples():
-            miner_uid = int(miner.uid)
-            miner_hotkey = miner.hotkey
+            miner_uid = int(miner.miner_uid)
+            miner_hotkey = miner.miner_hotkey
             miner_predictions = pydantic_models_to_dataframe(
                 [p for p in predictions if int(p.minerUid) == miner_uid]
             )
@@ -285,9 +293,10 @@ class ScorePredictions(AbstractTask):
         scores_df = pd.DataFrame(scores_ls)
 
         if scores_df.empty:
+            self.errors_count += 1
             logger.error(
                 "No scores calculated for an event.",
-                extra={"event_id": event.unique_event_id},
+                extra={"unique_event_id": event.unique_event_id},
             )
             return pd.DataFrame(
                 columns=["miner_uid", "hotkey", "rema_brier_score", "rema_prediction"]
@@ -295,14 +304,16 @@ class ScorePredictions(AbstractTask):
 
         # if any score is outside the range [0, 1] or None, log an error
         if scores_df["rema_brier_score"].isnull().any():
+            self.errors_count += 1
             logger.error(
                 "Some Brier scores are None for an event.",
-                extra={"event_id": event.unique_event_id},
+                extra={"unique_event_id": event.unique_event_id},
             )
         if (scores_df["rema_brier_score"] < 0).any() or (scores_df["rema_brier_score"] > 1).any():
+            self.errors_count += 1
             logger.error(
                 "Scores outside the range [0, 1] for an event.",
-                extra={"event_id": event.unique_event_id},
+                extra={"unique_event_id": event.unique_event_id},
             )
 
         return scores_df
@@ -315,14 +326,14 @@ class ScorePredictions(AbstractTask):
         )
         logger.debug(
             "Scores exponentiation sample.",
-            extra={"processed_scores": processed_scores.head(n=5).to_json()},
+            extra={"processed_scores": processed_scores.head(n=5).to_dict(orient="index")},
         )
 
         # Normalize the scores - sum cannot be 0, all elements are >= 1
         processed_scores["normalized_score"] /= processed_scores["normalized_score"].sum()
         logger.debug(
             "Scores normalization sample.",
-            extra={"processed_scores": processed_scores.head(n=5).to_json()},
+            extra={"processed_scores": processed_scores.head(n=5).to_dict(orient="index")},
         )
 
         return processed_scores
@@ -359,6 +370,7 @@ class ScorePredictions(AbstractTask):
         prev_avg_quantile_20 = norm_scores_ext["previous_average_scores"].dropna().quantile(0.2)
 
         # fill the NAs with the quantile 20
+        norm_scores_ext = norm_scores_ext.infer_objects(copy=False)
         norm_scores_ext["average_scores"] = norm_scores_ext["average_scores"].fillna(
             avg_quantile_20
         )
@@ -387,12 +399,13 @@ class ScorePredictions(AbstractTask):
             )
 
         if norm_scores_ext.isnull().any().any():
+            self.errors_count += 1
             logger.error(
                 "Some entries in norm_scores are None.",
                 extra={
                     "norm_scores_ext": norm_scores_ext[norm_scores_ext.isnull().any(axis=1)]
                     .head(n=5)
-                    .to_json()
+                    .to_dict(orient="index")
                 },
             )
             norm_scores_ext.fillna(0.0, inplace=True)
@@ -423,6 +436,7 @@ class ScorePredictions(AbstractTask):
             on=["miner_uid", "hotkey"],
             how="right",
         )
+        norm_scores_aligned = norm_scores_aligned.infer_objects(copy=False)
         norm_scores_aligned["eff_scores"] = norm_scores_aligned["eff_scores"].fillna(0.0)
         avg_quantile_20 = norm_scores_aligned["average_scores"].dropna().quantile(0.2)
         prev_avg_quantile_20 = norm_scores_aligned["previous_average_scores"].dropna().quantile(0.2)
@@ -438,9 +452,10 @@ class ScorePredictions(AbstractTask):
             duplicated_rows = norm_scores_aligned[
                 norm_scores_aligned.duplicated(subset=["miner_uid", "hotkey"], keep=False)
             ]
+            self.errors_count += 1
             logger.error(
                 "Duplicated miner_uid-hotkey pairs in the normalized scores.",
-                extra={"norm_scores_extended": duplicated_rows.to_json()},
+                extra={"norm_scores_extended": duplicated_rows.to_dict(orient="index")},
             )
             norm_scores_aligned.drop_duplicates(subset=["miner_uid", "hotkey"], inplace=True)
 
@@ -496,6 +511,7 @@ class ScorePredictions(AbstractTask):
         )
 
         if processed_uids is None or processed_weights is None:
+            self.errors_count += 1
             logger.error(
                 "Failed to process the weights - received None.",
                 extra={
@@ -509,7 +525,10 @@ class ScorePredictions(AbstractTask):
             )
             return False, "Failed to process the weights."
 
-        if not torch.equal(processed_uids, self.state["miner_uids"]):
+        # process_weights excludes the zero weights
+        mask = raw_weights != 0
+        if not torch.equal(processed_uids, self.state["miner_uids"][mask]):
+            self.errors_count += 1
             logger.error(
                 "Processed UIDs do not match the original UIDs.",
                 extra={
@@ -519,7 +538,7 @@ class ScorePredictions(AbstractTask):
             )
             return False, "Processed UIDs do not match the original UIDs."
 
-        if not torch.equal(processed_weights, raw_weights):
+        if not torch.equal(processed_weights, raw_weights[mask]):
             logger.warning(
                 "Processed weights do not match the original weights.",
                 extra={
@@ -540,6 +559,7 @@ class ScorePredictions(AbstractTask):
         )
 
         if not successful:
+            self.errors_count += 1
             logger.error(
                 "Failed to set the weights.",
                 extra={
@@ -581,7 +601,7 @@ class ScorePredictions(AbstractTask):
             },
             inplace=True,
         )
-        scores_df["event_id"] = event.unique_event_id
+        scores_df["event_id"] = event.unique_event_id  # backend expects event_id as key name
         scores_df["provider_type"] = event.market_type
         scores_df["title"] = event.description[:50]  # as in the original
         scores_df["description"] = event.description
@@ -616,6 +636,7 @@ class ScorePredictions(AbstractTask):
 
         # if all average scores are 0
         if (self.state["average_scores"] == 0).all():
+            self.errors_count += 1
             logger.error("Reset daily scores: average scores are 0, not resetting.")
         else:
             logger.debug(
@@ -627,14 +648,27 @@ class ScorePredictions(AbstractTask):
             self.state["scoring_iterations"] = 0
             self.save_state()
 
-    async def score_event(self, event: EventsModel, predictions: list[PredictionsModel]):
-        if not event.cutoff:
-            logger.error("Event has no cutoff date.", extra={"event_id": event.unique_event_id})
-
-        event_id = event.unique_event_id
-
+    def set_right_cutoff(self, event: EventsModel):
         # TODO: cleanup this after we have resolve date for all events in DB
         # https://linear.app/infinite-games/issue/INF-203/events-solved-before-cutoff
+
+        # Ensure all dates are converted to UTC
+        def to_utc(input_dt: datetime) -> datetime:
+            return (
+                input_dt.astimezone(timezone.utc)
+                if input_dt.tzinfo
+                else input_dt.replace(tzinfo=timezone.utc)
+            )
+
+        # Convert event dates to UTC if they exist
+        if event.resolve_date:
+            event.resolve_date = to_utc(event.resolve_date)
+        if event.cutoff:
+            event.cutoff = to_utc(event.cutoff)
+        if event.registered_date:  # used in the scoring
+            event.registered_date = to_utc(event.registered_date)
+
+        # Get the right cutoff date
         if event.resolve_date and event.cutoff:
             effective_cutoff = min(event.cutoff, event.resolve_date)
         elif event.cutoff:
@@ -643,42 +677,67 @@ class ScorePredictions(AbstractTask):
             effective_cutoff = min(event.resolve_date, datetime.now(timezone.utc))
         else:
             effective_cutoff = datetime.now(timezone.utc)
+
         # dirty: mutate the event object
         event.cutoff = effective_cutoff
+        return event
+
+    async def score_event(self, event: EventsModel):
+        if not event.cutoff:
+            self.errors_count += 1
+            logger.error("Event has no cutoff date.", extra={"event_id": event.unique_event_id})
+
+        event_id = event.unique_event_id
+        event = self.set_right_cutoff(event)
 
         predictions = await self.db_operations.get_predictions_for_scoring(event_id)
 
         if not predictions:
             logger.warning(
                 "There are no predictions for a settled event.",
-                extra={"event_id": event_id, "event_cutoff": event.cutoff},
+                extra={"event_id": event_id, "event_cutoff": event.cutoff.isoformat()},
             )
             return
 
         scores = self.score_predictions(event=event, predictions=predictions)
-        logger.debug("Scores calculated, sample below.", extra={"scores": scores.head(n=5)})
+        logger.debug(
+            "Scores calculated, sample below.",
+            extra={"scores": scores.head(n=5).to_dict(orient="index")},
+        )
 
         norm_scores = self.normalize_scores(scores=scores)
 
-        norm_scores_extended = self.update_daily_scores(norm_scores_ex=norm_scores)
+        norm_scores_extended = self.update_daily_scores(norm_scores=norm_scores)
 
         norm_scores_aligned = self.update_state(norm_scores_extended=norm_scores_extended)
 
         self.save_state()
 
-        _, _ = self.set_weights()
+        success, msg = self.set_weights()
 
-        self.db_operations.mark_event_as_processed(unique_event_id=event.unique_event_id)
+        if not success:
+            self.errors_count += 1
+            logger.error(
+                "Failed to set the weights, event is not processed & exported.",
+                extra={"event_id": event_id, "fail_msg": msg},
+            )
+            return
+
+        await self.db_operations.mark_event_as_processed(unique_event_id=event.unique_event_id)
 
         await self.export_scores(event=event, final_scores=norm_scores_aligned)
 
-        self.db_operations.mark_event_as_exported(unique_event_id=event.unique_event_id)
+        await self.db_operations.mark_event_as_exported(unique_event_id=event.unique_event_id)
 
         self.check_reset_daily_scores()
 
     async def run(self):
         miners_last_reg_rows = await self.db_operations.get_miners_last_registration()
         self.miners_last_reg = pydantic_models_to_dataframe(miners_last_reg_rows)
+        # for some reason, someone decided to store the miner_uid as a string in the DB
+        self.miners_last_reg["miner_uid"] = self.miners_last_reg["miner_uid"].astype(
+            pd.Int64Dtype()
+        )
         events_to_score = await self.db_operations.get_events_for_scoring()
 
         if not events_to_score:
@@ -690,4 +749,8 @@ class ScorePredictions(AbstractTask):
         for event in events_to_score:
             await self.score_event(event)
 
-        logger.debug("All events scored, weights set, scores exported.")
+        logger.debug(
+            "Events scoring loop finished. Confirm that errors count in logs is 0!",
+            extra={"errors_count_in_logs": self.errors_count},
+        )
+        self.errors_count = 0
