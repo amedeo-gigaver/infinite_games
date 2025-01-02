@@ -1,26 +1,17 @@
-import argparse
 import asyncio
 
-import bittensor as bt
+from bittensor import Dendrite, Subtensor
+from bittensor_wallet import Wallet
 
 from infinite_games.sandbox.validator.db.client import DatabaseClient
 from infinite_games.sandbox.validator.db.operations import DatabaseOperations
 from infinite_games.sandbox.validator.if_games.client import IfGamesClient
 from infinite_games.sandbox.validator.scheduler.tasks_scheduler import TasksScheduler
 from infinite_games.sandbox.validator.tasks.pull_events import PullEvents
+from infinite_games.sandbox.validator.tasks.query_miners import QueryMiners
 from infinite_games.sandbox.validator.tasks.resolve_events import ResolveEvents
+from infinite_games.sandbox.validator.utils.config import get_config
 from infinite_games.sandbox.validator.utils.logger.logger import logger
-
-
-def get_config():
-    parser = argparse.ArgumentParser()
-
-    bt.wallet.add_args(parser)
-    bt.subtensor.add_args(parser)
-    bt.logging.add_args(parser)
-    bt.axon.add_args(parser)
-
-    return bt.config(parser)
 
 
 async def main():
@@ -33,9 +24,17 @@ async def main():
     db_client = DatabaseClient(db_path="new_validator.db", logger=logger)
     await db_client.migrate()
 
-    bt_wallet = bt.wallet(config=config)
+    # Bittensor stuff
+    bt_netuid = config.get("netuid")
+    bt_network = config.get("subtensor").get("network")
+    bt_wallet = Wallet(config=config)
+    bt_dendrite = Dendrite(wallet=bt_wallet)
+    bt_subtensor = Subtensor(config=config)
+    bt_metagraph = bt_subtensor.metagraph(netuid=bt_netuid, lite=True)
+
     db_operations = DatabaseOperations(db_client=db_client)
-    api_client = IfGamesClient(env="test", logger=logger, bt_wallet=bt_wallet)
+    env: IfGamesClient.EnvType = "prod" if bt_network == "finney" else "test"
+    api_client = IfGamesClient(env=env, logger=logger, bt_wallet=bt_wallet)
 
     # Set tasks
     pull_events_task = PullEvents(
@@ -46,11 +45,21 @@ async def main():
         interval_seconds=1800.0, db_operations=db_operations, api_client=api_client, logger=logger
     )
 
+    query_miners_task = QueryMiners(
+        interval_seconds=300.0,
+        db_operations=db_operations,
+        dendrite=bt_dendrite,
+        metagraph=bt_metagraph,
+        logger=logger,
+    )
+
     # Set scheduler and add tasks
     scheduler = TasksScheduler(logger=logger)
 
     scheduler.add(task=pull_events_task)
     scheduler.add(task=resolve_events_task)
+    # scheduler.add(task=query_miners_task)
+    print(query_miners_task)
 
     # Start tasks
     await scheduler.start()
@@ -61,3 +70,6 @@ if __name__ == "__main__":
         asyncio.run(main())
     except KeyboardInterrupt:
         exit(0)
+    except Exception:
+        logger.exception("Unexpected error")
+        exit(1)

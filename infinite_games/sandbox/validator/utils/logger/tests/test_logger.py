@@ -3,7 +3,7 @@ import logging
 import pytest
 
 from infinite_games.sandbox.validator.utils.logger.context import start_session, start_trace
-from infinite_games.sandbox.validator.utils.logger.formatters import JSONFormatter
+from infinite_games.sandbox.validator.utils.logger.formatters import ConsoleFormatter, JSONFormatter
 from infinite_games.sandbox.validator.utils.logger.logger import create_logger
 
 
@@ -22,10 +22,21 @@ class TestLogger:
         """Test that the logger has the correct handlers attached."""
         handlers = logger.handlers
 
-        assert len(handlers) == 1  # Expecting 2 handlers (console and JSON)
+        assert len(handlers) == 1  # Expecting 1 handler ( JSON)
+
+        # Validate handler
+        assert isinstance(handlers[0].formatter, JSONFormatter)
+
+    def test_logger_with_message_handlers(self):
+        """Test that the logger has the correct handlers attached."""
+        logger = create_logger(name="test_logger", level=logging.CRITICAL, message_log=True)
+
+        handlers = logger.handlers
+
+        assert len(handlers) == 2  # Expecting 2 handlers (console and JSON)
 
         # Validate the type of each handler
-        # assert any(isinstance(handler.formatter, ConsoleFormatter) for handler in handlers)
+        assert any(isinstance(handler.formatter, ConsoleFormatter) for handler in handlers)
         assert any(isinstance(handler.formatter, JSONFormatter) for handler in handlers)
 
     def test_logger_context_methods(self, logger):

@@ -110,10 +110,13 @@ class QueryMiners(AbstractTask):
         axons: AxonInfoByUidType = {}
 
         for uid in self.metagraph.uids:
-            axon = self.metagraph.axons[uid]
+            # int_uid = uid.item()
+            int_uid = uid
+
+            axon = self.metagraph.axons[int_uid]
 
             if axon is not None and axon.is_serving is True:
-                axons[uid] = axon
+                axons[int_uid] = axon
 
         return axons
 

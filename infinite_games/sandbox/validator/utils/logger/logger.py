@@ -32,22 +32,23 @@ logging.Logger.makeRecord = make_record_with_extra
 
 
 # Factory function to create and configure a logger with multiple handlers
-def create_logger(name: str = None, level: any = logging.DEBUG) -> InfiniteGamesLogger:
-    # Console message handler
-    console_handler = logging.StreamHandler()
-    console_handler.setFormatter(ConsoleFormatter())
-
-    # Console JSON handler
-    json_handler = logging.StreamHandler()
-    json_handler.setFormatter(JSONFormatter())
-
+def create_logger(
+    name: str = None, level: any = logging.DEBUG, message_log: bool = False
+) -> InfiniteGamesLogger:
     # Initialize the logger with the specified name and level
     logger = logging.getLogger(name)
     logger.setLevel(level)
     logger.handlers.clear()
 
-    # Add handlers
-    # logger.addHandler(console_handler)
+    # Console message handler
+    if message_log:
+        console_handler = logging.StreamHandler()
+        console_handler.setFormatter(ConsoleFormatter())
+        logger.addHandler(console_handler)
+
+    # Console JSON handler
+    json_handler = logging.StreamHandler()
+    json_handler.setFormatter(JSONFormatter())
     logger.addHandler(json_handler)
 
     return logger

@@ -1,7 +1,23 @@
-from typing import List
+from typing import List, Union
 
+import numpy as np
 import pandas as pd
+import torch
 from pydantic import BaseModel
+
+
+def torch_parameter_or_np_array_to_int(value: Union[torch.nn.Parameter, np.ndarray]) -> int:
+    if isinstance(value, torch.nn.Parameter):
+        # Convert the Parameter to a scalar if it contains a single value
+        return int(value.data.item())
+    elif isinstance(value, np.ndarray):
+        # Convert ndarray to a scalar if it contains a single value
+        if value.size == 1:  # Ensure it's a single element
+            return int(value.item())
+        else:
+            raise ValueError("NDArray contains multiple elements; cannot convert to int.")
+    else:
+        raise TypeError("Unsupported type for conversion to int.")
 
 
 def pydantic_models_to_dataframe(models: List[BaseModel]) -> pd.DataFrame:
