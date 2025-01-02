@@ -46,7 +46,7 @@ async def main():
         interval_seconds=1800.0, db_operations=db_operations, api_client=api_client, logger=logger
     )
 
-    query_miners_task = QueryMiners(
+    query_miners_task = QueryMiners(  # noqa: F841  # Ignore unused variable warning
         interval_seconds=300.0,
         db_operations=db_operations,
         dendrite=bt_dendrite,
@@ -55,7 +55,7 @@ async def main():
     )
 
     # TODO: add the logger to the ScorePredictions object
-    score_predictions_task = ScorePredictions(
+    score_predictions_task = ScorePredictions(  # noqa: F841  # Ignore unused variable warning
         interval_seconds=300.0,
         db_operations=db_operations,
         api_client=api_client,
@@ -71,9 +71,8 @@ async def main():
     scheduler.add(task=pull_events_task)
     scheduler.add(task=resolve_events_task)
     # scheduler.add(task=query_miners_task)
-    print(query_miners_task)
+    # scheduler.add(task=score_predictions_task)
 
-    scheduler.add(task=score_predictions_task)
     # Start tasks
     await scheduler.start()
 

@@ -62,4 +62,4 @@ class TestValidator:
             mock_scheduler.start.assert_awaited_once()
 
             # Verify tasks
-            assert mock_scheduler.add.call_count == 3
+            assert mock_scheduler.add.call_count == 2
