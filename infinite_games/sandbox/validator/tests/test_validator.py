@@ -23,6 +23,7 @@ class TestValidator:
                 "infinite_games.sandbox.validator.validator.TasksScheduler"
             ) as MockTasksScheduler,
             patch("infinite_games.sandbox.validator.validator.logger", spec=True) as mock_logger,
+            patch("infinite_games.sandbox.validator.validator.ScorePredictions", spec=True),
         ):
             # Mock Config
             mock_config = MagicMock(spec=Config)
@@ -61,4 +62,4 @@ class TestValidator:
             mock_scheduler.start.assert_awaited_once()
 
             # Verify tasks
-            assert mock_scheduler.add.call_count == 2
+            assert mock_scheduler.add.call_count == 3

@@ -10,6 +10,7 @@ from infinite_games.sandbox.validator.scheduler.tasks_scheduler import TasksSche
 from infinite_games.sandbox.validator.tasks.pull_events import PullEvents
 from infinite_games.sandbox.validator.tasks.query_miners import QueryMiners
 from infinite_games.sandbox.validator.tasks.resolve_events import ResolveEvents
+from infinite_games.sandbox.validator.tasks.score_predictions import ScorePredictions
 from infinite_games.sandbox.validator.utils.config import get_config
 from infinite_games.sandbox.validator.utils.logger.logger import logger
 
@@ -53,6 +54,17 @@ async def main():
         logger=logger,
     )
 
+    # TODO: add the logger to the ScorePredictions object
+    score_predictions_task = ScorePredictions(
+        interval_seconds=300.0,
+        db_operations=db_operations,
+        api_client=api_client,
+        metagraph=bt_metagraph,
+        config=config,
+        subtensor=bt_subtensor,
+        wallet=bt_wallet,
+    )
+
     # Set scheduler and add tasks
     scheduler = TasksScheduler(logger=logger)
 
@@ -61,6 +73,7 @@ async def main():
     # scheduler.add(task=query_miners_task)
     print(query_miners_task)
 
+    scheduler.add(task=score_predictions_task)
     # Start tasks
     await scheduler.start()
 
