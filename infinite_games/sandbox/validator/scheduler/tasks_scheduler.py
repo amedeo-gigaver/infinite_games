@@ -39,17 +39,24 @@ class TasksScheduler:
             try:
                 # Execute the task's run async function
                 await task.run()
+
+                elapsed_time_ms = round((time.time() - start_time) * 1000)
+
+                self.__logger.info(
+                    "Task finished",
+                    extra={"task_name": task.name, "elapsed_time_ms": elapsed_time_ms},
+                )
+
             except Exception:
                 # Log any exceptions that occur during task execution
-                self.__logger.exception("Task errored", extra={"task_name": task.name})
+                elapsed_time_ms = round((time.time() - start_time) * 1000)
+
+                self.__logger.exception(
+                    "Task errored",
+                    extra={"task_name": task.name, "elapsed_time_ms": elapsed_time_ms},
+                )
 
             task.status = TaskStatus.IDLE  # Mark the task as idle after completion
-
-            elapsed_time_ms = round((time.time() - start_time) * 1000)
-
-            self.__logger.info(
-                "Task finished", extra={"task_name": task.name, "elapsed_time_ms": elapsed_time_ms}
-            )
 
             # Wait for the specified interval before the next execution
             await asyncio.sleep(task.interval_seconds)

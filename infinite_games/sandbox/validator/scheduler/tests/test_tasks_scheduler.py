@@ -80,6 +80,9 @@ class TestTasksScheduler:
         assert logger.start_trace.call_count == 3
         assert runs == 3
 
+        # Check info logs
+        assert logger.info.call_count == 6
+
     async def test_tasks_run_concurrently_at_intervals(
         self, logger, scheduler, await_start_with_timeout
     ):
@@ -130,7 +133,7 @@ class TestTasksScheduler:
         assert runs_task_2 == 3
         assert logger.start_trace.call_count == 6
 
-    async def test_task_execution_error(self, scheduler, await_start_with_timeout):
+    async def test_task_execution_error(self, scheduler, await_start_with_timeout, logger):
         runs = 0
 
         interval_seconds = 0.5
@@ -164,6 +167,10 @@ class TestTasksScheduler:
 
         # Check that the task status is "idle" after execution
         assert task.status == "idle"
+
+        # Check logs
+        assert logger.info.call_count == 2  # task started logs
+        assert logger.exception.call_count == 2  # task errored logs
 
     async def test_task_with_invalid_status(self, scheduler, await_start_with_timeout):
         # Verify the task is not executed because its status is not "unscheduled"
