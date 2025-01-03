@@ -34,24 +34,35 @@ class DatabaseClient:
     ) -> Awaitable[Any]:
         start_time = time.time()
 
+        caller = self.__get_caller_name()
+
         try:
             connection = await aiosqlite.connect(self.__db_path)
-            return await operation(connection)
-        finally:
-            if isinstance(connection, aiosqlite.Connection):
-                await connection.close()
+            response = await operation(connection)
 
             elapsed_time_ms = round((time.time() - start_time) * 1000)
 
-            log = "SQL executed"
-
-            caller = self.__get_caller_name()
             extra = {"elapsed_time_ms": elapsed_time_ms, "caller": caller}
 
             if elapsed_time_ms > 500:
-                self.__logger.warning(log, extra=extra)
+                log_method = self.__logger.warning
             else:
-                self.__logger.debug(log, extra=extra)
+                log_method = self.__logger.debug
+
+            log_method("SQL executed", extra=extra)
+
+            return response
+        except Exception as e:
+            elapsed_time_ms = round((time.time() - start_time) * 1000)
+
+            extra = {"elapsed_time_ms": elapsed_time_ms, "caller": caller}
+
+            self.__logger.exception("SQL errored", extra=extra)
+
+            raise e
+        finally:
+            if isinstance(connection, aiosqlite.Connection):
+                await connection.close()
 
     async def insert(
         self, sql: str, parameters: Optional[Iterable[Any]] = None
