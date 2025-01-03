@@ -13,6 +13,7 @@ import torch
 from bittensor.core.metagraph import MetagraphMixin
 from bittensor_wallet import Wallet
 from freezegun import freeze_time
+from pydantic import ValidationError
 
 from infinite_games.sandbox.validator.db.client import DatabaseClient
 from infinite_games.sandbox.validator.db.operations import DatabaseOperations
@@ -21,6 +22,7 @@ from infinite_games.sandbox.validator.models.event import EventsModel
 from infinite_games.sandbox.validator.models.miner import MinersModel
 from infinite_games.sandbox.validator.models.prediction import PredictionsModel
 from infinite_games.sandbox.validator.tasks.score_predictions import ScorePredictions
+from infinite_games.sandbox.validator.tasks.tests.backend_models import MinerEventResultItems
 from infinite_games.sandbox.validator.utils.logger.logger import InfiniteGamesLogger
 
 CURRENT_DIR = Path(__file__).parent
@@ -1033,7 +1035,11 @@ class TestScorePredictions:
                             "answer": 1.0,
                             "validator_hotkey": "validator_hotkey",
                             "validator_uid": 1,
-                            "metadata": "metadata",
+                            "metadata": {
+                                "market_type": "acled",
+                                "cutoff": 1730677800,
+                                "end_date": 1730937599,
+                            },
                             "spec_version": "1.0.0",
                         },
                         {
@@ -1054,7 +1060,11 @@ class TestScorePredictions:
                             "answer": 1.0,
                             "validator_hotkey": "validator_hotkey",
                             "validator_uid": 1,
-                            "metadata": "metadata",
+                            "metadata": {
+                                "market_type": "acled",
+                                "cutoff": 1730677800,
+                                "end_date": 1730937599,
+                            },
                             "spec_version": "1.0.0",
                         },
                     ]
@@ -1109,7 +1119,7 @@ class TestScorePredictions:
             description="Event Description",
             outcome="1",
             status=3,
-            metadata="metadata",
+            metadata="""{"market_type": "acled", "cutoff": 1730677800, "end_date": 1730937599}""",
             created_at=datetime(2024, 12, 27, 0, 0, 0, 0, timezone.utc),
         )
 
@@ -1127,11 +1137,20 @@ class TestScorePredictions:
                 with pytest.raises(post_scores_side_effect):
                     await unit.export_scores(event, final_scores)
             else:
-                await unit.export_scores(event, final_scores)
+                body = await unit.export_scores(event, final_scores)
 
-            # Validate the API call
-            if not post_scores_side_effect:
+                # Validate the API call
                 unit.api_client.post_scores.assert_awaited_once_with(scores=expected_body)
+
+                # Validate the body and Pydantic parsing for Backend
+                try:
+                    parsed_body = MinerEventResultItems(**body)
+                    actual_body = parsed_body.model_dump()
+
+                    expected_body = MinerEventResultItems(**expected_body).model_dump()
+                    assert actual_body == expected_body
+                except ValidationError as e:
+                    pytest.fail(f"Pydantic validation failed: {e}")
 
             # Check logs
             if expected_logs:

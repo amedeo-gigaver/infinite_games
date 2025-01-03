@@ -1,4 +1,5 @@
 import copy
+import json
 import math
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -698,43 +699,49 @@ class ScorePredictions(AbstractTask):
         ),
     )
     async def export_scores(self, event: EventsModel, final_scores: pd.DataFrame):
-        scores_df = final_scores[
-            ["miner_uid", "hotkey", "rema_brier_score", "rema_prediction", "eff_scores"]
-        ].copy()
-        scores_df.rename(
-            columns={
-                "hotkey": "miner_hotkey",
-                "rema_brier_score": "miner_score",
-                "rema_prediction": "prediction",
-                "eff_scores": "miner_effective_score",
-            },
-            inplace=True,
-        )
-        scores_df["event_id"] = event.unique_event_id  # backend expects event_id as key name
-        scores_df["provider_type"] = event.market_type
-        scores_df["title"] = event.description[:50]  # as in the original
-        scores_df["description"] = event.description
-        scores_df["category"] = "event"  # as in the original
-        scores_df["start_date"] = event.starts.isoformat() if event.starts else None
-        scores_df["end_date"] = (
-            event.resolve_date.isoformat() if event.resolve_date else None
-        )  # as in the original
-        scores_df["resolve_date"] = event.resolve_date.isoformat() if event.resolve_date else None
-        scores_df["settle_date"] = event.cutoff.isoformat()  # as in the original
-        scores_df["answer"] = float(event.outcome)
-        scores_df["validator_hotkey"] = self.wallet.get_hotkey().ss58_address
-        scores_df["validator_uid"] = int(self.vali_uid)
-        scores_df["metadata"] = event.metadata
-        scores_df["spec_version"] = str(self.spec_version)
-
         body = {
-            "results": scores_df.to_dict(orient="records"),
+            "results": [
+                {
+                    "event_id": event.unique_event_id,  # backend expects event_id as key name,
+                    "provider_type": event.market_type,
+                    "title": event.description[:50],  # as in the original
+                    "description": event.description,
+                    "category": "event",  # as in the original
+                    "start_date": event.starts.isoformat() if event.starts else None,
+                    "end_date": event.resolve_date.isoformat() if event.resolve_date else None,
+                    "resolve_date": event.resolve_date.isoformat() if event.resolve_date else None,
+                    "settle_date": event.cutoff.isoformat(),  # as in the original
+                    "prediction": row.rema_prediction,
+                    "answer": float(event.outcome),
+                    "miner_hotkey": row.hotkey,
+                    "miner_uid": row.miner_uid,
+                    "miner_score": row.rema_brier_score,
+                    "miner_effective_score": row.eff_scores,
+                    "validator_hotkey": self.wallet.get_hotkey().ss58_address,
+                    "validator_uid": int(self.vali_uid),
+                    "metadata": json.loads(event.metadata),
+                    "spec_version": str(self.spec_version),
+                }
+                for _, row in final_scores.iterrows()
+            ]
         }
 
         await self.api_client.post_scores(scores=body)
+        logger.debug(
+            "Scores exported.",
+            extra={
+                "event_id": event.unique_event_id,
+                "len_scores": len(final_scores),
+            },
+        )
+        return body  # for testing
 
     def check_reset_daily_scores(self):
         now_dt = datetime.now(timezone.utc)
+        if self.state["latest_reset_date"].tzinfo is None:
+            self.state["latest_reset_date"] = self.state["latest_reset_date"].replace(
+                tzinfo=timezone.utc
+            )
         seconds_since_reset = (now_dt - self.state["latest_reset_date"]).total_seconds()
 
         # change previous logic - adjust to reset to every midnight
@@ -789,6 +796,7 @@ class ScorePredictions(AbstractTask):
 
         # dirty: mutate the event object
         event.cutoff = effective_cutoff
+        event.resolve_date = effective_cutoff
         return event
 
     async def score_event(self, event: EventsModel):
@@ -822,15 +830,16 @@ class ScorePredictions(AbstractTask):
 
         self.save_state()
 
+        # TODO: do not set the weights too often, it will error out
+        # error msg: No attempt made. Perhaps it is too soon to set weights!
         success, sw_msg = self.set_weights()
 
         if not success:
             self.errors_count += 1
             logger.error(
-                "Failed to set the weights, event is not processed & exported.",
+                "Failed to set the weights, but processing and exporting the event!",
                 extra={"event_id": event_id, "fail_msg": sw_msg},
             )
-            return
 
         await self.db_operations.mark_event_as_processed(unique_event_id=event.unique_event_id)
 
