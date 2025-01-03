@@ -702,7 +702,7 @@ class ScorePredictions(AbstractTask):
         body = {
             "results": [
                 {
-                    "event_id": event.unique_event_id,  # backend expects event_id as key name,
+                    "event_id": event.event_id,  # awful: backend reconstructs unique_event_id
                     "provider_type": event.market_type,
                     "title": event.description[:50],  # as in the original
                     "description": event.description,
