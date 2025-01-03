@@ -154,6 +154,139 @@ class TestScorePredictions:
             2024, 12, 27, 0, 0, 0, 0, tzinfo=timezone.utc
         )
 
+    @pytest.mark.parametrize(
+        "existing_file, corrupted_file, expected_state",
+        [
+            # Case 0: State file does not exist
+            (
+                False,  # State file does not exist
+                False,  # Not corrupted
+                {  # Expected state
+                    "step": 0,
+                    "hotkeys": ["hk1", "hk2", "hk3"],
+                    "scores": [0.0, 0.0, 0.0],
+                    "average_scores": [0.0, 0.0, 0.0],
+                    "previous_average_scores": [0.0, 0.0, 0.0],
+                    "scoring_iterations": 0,
+                    "miner_uids": [1, 2, 3],
+                },
+            ),
+            # Case 1: State file exists and is valid
+            (
+                True,  # State file exists
+                False,  # Not corrupted
+                {  # Expected state (loaded from file)
+                    "step": 0,
+                    "hotkeys": ["hk1", "hk2", "hk3"],
+                    "scores": [1.0, 2.0, 3.0],
+                    "average_scores": [0.5, 0.5, 0.5],
+                    "previous_average_scores": [0.4, 0.4, 0.4],
+                    "scoring_iterations": 10,
+                    "miner_uids": [1, 2, 3],
+                },
+            ),
+            # Case 2: State file exists but is corrupted
+            (
+                True,  # State file exists
+                True,  # Corrupted file
+                {  # Expected state (fallback to new state)
+                    "step": 0,
+                    "hotkeys": ["hk1", "hk2", "hk3"],
+                    "scores": [0.0, 0.0, 0.0],
+                    "average_scores": [0.0, 0.0, 0.0],
+                    "previous_average_scores": [0.0, 0.0, 0.0],
+                    "scoring_iterations": 0,
+                    "miner_uids": [1, 2, 3],
+                },
+            ),
+        ],
+    )
+    def test_load_state(
+        self, score_predictions_task, existing_file, corrupted_file, expected_state
+    ):
+        unit = score_predictions_task
+        unit.metagraph.uids = torch.tensor(expected_state["miner_uids"], dtype=torch.long)
+        unit.metagraph.hotkeys = expected_state["hotkeys"]
+        unit.metagraph_lite_sync()
+
+        # Mock state file existence and content
+        if existing_file:
+            unit.state = {
+                "step": 0,
+                "hotkeys": ["hk1", "hk2", "hk3"],
+                "scores": torch.tensor([1.0, 2.0, 3.0], dtype=torch.float32),
+                "average_scores": torch.tensor([0.5, 0.5, 0.5], dtype=torch.float32),
+                "previous_average_scores": torch.tensor([0.4, 0.4, 0.4], dtype=torch.float32),
+                "scoring_iterations": 10,
+                "miner_uids": torch.tensor([1, 2, 3], dtype=torch.long),
+            }
+            if corrupted_file:
+                unit.state["hotkeys"] = []
+
+            unit.save_state()
+
+        unit.load_state()
+
+        # Assert the state
+        assert unit.state["step"] == expected_state["step"]
+        assert unit.state["hotkeys"] == expected_state["hotkeys"]
+        assert unit.state["scores"].tolist() == expected_state["scores"]
+        assert unit.state["average_scores"].tolist() == expected_state["average_scores"]
+        assert unit.state["previous_average_scores"].tolist() == pytest.approx(
+            expected_state["previous_average_scores"]
+        )
+        assert unit.state["scoring_iterations"] == expected_state["scoring_iterations"]
+        assert unit.state["miner_uids"].tolist() == expected_state["miner_uids"]
+
+    def test_save_and_reload_state(self, score_predictions_task):
+        unit = score_predictions_task
+
+        # Create an initial state
+        unit.state = unit._create_new_state()
+        unit.state["scoring_iterations"] = 5
+        unit.state["scores"] = torch.tensor([0.5, 1.0, 1.5], dtype=torch.float32)
+        unit.state["average_scores"] = torch.tensor([0.4, 0.9, 1.4], dtype=torch.float32)
+
+        # Save the state
+        unit.save_state()
+
+        # Clear the current state and reload
+        unit.state = None
+        unit.load_state()
+
+        # Assert the reloaded state
+        assert unit.state["scoring_iterations"] == 5
+        assert unit.state["scores"].tolist() == [0.5, 1.0, 1.5]
+        assert unit.state["average_scores"].tolist() == pytest.approx([0.4, 0.9, 1.4])
+
+    def test_realign_state_with_new_miners(self, score_predictions_task):
+        unit = score_predictions_task
+
+        # Mock current hotkeys and uids
+        unit.current_hotkeys = ["hk1", "hk2", "hk3", "hk4"]
+        unit.current_uids = torch.tensor([1, 2, 3, 4], dtype=torch.long)
+
+        # Mock state with missing new miners
+        state = {
+            "step": 0,
+            "hotkeys": ["hk1", "hk3"],
+            "scores": torch.tensor([1.0, 0.5], dtype=torch.float32),
+            "average_scores": torch.tensor([0.8, 0.3], dtype=torch.float32),
+            "previous_average_scores": torch.tensor([0.7, 0.2], dtype=torch.float32),
+            "scoring_iterations": 2,
+        }
+
+        # Realign the state
+        updated_state = unit._realign_loaded_state(state)
+
+        # Assert the realigned state
+        assert updated_state["hotkeys"] == ["hk1", "hk2", "hk3", "hk4"]
+        assert updated_state["scores"].tolist() == [1.0, 0.0, 0.5, 0.0]
+        assert updated_state["average_scores"].tolist() == pytest.approx([0.8, 0.4, 0.3, 0.4])
+        assert updated_state["previous_average_scores"].tolist() == pytest.approx(
+            [0.7, 0.3, 0.2, 0.3]
+        )
+
     def test_minutes_since_epoch(self, score_predictions_task: ScorePredictions):
         unit = score_predictions_task
 

@@ -113,6 +113,7 @@ class ScorePredictions(AbstractTask):
     def metagraph_lite_sync(self):
         # sync the metagraph in lite mode
         self.metagraph.sync(lite=True)
+        #  WARNING! hotkeys is a list[str] and uids is a torch.tensor
         self.current_hotkeys = copy.deepcopy(self.metagraph.hotkeys)
         self.n_hotkeys = len(self.current_hotkeys)
         self.current_uids = copy.deepcopy(self.metagraph.uids)
@@ -125,6 +126,89 @@ class ScorePredictions(AbstractTask):
             logger.exception("Failed to save state.")
         logger.debug("State saved.")
 
+    def _create_new_state(self) -> dict:
+        """Create a new state if the state file does not exist."""
+        return {
+            "step": 0,  # Unused but kept for compatibility
+            "hotkeys": self.current_hotkeys,
+            "scores": torch.zeros((self.n_hotkeys), dtype=torch.float32),
+            "average_scores": torch.zeros((self.n_hotkeys), dtype=torch.float32),
+            "previous_average_scores": torch.zeros((self.n_hotkeys), dtype=torch.float32),
+            "scoring_iterations": 0,  # TODO: Change this to a list for new miners
+            # reset the state to the previous day midnight
+            # it will be updated to the current day midnight after the first event
+            "latest_reset_date": (
+                datetime.now(timezone.utc) - timedelta(seconds=RESET_INTERVAL_SECONDS)
+            ).replace(hour=0, minute=0, second=0, microsecond=0),
+            "miner_uids": self.current_uids,
+        }
+
+    def _load_existing_state(self) -> dict:
+        """Load the state from the state file."""
+        return torch.load(self.state_file)
+
+    def _realign_loaded_state(self, state: dict) -> dict:
+        """Realign the state to match the current hotkeys and UIDs using pandas."""
+        # Convert current hotkeys and UIDs to a DataFrame
+        current_df = pd.DataFrame(
+            {
+                "hotkey": self.current_hotkeys,
+                "miner_uid": self.current_uids.tolist(),
+            }
+        )
+
+        # Convert existing state to a DataFrame
+        # ignore miner_uids - they might not be present in the old state file
+        # we keep only the current hotkeys and their associated uids
+        state_df = pd.DataFrame(
+            {
+                "hotkey": state["hotkeys"],
+                "scores": state["scores"].tolist(),
+                "average_scores": state["average_scores"].tolist(),
+                "previous_average_scores": state["previous_average_scores"].tolist(),
+            }
+        )
+
+        # Perform an inner join on hotkeys to realign
+        aligned_df = pd.merge(
+            current_df,
+            state_df,
+            on=[
+                "hotkey",
+            ],
+            how="left",
+        )
+
+        # Fill missing agerage values with quantile 20
+        aligned_df = aligned_df.infer_objects(copy=False)
+        aligned_df["scores"] = aligned_df["scores"].fillna(0.0)
+        avg_quantile_20 = aligned_df["average_scores"].dropna().quantile(0.2)
+        prev_avg_quantile_20 = aligned_df["previous_average_scores"].dropna().quantile(0.2)
+        aligned_df["average_scores"] = aligned_df["average_scores"].fillna(avg_quantile_20)
+        aligned_df["previous_average_scores"] = aligned_df["previous_average_scores"].fillna(
+            prev_avg_quantile_20
+        )
+
+        # Convert back to torch tensors
+        aligned_state = {
+            "hotkeys": aligned_df["hotkey"].tolist(),
+            "miner_uids": torch.tensor(aligned_df["miner_uid"].tolist(), dtype=torch.long),
+            "scores": torch.tensor(aligned_df["scores"].tolist(), dtype=torch.float32),
+            "average_scores": torch.tensor(
+                aligned_df["average_scores"].tolist(), dtype=torch.float32
+            ),
+            "previous_average_scores": torch.tensor(
+                aligned_df["previous_average_scores"].tolist(), dtype=torch.float32
+            ),
+        }
+
+        # Update the state with the aligned state
+        # there are more keys in the state, but they are not updated here
+        updated_state = copy.deepcopy(state)
+        updated_state.update(aligned_state)
+
+        return updated_state
+
     def load_state(self) -> dict:
         if not self.state_file.exists():
             self.errors_count += 1
@@ -132,26 +216,28 @@ class ScorePredictions(AbstractTask):
                 "State file does not exist, creating a new state.",
                 extra={"state_file_path": str(self.state_file)},
             )
-            # reconstruct the state file
-            state = {}
-            state["step"] = 0  # unused but kept for compatibility
-            state["hotkeys"] = self.current_hotkeys
-            state["scores"] = torch.zeros((self.n_hotkeys), dtype=torch.float32)
-            state["average_scores"] = torch.zeros((self.n_hotkeys), dtype=torch.float32)
-            state["previous_average_scores"] = torch.zeros((self.n_hotkeys), dtype=torch.float32)
-            state["scoring_iterations"] = 0  # TODO: change this to a list for new miners
-            # reset the state to the previous day midnight
-            # it will be updated to the current day midnight after the first event
-            state["latest_reset_date"] = (
-                datetime.now(timezone.utc) - timedelta(seconds=RESET_INTERVAL_SECONDS)
-            ).replace(hour=0, minute=0, second=0, microsecond=0)
-        else:
-            state = torch.load(self.state_file)
+            self.state = self._create_new_state()  # new state will be aligned
+            return self.state
 
-        if "miner_uids" not in state:
-            state["miner_uids"] = self.current_uids
+        try:
+            logger.debug("State file found - loading state.")
+            state = self._load_existing_state()
+            self.state = self._realign_loaded_state(state)
+            logger.debug(
+                "State loaded and realigned.",
+                extra={
+                    "state_file_path": str(self.state_file),
+                },
+            )
+        except Exception:
+            self.errors_count += 1
+            logger.exception(
+                "Failed to load state - creating a new state.",
+                extra={"state_file_path": str(self.state_file)},
+            )
+            self.state = self._create_new_state()
 
-        self.state = state
+        return self.state
 
     def minutes_since_epoch(self, dt: datetime) -> int:
         """Convert a given datetime to the 'minutes since the reference date'."""
@@ -358,6 +444,20 @@ class ScorePredictions(AbstractTask):
             }
         )
         norm_scores_ext = pd.merge(norm_scores, miners_df, on=["miner_uid", "hotkey"], how="inner")
+
+        # TODO: remove this after we confirm the bug is fixed
+        logger.debug(
+            "State info before the daily update.",
+            extra={
+                "miner_uid_length": len(self.state["miner_uids"].tolist()),
+                "hotkey_length": len(self.state["hotkeys"]),
+                "eff_scores_length": len(self.state["scores"].tolist()),
+                "average_scores_length": len(self.state["average_scores"].tolist()),
+                "previous_average_scores_length": len(
+                    self.state["previous_average_scores"].tolist()
+                ),
+            },
+        )
 
         state_df = pd.DataFrame(
             {
