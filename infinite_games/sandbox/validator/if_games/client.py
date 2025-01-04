@@ -109,13 +109,16 @@ class IfGamesClient:
             "Validator": hot_key.ss58_address,
         }
 
-    async def get_events(self, from_date: int, offset: int, limit: int):
+    async def get_events(self, from_date: int | None, offset: int, limit: int):
         # Check that all parameters are provided
-        if from_date is None or offset is None or limit is None:
+        if offset is None or limit is None:
             raise ValueError("Invalid parameters")
 
         async with self.create_session() as session:
-            path = f"/api/v2/events?from_date={from_date}&offset={offset}&limit={limit}"
+            path = f"/api/v2/events?offset={offset}&limit={limit}"
+
+            if from_date:
+                path += f"&from_date={from_date}"
 
             async with session.get(path) as response:
                 response.raise_for_status()

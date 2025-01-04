@@ -163,7 +163,6 @@ class TestIfGamesClient:
     @pytest.mark.parametrize(
         "from_date,offset,limit",
         [
-            (None, 0, 10),  # Missing from_date
             (1234567890, None, 10),  # Missing offset
             (1234567890, 0, None),  # Missing limit
         ],

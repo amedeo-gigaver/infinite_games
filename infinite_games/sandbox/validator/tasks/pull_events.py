@@ -57,8 +57,6 @@ class PullEvents(AbstractTask):
             # Back track 1 second
             events_from = (datetime.fromisoformat(events_from) - timedelta(seconds=1)).timestamp()
             events_from = math.floor(events_from)
-        else:
-            events_from = 0
 
         offset = 0
 
