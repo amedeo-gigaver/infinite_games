@@ -70,9 +70,17 @@ class PullEvents(AbstractTask):
             items = response.get("items")
             parsed_events_for_insertion = [(self.parse_event(e)) for e in items]
 
+            # Filter events before cutoff
+            now_timestamp = datetime.now(timezone.utc)
+            events_to_insert = [
+                event
+                for event in parsed_events_for_insertion
+                if now_timestamp < (event.cutoff or now_timestamp)
+            ]
+
             # Batch insert in the db
             if len(parsed_events_for_insertion) > 0:
-                await self.db_operations.upsert_pydantic_events(parsed_events_for_insertion)
+                await self.db_operations.upsert_pydantic_events(events=events_to_insert)
 
             if len(items) < self.page_size:
                 # Break if no more events

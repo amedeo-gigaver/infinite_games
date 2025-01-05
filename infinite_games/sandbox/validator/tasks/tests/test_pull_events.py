@@ -133,9 +133,7 @@ class TestPullEventsTask:
         api_client_mock.get_events.assert_called_with(0, 0, page_size)
         db_operations_mock.upsert_events.assert_not_called()
 
-    async def test_start_from_empty_integration(
-        self, db_client: DatabaseClient, pull_events_task: PullEvents
-    ):
+    async def test_start_from_empty(self, db_client: DatabaseClient, pull_events_task: PullEvents):
         """Test that pulls events from 0 and iterates until the end."""
         # Arrange
         mock_response_data_1 = {
@@ -143,7 +141,7 @@ class TestPullEventsTask:
             "items": [
                 {
                     "event_id": "0x123456789abcdef123456789abcdef123456789abcdef123456789abcdef1234",
-                    "cutoff": 1733616000,
+                    "cutoff": (datetime.now(timezone.utc) + timedelta(minutes=1)).timestamp(),
                     "title": "Will Tesla stock price reach $2000 by 2025?",
                     "description": (
                         "This market will resolve to 'Yes' if the closing stock price of Tesla reaches or exceeds $2000 "
@@ -164,7 +162,7 @@ class TestPullEventsTask:
             "items": [
                 {
                     "event_id": "0xabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdef",
-                    "cutoff": 1733617000,
+                    "cutoff": (datetime.now(timezone.utc) + timedelta(minutes=1)).timestamp(),
                     "title": "Will AI surpass human intelligence by 2030?",
                     "description": (
                         "This market will resolve to 'Yes' if credible sources, including major AI researchers, "
@@ -218,9 +216,7 @@ class TestPullEventsTask:
         assert response[0][1] == mock_response_data_1["items"][0]["event_id"]
         assert response[1][1] == mock_response_data_2["items"][0]["event_id"]
 
-    async def test_start_from_last_integration(
-        self, db_client: DatabaseClient, pull_events_task: PullEvents
-    ):
+    async def test_start_from_last(self, db_client: DatabaseClient, pull_events_task: PullEvents):
         """Test that pulls events from where it left and iterates until the end."""
         # Arrange
         mock_response_data_1 = {
@@ -228,7 +224,7 @@ class TestPullEventsTask:
             "items": [
                 {
                     "event_id": "0x123456789abcdef123456789abcdef123456789abcdef123456789abcdef1234",
-                    "cutoff": 1733616000,
+                    "cutoff": (datetime.now(timezone.utc) + timedelta(minutes=1)).timestamp(),
                     "title": "Will Tesla stock price reach $2000 by 2025?",
                     "description": (
                         "This market will resolve to 'Yes' if the closing stock price of Tesla reaches or exceeds $2000 "
@@ -254,7 +250,7 @@ class TestPullEventsTask:
             "items": [
                 {
                     "event_id": "0xabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdef",
-                    "cutoff": 1733617000,
+                    "cutoff": (datetime.now(timezone.utc) + timedelta(minutes=1)).timestamp(),
                     "title": "Will AI surpass human intelligence by 2030?",
                     "description": (
                         "This market will resolve to 'Yes' if credible sources, including major AI researchers, "
@@ -322,3 +318,52 @@ class TestPullEventsTask:
         assert len(response) == 2
         assert response[0][1] == mock_response_data_1["items"][0]["event_id"]
         assert response[1][1] == mock_response_data_3["items"][0]["event_id"]
+
+    async def test_events_past_cutoff(
+        self, db_client: DatabaseClient, pull_events_task: PullEvents
+    ):
+        """Test past cutoff events are not inserted."""
+        # Arrange
+        mock_response_data = {
+            "count": -5,
+            "items": [
+                {
+                    "event_id": "0x123456789abcdef123456789abcdef123456789abcdef123456789abcdef1234",
+                    "cutoff": (datetime.now(timezone.utc) - timedelta(minutes=1)).timestamp(),
+                    "title": "Will Tesla stock price reach $2000 by 2025?",
+                    "description": (
+                        "This market will resolve to 'Yes' if the closing stock price of Tesla reaches or exceeds $2000 "
+                        "on any trading day in 2025. Otherwise, this market will resolve to 'No'.\n\n"
+                        "Resolution source: NASDAQ official data."
+                    ),
+                    "market_type": "BINARY",
+                    "start_date": 1733600000,
+                    "created_at": 1733200000,
+                    "end_date": 1733620000,
+                    "answer": None,
+                },
+            ],
+        }
+
+        page_size = 10
+        pull_events_task.page_size = page_size
+
+        # Mock API response
+        with aioresponses() as mocked:
+            mocked.get(
+                f"/api/v2/events?from_date=0&offset=0&limit={page_size}",
+                status=200,
+                body=json.dumps(mock_response_data).encode("utf-8"),
+            )
+
+            # Act
+            await pull_events_task.run()
+
+        # Assert
+        response = await db_client.many(
+            """
+                SELECT * from events
+            """
+        )
+
+        assert len(response) == 0
