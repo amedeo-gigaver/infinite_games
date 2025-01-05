@@ -61,7 +61,7 @@ class DatabaseClient:
 
             raise e
         finally:
-            if isinstance(connection, aiosqlite.Connection):
+            if connection:
                 await connection.close()
 
     async def insert(
