@@ -785,26 +785,26 @@ class ScorePredictions(AbstractTask):
             )
 
         # Convert event dates to UTC if they exist
-        if event.resolve_date:
-            event.resolve_date = to_utc(event.resolve_date)
+        if event.resolved_at:
+            event.resolved_at = to_utc(event.resolved_at)
         if event.cutoff:
             event.cutoff = to_utc(event.cutoff)
         if event.registered_date:  # used in the scoring
             event.registered_date = to_utc(event.registered_date)
 
         # Get the right cutoff date
-        if event.resolve_date and event.cutoff:
-            effective_cutoff = min(event.cutoff, event.resolve_date)
+        if event.resolved_at and event.cutoff:
+            effective_cutoff = min(event.cutoff, event.resolved_at)
         elif event.cutoff:
             effective_cutoff = min(event.cutoff, datetime.now(timezone.utc))
-        elif event.resolve_date:
-            effective_cutoff = min(event.resolve_date, datetime.now(timezone.utc))
+        elif event.resolved_at:
+            effective_cutoff = min(event.resolved_at, datetime.now(timezone.utc))
         else:
             effective_cutoff = datetime.now(timezone.utc)
 
         # dirty: mutate the event object
         event.cutoff = effective_cutoff
-        event.resolve_date = effective_cutoff
+        event.resolved_at = effective_cutoff
         return event
 
     async def score_event(self, event: EventsModel):

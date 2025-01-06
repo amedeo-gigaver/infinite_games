@@ -1358,13 +1358,13 @@ class TestScorePredictions:
             market_type="market_type",
             event_type="event_type",
             starts=datetime(2024, 12, 25, 12, 0, 0, 0, timezone.utc),
-            resolve_date=datetime(2024, 12, 26, 12, 0, 0, 0, timezone.utc),
             cutoff=datetime(2024, 12, 27, 12, 0, 0, 0, timezone.utc),
             description="Event Description",
             outcome="1",
             status=3,
             metadata="metadata",
             created_at=datetime(2024, 12, 27, 0, 0, 0, 0, timezone.utc),
+            resolved_at=datetime(2024, 12, 26, 12, 0, 0, 0, timezone.utc),
         )
 
         if expected_logs[0]["level"] == "error":

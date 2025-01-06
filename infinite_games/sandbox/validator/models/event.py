@@ -36,6 +36,8 @@ class EventsModel(BaseModel):
     created_at: datetime
     cutoff: Optional[datetime] = None
     end_date: Optional[datetime] = None
+    resolved_at: Optional[datetime] = None
+    event_type: Optional[str] = None
 
     @property
     def primary_key(self):
