@@ -1,4 +1,6 @@
 import asyncio
+import os
+import unittest
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from bittensor.core.config import Config
@@ -11,6 +13,7 @@ class TestValidator:
     def test_main(self):
         # Patch key dependencies inside the method
         with (
+            patch.dict(os.environ, {}, clear=True),
             patch("infinite_games.sandbox.validator.validator.get_config") as mock_get_config,
             patch("infinite_games.sandbox.validator.validator.Dendrite", spec=True),
             patch("infinite_games.sandbox.validator.validator.Wallet", spec=True),
@@ -54,6 +57,9 @@ class TestValidator:
             # Run the validator
             asyncio.run(main())
 
+            # Verify torch set
+            assert os.environ.get("USE_TORCH") == "1"
+
             # Verify start session called
             mock_logger.start_session.assert_called_once()
 
@@ -65,3 +71,9 @@ class TestValidator:
 
             # Verify tasks
             assert mock_scheduler.add.call_count == 5
+
+            # Verify logging
+            mock_logger.info.assert_called_with(
+                "Validator started",
+                extra={"validator_uid": unittest.mock.ANY, "validator_hotkey": unittest.mock.ANY},
+            )

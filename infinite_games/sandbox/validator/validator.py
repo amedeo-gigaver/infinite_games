@@ -1,4 +1,5 @@
 import asyncio
+import os
 
 from bittensor import Dendrite, Subtensor
 from bittensor_wallet import Wallet
@@ -19,6 +20,9 @@ from infinite_games.sandbox.validator.utils.logger.logger import logger
 async def main():
     # Start session id
     logger.start_session()
+
+    # Force torch
+    os.environ["USE_TORCH"] = "1"
 
     # Set dependencies
     config = get_config()
@@ -92,6 +96,11 @@ async def main():
 
     # Start tasks
     await scheduler.start()
+
+    logger.info(
+        "Validator started",
+        extra={"validator_uid": validator_uid, "validator_hotkey": validator_hotkey},
+    )
 
 
 if __name__ == "__main__":
