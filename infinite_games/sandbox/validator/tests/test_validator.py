@@ -3,7 +3,6 @@ import os
 import unittest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from bittensor.core.config import Config
 from bittensor.core.metagraph import MetagraphMixin
 
 from infinite_games.sandbox.validator.validator import main
@@ -13,8 +12,7 @@ class TestValidator:
     def test_main(self):
         # Patch key dependencies inside the method
         with (
-            patch.dict(os.environ, {}, clear=True),
-            patch("infinite_games.sandbox.validator.validator.get_config") as mock_get_config,
+            patch("infinite_games.sandbox.validator.validator.get_config"),
             patch("infinite_games.sandbox.validator.validator.Dendrite", spec=True),
             patch("infinite_games.sandbox.validator.validator.Wallet", spec=True),
             patch(
@@ -30,14 +28,8 @@ class TestValidator:
             patch("infinite_games.sandbox.validator.validator.ExportPredictions", spec=True),
             patch("infinite_games.sandbox.validator.validator.ScorePredictions", spec=True),
         ):
-            # Mock Config
-            mock_config = MagicMock(spec=Config)
-            mock_config.get.side_effect = lambda key: {
-                "netuid": "mock_netuid",
-                "subtensor": MagicMock(get=lambda k: {"network": "mock_network"}[k]),
-            }[key]
-
-            mock_get_config.return_value = MagicMock(spec=Config)
+            # Verify torch set before main
+            assert os.environ.get("USE_TORCH") == "1"
 
             # Mock Subtensor
             mock_subtensor = MockSubtensor.return_value
@@ -56,9 +48,6 @@ class TestValidator:
 
             # Run the validator
             asyncio.run(main())
-
-            # Verify torch set
-            assert os.environ.get("USE_TORCH") == "1"
 
             # Verify start session called
             mock_logger.start_session.assert_called_once()

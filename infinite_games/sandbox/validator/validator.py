@@ -1,5 +1,10 @@
-import asyncio
+# Force torch - must be set before importing bittensor
+# flake8: noqa: E402
 import os
+
+os.environ["USE_TORCH"] = "1"
+
+import asyncio
 
 from bittensor import Dendrite, Subtensor
 from bittensor_wallet import Wallet
@@ -20,9 +25,6 @@ from infinite_games.sandbox.validator.utils.logger.logger import logger
 async def main():
     # Start session id
     logger.start_session()
-
-    # Force torch
-    os.environ["USE_TORCH"] = "1"
 
     # Set dependencies
     config = get_config()
