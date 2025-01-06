@@ -10,8 +10,10 @@
         "blocktime",
         "btlogging",
         "dataframe",
+        "dropna",
         "executemany",
         "executescript",
+        "fillna",
         "freezegun",
         "getframe",
         "giveup",
@@ -19,6 +21,7 @@
         "iloc",
         "isort",
         "iterrows",
+        "itertuples",
         "levelname",
         "metagraph",
         "ndarray",
@@ -27,9 +30,12 @@
         "polymarket",
         "pydatetime",
         "pytest",
+        "rema",
+        "remas",
         "subtensor",
         "uids",
-        "unixepoch"
+        "unixepoch",
+        "vali"
     ],
     "python.languageServer": "Pylance",
 }

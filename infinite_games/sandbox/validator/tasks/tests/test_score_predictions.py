@@ -89,6 +89,7 @@ class TestScorePredictions:
         # Mock subtensor methods
         subtensor.min_allowed_weights.return_value = 1  # Set minimum allowed weights
         subtensor.max_weight_limit.return_value = 10  # Set maximum weight limit
+        subtensor.weights_rate_limit.return_value = 100  # Set weights rate limit
         subtensor.network = "mock"
 
         config.logging.logging_dir = setup_test_dir
@@ -962,12 +963,18 @@ class TestScorePredictions:
             # Mock bittensor
             bt_mock.utils.weight_utils.process_weights_for_netuid = mock_process_weights
 
+            unit.subtensor.blocks_since_last_update = MagicMock(return_value=99)
+            # Call the method
+            success, msg = unit.set_weights()
+            assert success is True
+            assert msg == "Not enough blocks passed."
+
             # Mock logger
             mock_logger.debug = MagicMock(spec=logging.Logger.debug)
             mock_logger.error = MagicMock(spec=logging.Logger.error)
             mock_logger.warning = MagicMock(spec=logging.Logger.warning)
 
-            # Call the method
+            unit.subtensor.blocks_since_last_update = MagicMock(return_value=101)
             success, msg = unit.set_weights()
 
             debug_calls = mock_logger.debug.call_args_list
@@ -1555,6 +1562,7 @@ class TestScorePredictions:
 
         # Mock helper methods
         unit.score_event = AsyncMock()
+        unit.subtensor.blocks_since_last_update = MagicMock(return_value=101)
 
         # Call the method
         await unit.run()
@@ -1584,6 +1592,7 @@ class TestScorePredictions:
         unit = score_predictions_task
         unit.export_scores = AsyncMock()
         unit.subtensor.set_weights.return_value = (True, "success")
+        unit.subtensor.blocks_since_last_update = MagicMock(return_value=101)
 
         # real db client
         db_ops = unit.db_operations

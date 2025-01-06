@@ -69,6 +69,8 @@ class ScorePredictions(AbstractTask):
         self.subtensor = subtensor
         self.wallet = wallet
         self.vali_uid = self.metagraph.hotkeys.index(self.wallet.hotkey.ss58_address)
+        self.weights_rate_limit = self.subtensor.weights_rate_limit(self.config.netuid)
+
         self.spec_version = spec_version
         self.is_test = self.subtensor.network in ["test", "mock", "local"]
         self.base_api_url = "https://stage.ifgames.win" if self.is_test else "https://ifgames.win"
@@ -583,12 +585,35 @@ class ScorePredictions(AbstractTask):
         )
         self.state["hotkeys"] = norm_scores_aligned["hotkey"].tolist()
 
-        # this is what we will export to the Clickhouse DB and used to set the weights
+        # this is what we will export to the ClickHouse DB and used to set the weights
         return norm_scores_aligned
 
     def set_weights(self):
+        blocks_since_set_weights = self.subtensor.blocks_since_last_update(
+            netuid=self.config.netuid, uid=self.vali_uid
+        )
+        if blocks_since_set_weights < self.weights_rate_limit:
+            logger.debug(
+                "Not setting the weights - not enough blocks passed.",
+                extra={
+                    "blocks_since_set_weights": blocks_since_set_weights,
+                    "weights_rate_limit": self.weights_rate_limit,
+                },
+            )
+            return True, "Not enough blocks passed."
+
         # re-normalize the scores for the weights - should be already normalized
         raw_weights = torch.nn.functional.normalize(self.state["scores"], p=1, dim=0)
+
+        # if all raw weights are 0, log an error - only if the state.pt was just recreated
+        if torch.all(raw_weights == 0):
+            self.errors_count += 1
+            logger.error(
+                "All raw weights are 0, not setting the weights.",
+                extra={"raw_weights": raw_weights.tolist()},
+            )
+            return False, "All raw weights are 0."
+
         if not torch.equal(raw_weights, self.state["scores"]):
             logger.warning(
                 "Scores normalized for the weights.",
@@ -872,8 +897,6 @@ class ScorePredictions(AbstractTask):
                 extra={"errors_count_in_logs": self.errors_count},
             )
 
-        # TODO: set the weights only every 100 blocks!
-        # error msg: No attempt made. Perhaps it is too soon to set weights!
         success, sw_msg = self.set_weights()
         # seems redundant, but could be different reasons from self.set_weights
         if not success:
