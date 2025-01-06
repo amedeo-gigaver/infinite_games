@@ -1183,7 +1183,7 @@ class TestScorePredictions:
                     "average_scores": torch.tensor([0.6, 0.4], dtype=torch.float32),
                     "scoring_iterations": 10,
                 },
-                [],  # No logs
+                ["Not resetting daily scores."],  # No logs
             ),
             # Case 1: Reset needed (scores not zero)
             (
@@ -1272,7 +1272,11 @@ class TestScorePredictions:
 
                     mock_logger.debug.assert_called_once_with(
                         "Resetting daily scores.",
-                        extra={"seconds_since_reset": expected_seconds_since_reset},
+                        extra={
+                            "seconds_since_reset": expected_seconds_since_reset,
+                            "latest_reset_date": "2024-12-25T00:00:00+00:00",
+                            "new_latest_reset_date": "2024-12-26T00:00:00+00:00",
+                        },
                     )
                 if "Reset daily scores: average scores are 0, not resetting." in expected_logs:
                     mock_logger.error.assert_called_once_with(
@@ -1433,14 +1437,14 @@ class TestScorePredictions:
                 unique_event_id=event.unique_event_id
             )
             unit.save_state.assert_called_once()
-            unit.set_weights.assert_called_once()
+            unit.set_weights.assert_not_called()
             unit.export_scores.assert_awaited_once_with(
                 event=event, final_scores=unit.update_state.return_value
             )
             unit.db_operations.mark_event_as_exported.assert_called_once_with(
                 unique_event_id=event.unique_event_id
             )
-            unit.check_reset_daily_scores.assert_called_once()
+            unit.check_reset_daily_scores.assert_not_called()
         else:
             unit.db_operations.mark_event_as_processed.assert_not_called()
             unit.save_state.assert_not_called()

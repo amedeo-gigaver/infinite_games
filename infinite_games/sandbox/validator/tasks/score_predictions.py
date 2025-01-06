@@ -324,8 +324,8 @@ class ScorePredictions(AbstractTask):
 
         if weights_sum < 0.01:
             self.errors_count += 1
-            logger.error(
-                "Weights sum is too low for an event-miner.",
+            logger.debug(
+                "Weights sum is too low for an event-miner, assigning 0.0 rema_brier_score.",
                 extra={
                     "miner_uid": context["miner_uid"],
                     "unique_event_id": event.unique_event_id,
@@ -746,17 +746,25 @@ class ScorePredictions(AbstractTask):
 
         # change previous logic - adjust to reset to every midnight
         if seconds_since_reset <= RESET_INTERVAL_SECONDS:
+            logger.debug(
+                "Not resetting daily scores.", extra={"seconds_since_reset": seconds_since_reset}
+            )
             return
 
         today_midnight = now_dt.replace(hour=0, minute=0, second=0, microsecond=0)
 
-        # if all average scores are 0
+        # if all average scores are 0 - either new state file or recently reset - error
         if (self.state["average_scores"] == 0).all():
             self.errors_count += 1
             logger.error("Reset daily scores: average scores are 0, not resetting.")
         else:
             logger.debug(
-                "Resetting daily scores.", extra={"seconds_since_reset": seconds_since_reset}
+                "Resetting daily scores.",
+                extra={
+                    "seconds_since_reset": seconds_since_reset,
+                    "latest_reset_date": self.state["latest_reset_date"].isoformat(),
+                    "new_latest_reset_date": today_midnight.isoformat(),
+                },
             )
             self.state["previous_average_scores"] = self.state["average_scores"]
             self.state["average_scores"] = torch.zeros((self.n_hotkeys), dtype=torch.float32)
@@ -830,24 +838,11 @@ class ScorePredictions(AbstractTask):
 
         self.save_state()
 
-        # TODO: do not set the weights too often, it will error out
-        # error msg: No attempt made. Perhaps it is too soon to set weights!
-        success, sw_msg = self.set_weights()
-
-        if not success:
-            self.errors_count += 1
-            logger.error(
-                "Failed to set the weights, but processing and exporting the event!",
-                extra={"event_id": event_id, "fail_msg": sw_msg},
-            )
-
         await self.db_operations.mark_event_as_processed(unique_event_id=event.unique_event_id)
 
         await self.export_scores(event=event, final_scores=norm_scores_aligned)
 
         await self.db_operations.mark_event_as_exported(unique_event_id=event.unique_event_id)
-
-        self.check_reset_daily_scores()
 
     async def run(self):
         miners_last_reg_rows = await self.db_operations.get_miners_last_registration()
@@ -861,19 +856,37 @@ class ScorePredictions(AbstractTask):
         self.miners_last_reg["miner_uid"] = self.miners_last_reg["miner_uid"].astype(
             pd.Int64Dtype()
         )
-        events_to_score = await self.db_operations.get_events_for_scoring()
 
+        # TODO: separate the event loop from the set_weights and reset daily scores
+        events_to_score = await self.db_operations.get_events_for_scoring()
         if not events_to_score:
             logger.debug("No events to score.")
-            return
         else:
             logger.debug("Found events to score.", extra={"n_events": len(events_to_score)})
 
-        for event in events_to_score:
-            await self.score_event(event)
+            for event in events_to_score:
+                await self.score_event(event)
+
+            logger.debug(
+                "Events scoring loop finished. Confirm that errors count in logs is 0!",
+                extra={"errors_count_in_logs": self.errors_count},
+            )
+
+        # TODO: set the weights only every 100 blocks!
+        # error msg: No attempt made. Perhaps it is too soon to set weights!
+        success, sw_msg = self.set_weights()
+        # seems redundant, but could be different reasons from self.set_weights
+        if not success:
+            self.errors_count += 1
+            logger.error(
+                "Failed to set the weights!",
+                extra={"fail_msg": sw_msg},
+            )
+
+        self.check_reset_daily_scores()
 
         logger.debug(
-            "Events scoring loop finished. Confirm that errors count in logs is 0!",
+            "Score Predictions run finished. Resetting errors count.",
             extra={"errors_count_in_logs": self.errors_count},
         )
         self.errors_count = 0
