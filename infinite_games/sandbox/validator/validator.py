@@ -97,13 +97,13 @@ async def main():
     scheduler.add(task=export_predictions_task)
     scheduler.add(task=score_predictions_task)
 
-    # Start tasks
-    await scheduler.start()
-
     logger.info(
         "Validator started",
         extra={"validator_uid": validator_uid, "validator_hotkey": validator_hotkey},
     )
+
+    # Start scheduler
+    await scheduler.start()
 
 
 if __name__ == "__main__":

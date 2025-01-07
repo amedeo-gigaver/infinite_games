@@ -87,7 +87,6 @@ class ExportPredictions(AbstractTask):
 
             await self.api_client.post_predictions(predictions=parsed_predictions)
 
-            self.logger.debug("Predictions exported", extra={"predictions": parsed_predictions})
             # Mark predictions as exported
             ids = [prediction[0] for prediction in predictions]
             await self.db_operations.mark_predictions_as_exported(ids=ids)
