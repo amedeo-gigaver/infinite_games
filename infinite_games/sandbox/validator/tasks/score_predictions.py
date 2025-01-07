@@ -600,7 +600,7 @@ class ScorePredictions(AbstractTask):
             self.errors_count += 1
             logger.error(
                 "All raw weights are 0, not setting the weights.",
-                extra={"raw_weights": raw_weights.tolist()},
+                extra={"raw_weights[:10]": raw_weights.tolist()[:10]},
             )
             return False, "All raw weights are 0."
 
@@ -608,8 +608,8 @@ class ScorePredictions(AbstractTask):
             logger.warning(
                 "Scores normalized for the weights.",
                 extra={
-                    "scores": self.state["scores"].tolist(),
-                    "weights": raw_weights.tolist(),
+                    "scores[:10]": self.state["scores"].tolist()[:10],
+                    "weights[:10]": raw_weights.tolist()[:10],
                 },
             )
 
@@ -640,11 +640,11 @@ class ScorePredictions(AbstractTask):
             logger.error(
                 "Failed to process the weights - received None.",
                 extra={
-                    "processed_uids": (
-                        processed_uids.tolist() if processed_uids is not None else None
+                    "processed_uids[:10]": (
+                        processed_uids.tolist()[:10] if processed_uids is not None else None
                     ),
-                    "processed_weights": (
-                        processed_weights.tolist() if processed_weights is not None else None
+                    "processed_weights[:10]": (
+                        processed_weights.tolist()[:10] if processed_weights is not None else None
                     ),
                 },
             )
@@ -657,8 +657,8 @@ class ScorePredictions(AbstractTask):
             logger.error(
                 "Processed UIDs do not match the original UIDs.",
                 extra={
-                    "processed_uids": processed_uids.tolist(),
-                    "original_uids": self.state["miner_uids"].tolist(),
+                    "processed_uids[:10]": processed_uids.tolist()[:10],
+                    "original_uids[:10]": self.state["miner_uids"].tolist()[:10],
                 },
             )
             return False, "Processed UIDs do not match the original UIDs."
@@ -667,8 +667,8 @@ class ScorePredictions(AbstractTask):
             logger.warning(
                 "Processed weights do not match the original weights.",
                 extra={
-                    "processed_weights": processed_weights.tolist(),
-                    "original_weights": raw_weights.tolist(),
+                    "processed_weights[:10]": processed_weights.tolist()[:10],
+                    "original_weights[:10]": raw_weights.tolist()[:10],
                 },
             )
 
@@ -689,8 +689,8 @@ class ScorePredictions(AbstractTask):
                 "Failed to set the weights.",
                 extra={
                     "fail_msg": sw_msg,
-                    "processed_uids": processed_uids.tolist(),
-                    "processed_weights": processed_weights.tolist(),
+                    "processed_uids[:10]": processed_uids.tolist()[:10],
+                    "processed_weights[:10]": processed_weights.tolist()[:10],
                 },
             )
         else:
