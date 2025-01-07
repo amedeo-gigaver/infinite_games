@@ -99,7 +99,11 @@ async def main():
 
     logger.info(
         "Validator started",
-        extra={"validator_uid": validator_uid, "validator_hotkey": validator_hotkey},
+        extra={
+            "validator_uid": validator_uid,
+            "validator_hotkey": validator_hotkey,
+            "network": bt_network,
+        },
     )
 
     # Start scheduler

@@ -113,7 +113,6 @@ class TestScorePredictions:
         assert unit.n_hotkeys == 3
         assert unit.wallet.hotkey.ss58_address == "hotkey2"
         assert unit.vali_uid == 1
-        assert unit.is_test is True
         assert unit.state_file == Path(
             CURRENT_DIR,
             "test_dir",

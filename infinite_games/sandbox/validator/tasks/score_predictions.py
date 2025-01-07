@@ -72,16 +72,6 @@ class ScorePredictions(AbstractTask):
         self.weights_rate_limit = self.subtensor.weights_rate_limit(self.config.netuid)
 
         self.spec_version = spec_version
-        self.is_test = self.subtensor.network in ["test", "mock", "local"]
-        self.base_api_url = "https://stage.ifgames.win" if self.is_test else "https://ifgames.win"
-        logger.info(
-            "Init info.",
-            extra={
-                "vali_uid": self.vali_uid,
-                "spec_version": self.spec_version,
-                "is_test": self.is_test,
-            },
-        )
 
         self.interval = interval_seconds
         self.db_operations = db_operations

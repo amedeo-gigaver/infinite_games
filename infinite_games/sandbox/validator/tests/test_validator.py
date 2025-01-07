@@ -64,5 +64,9 @@ class TestValidator:
             # Verify logging
             mock_logger.info.assert_called_with(
                 "Validator started",
-                extra={"validator_uid": unittest.mock.ANY, "validator_hotkey": unittest.mock.ANY},
+                extra={
+                    "validator_uid": unittest.mock.ANY,
+                    "validator_hotkey": unittest.mock.ANY,
+                    "network": unittest.mock.ANY,
+                },
             )
