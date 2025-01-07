@@ -286,6 +286,21 @@ class TestDbOperations:
                 "2000-12-02T14:30:00+00:00",
                 "2000-12-03T14:30:00+00:00",
             ),
+            (
+                "unique_event_id_4",
+                "event_4",
+                "truncated_market4",
+                "market_4",
+                "desc4",
+                "2024-12-02",
+                "2024-12-03",
+                "outcome4",
+                "status4",
+                '{"key": "value"}',
+                "2000-12-02T14:30:00+00:00",
+                "2000-12-02T14:30:00+00:00",
+                "2000-12-03T14:30:00+00:00",
+            ),
         ]
 
         predictions = [
@@ -294,6 +309,7 @@ class TestDbOperations:
                 "neuronHotkey_1",
                 "neuronUid_1",
                 "1",
+                # interval_start_minutes
                 10,
                 "1",
                 1,
@@ -304,6 +320,7 @@ class TestDbOperations:
                 "neuronHotkey_2",
                 "neuronUid_2",
                 "1",
+                # interval_start_minutes
                 10,
                 "1",
                 1,
@@ -314,7 +331,20 @@ class TestDbOperations:
                 "neuronHotkey_3",
                 "neuronUid_3",
                 "1",
+                # interval_start_minutes
                 10,
+                "1",
+                1,
+                "1",
+            ),
+            (
+                "unique_event_id_4",
+                "neuronHotkey_4",
+                "neuronUid_4",
+                "1",
+                # interval_start_minutes
+                # This prediction wont be ready to be exported
+                11,
                 "1",
                 1,
                 "1",
@@ -333,12 +363,18 @@ class TestDbOperations:
             [PredictionExportedStatus.EXPORTED, "unique_event_id_2"],
         )
 
-        result = await db_operations.get_predictions_to_export(batch_size=1)
+        current_interval_minutes = 11
+
+        result = await db_operations.get_predictions_to_export(
+            current_interval_minutes=current_interval_minutes, batch_size=1
+        )
 
         assert len(result) == 1
         assert result[0][1] == "unique_event_id_1"
 
-        result = await db_operations.get_predictions_to_export(batch_size=2)
+        result = await db_operations.get_predictions_to_export(
+            current_interval_minutes=current_interval_minutes, batch_size=20
+        )
 
         assert len(result) == 2
 

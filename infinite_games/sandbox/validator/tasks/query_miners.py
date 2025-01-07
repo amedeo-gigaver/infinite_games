@@ -1,6 +1,6 @@
 import json
 import time
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Iterable
 
 from bittensor.core.chain_data import AxonInfo
@@ -11,13 +11,11 @@ from infinite_games.sandbox.validator.db.operations import DatabaseOperations
 from infinite_games.sandbox.validator.models.event_prediction_synapse import EventPredictionSynapse
 from infinite_games.sandbox.validator.scheduler.task import AbstractTask
 from infinite_games.sandbox.validator.utils.common.converters import torch_or_numpy_to_int
+from infinite_games.sandbox.validator.utils.common.interval import get_interval_start_minutes
 from infinite_games.sandbox.validator.utils.logger.logger import InfiniteGamesLogger
 
 AxonInfoByUidType = dict[int, AxonInfo]
 SynapseResponseByUidType = dict[int, EventPredictionSynapse]
-
-CLUSTER_EPOCH_2024 = datetime(2024, 1, 1, 0, 0, 0, 0, tzinfo=timezone.utc)
-CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES = 60 * 4
 
 
 class QueryMiners(AbstractTask):
@@ -96,7 +94,7 @@ class QueryMiners(AbstractTask):
             axons_by_uid=axons, synapse=synapse
         )
 
-        interval_start_minutes = self.get_interval_start_minutes()
+        interval_start_minutes = get_interval_start_minutes()
 
         # Store predictions
         await self.store_predictions(
@@ -117,17 +115,6 @@ class QueryMiners(AbstractTask):
                 axons[int_uid] = axon
 
         return axons
-
-    def get_interval_start_minutes(self):
-        now = datetime.now(timezone.utc)
-
-        minutes_since_epoch = int((now - CLUSTER_EPOCH_2024).total_seconds()) // 60
-
-        interval_start_minutes = minutes_since_epoch - (
-            minutes_since_epoch % (CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES)
-        )
-
-        return interval_start_minutes
 
     def make_predictions_synapse(self, events: Iterable[tuple[any]]) -> EventPredictionSynapse:
         compiled_events = {}

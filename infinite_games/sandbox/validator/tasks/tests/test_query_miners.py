@@ -85,26 +85,6 @@ class TestQueryMiners:
         # No axons should be included
         assert result == {}
 
-    @pytest.mark.parametrize(
-        "test_time,expected",
-        [
-            # Test exact epoch start
-            (datetime(2024, 1, 1, 0, 0, 0, tzinfo=timezone.utc), 0),
-            # Test multiple days later
-            (datetime(2025, 1, 3, 4, 0, 0, tzinfo=timezone.utc), 530160),
-            # Test with non-zero minutes and seconds (should round down)
-            (datetime(2024, 1, 1, 4, 45, 30, tzinfo=timezone.utc), 240),
-        ],
-    )
-    def test_get_interval_start_minutes(self, query_miners_task: QueryMiners, test_time, expected):
-        with patch("infinite_games.sandbox.validator.tasks.query_miners.datetime") as mock_datetime:
-            # Configure mock to return our test time when now() is called
-            mock_datetime.now.return_value = test_time
-
-            result = query_miners_task.get_interval_start_minutes()
-
-            assert result == expected
-
     def test_make_predictions_synapse(self, query_miners_task: QueryMiners):
         events_from_db = [
             (
@@ -507,10 +487,12 @@ class TestQueryMiners:
         query_miners_task.dendrite.forward = forward
 
         # Configure mock to return our test time when now() is called
+        mocked_interval_start_minutes = 530160
+
         with patch(
-            "infinite_games.sandbox.validator.tasks.query_miners.datetime", wraps=datetime
-        ) as mock_datetime:
-            mock_datetime.now.return_value = datetime(2025, 1, 3, 4, 0, 0, tzinfo=timezone.utc)
+            "infinite_games.sandbox.validator.tasks.query_miners.get_interval_start_minutes"
+        ) as mock_get_interval_start_minutes:
+            mock_get_interval_start_minutes.return_value = mocked_interval_start_minutes
 
             # Run the task
             await query_miners_task.run()
@@ -539,7 +521,7 @@ class TestQueryMiners:
                 # outcome
                 None,
                 # interval_start_minutes
-                530160,
+                mocked_interval_start_minutes,
                 # interval_agg_prediction
                 0.8,
                 # interval_count
@@ -558,7 +540,7 @@ class TestQueryMiners:
                 "0.8",
                 None,
                 None,
-                530160,
+                mocked_interval_start_minutes,
                 0.8,
                 1,
                 ANY,
@@ -572,7 +554,7 @@ class TestQueryMiners:
                 "0.8",
                 None,
                 None,
-                530160,
+                mocked_interval_start_minutes,
                 0.8,
                 1,
                 ANY,
@@ -586,7 +568,7 @@ class TestQueryMiners:
                 "0.8",
                 None,
                 None,
-                530160,
+                mocked_interval_start_minutes,
                 0.8,
                 1,
                 ANY,

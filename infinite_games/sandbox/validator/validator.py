@@ -71,9 +71,10 @@ async def main():
         interval_seconds=180.0,
         db_operations=db_operations,
         api_client=api_client,
-        batch_size=200,
+        batch_size=50,
         validator_uid=validator_uid,
         validator_hotkey=validator_hotkey,
+        logger=logger,
     )
 
     # TODO: add the logger to the ScorePredictions object

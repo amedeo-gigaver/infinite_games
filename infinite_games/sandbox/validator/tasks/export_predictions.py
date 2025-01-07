@@ -1,10 +1,11 @@
-from datetime import datetime, timedelta, timezone
-
 from infinite_games.sandbox.validator.db.operations import DatabaseOperations
 from infinite_games.sandbox.validator.if_games.client import IfGamesClient
 from infinite_games.sandbox.validator.scheduler.task import AbstractTask
-
-CLUSTER_EPOCH_2024 = datetime(2024, 1, 1, 0, 0, 0, 0, tzinfo=timezone.utc)
+from infinite_games.sandbox.validator.utils.common.interval import (
+    get_interval_iso_datetime,
+    get_interval_start_minutes,
+)
+from infinite_games.sandbox.validator.utils.logger.logger import InfiniteGamesLogger
 
 
 class ExportPredictions(AbstractTask):
@@ -14,6 +15,7 @@ class ExportPredictions(AbstractTask):
     batch_size: int
     validator_uid: int
     validator_hotkey: str
+    logger: InfiniteGamesLogger
 
     def __init__(
         self,
@@ -23,6 +25,7 @@ class ExportPredictions(AbstractTask):
         batch_size: int,
         validator_uid: int,
         validator_hotkey: str,
+        logger: InfiniteGamesLogger,
     ):
         if not isinstance(interval_seconds, float) or interval_seconds <= 0:
             raise ValueError("interval_seconds must be a positive number (float).")
@@ -47,12 +50,17 @@ class ExportPredictions(AbstractTask):
         if not isinstance(validator_hotkey, str):
             raise TypeError("validator_hotkey must be a string.")
 
+        # Validate logger
+        if not isinstance(logger, InfiniteGamesLogger):
+            raise TypeError("logger must be an instance of InfiniteGamesLogger.")
+
         self.interval = interval_seconds
         self.db_operations = db_operations
         self.api_client = api_client
         self.batch_size = batch_size
         self.validator_uid = validator_uid
         self.validator_hotkey = validator_hotkey
+        self.logger = logger
 
     @property
     def name(self):
@@ -64,9 +72,11 @@ class ExportPredictions(AbstractTask):
 
     async def run(self):
         while True:
+            current_interval_minutes = get_interval_start_minutes()
+
             # Get predictions to export
             predictions = await self.db_operations.get_predictions_to_export(
-                batch_size=self.batch_size
+                current_interval_minutes=current_interval_minutes, batch_size=self.batch_size
             )
 
             if len(predictions) == 0:
@@ -77,6 +87,7 @@ class ExportPredictions(AbstractTask):
 
             await self.api_client.post_predictions(predictions=parsed_predictions)
 
+            self.logger.debug("Predictions exported", extra={"predictions": parsed_predictions})
             # Mark predictions as exported
             ids = [prediction[0] for prediction in predictions]
             await self.db_operations.mark_predictions_as_exported(ids=ids)
@@ -104,9 +115,7 @@ class ExportPredictions(AbstractTask):
                 "interval_start_minutes": interval_start_minutes,
                 "interval_agg_prediction": interval_agg_prediction,
                 "interval_agg_count": interval_count,
-                "interval_datetime": (
-                    CLUSTER_EPOCH_2024 + timedelta(minutes=interval_start_minutes)
-                ).isoformat(),
+                "interval_datetime": get_interval_iso_datetime(interval_start_minutes),
                 "miner_hotkey": miner_hotkey,
                 "miner_uid": miner_uid,
                 "validator_hotkey": self.validator_hotkey,

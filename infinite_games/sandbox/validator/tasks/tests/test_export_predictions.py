@@ -10,6 +10,10 @@ from infinite_games.sandbox.validator.db.operations import DatabaseOperations
 from infinite_games.sandbox.validator.if_games.client import IfGamesClient
 from infinite_games.sandbox.validator.models.prediction import PredictionExportedStatus
 from infinite_games.sandbox.validator.tasks.export_predictions import ExportPredictions
+from infinite_games.sandbox.validator.utils.common.interval import (
+    get_interval_iso_datetime,
+    get_interval_start_minutes,
+)
 from infinite_games.sandbox.validator.utils.logger.logger import InfiniteGamesLogger
 
 
@@ -45,9 +49,9 @@ class TestExportPredictions:
 
     @pytest.fixture
     def export_predictions_task(self, db_operations: DatabaseOperations, bt_wallet: Wallet):
-        api_client = IfGamesClient(
-            env="test", logger=MagicMock(spec=InfiniteGamesLogger), bt_wallet=bt_wallet
-        )
+        mocked_logger = MagicMock(spec=InfiniteGamesLogger)
+
+        api_client = IfGamesClient(env="test", logger=mocked_logger, bt_wallet=bt_wallet)
 
         return ExportPredictions(
             interval_seconds=60.0,
@@ -56,6 +60,7 @@ class TestExportPredictions:
             batch_size=1,
             validator_uid=0,
             validator_hotkey="validator_hotkey_test",
+            logger=mocked_logger,
         )
 
     def test_parse_predictions_for_exporting(self, export_predictions_task: ExportPredictions):
@@ -156,7 +161,25 @@ class TestExportPredictions:
                 "2000-12-02T14:30:00+00:00",
                 "2000-12-03T14:30:00+00:00",
             ),
+            (
+                "unique_event_id_3",
+                "event_3",
+                "truncated_market3",
+                "market_3",
+                "desc3",
+                "2024-12-02",
+                "2024-12-03",
+                "outcome3",
+                "status3",
+                '{"key": "value"}',
+                "2000-12-02T14:30:00+00:00",
+                "2000-12-02T14:30:00+00:00",
+                "2000-12-03T14:30:00+00:00",
+            ),
         ]
+
+        current_interval_minutes = get_interval_start_minutes()
+        previous_interval_minutes = current_interval_minutes - 1
 
         predictions = [
             (
@@ -164,7 +187,7 @@ class TestExportPredictions:
                 "neuronHotkey_1",
                 "neuronUid_1",
                 "1",
-                10,
+                previous_interval_minutes,
                 "1",
                 1,
                 "1",
@@ -174,7 +197,17 @@ class TestExportPredictions:
                 "neuronHotkey_2",
                 "neuronUid_2",
                 "1",
-                10,
+                previous_interval_minutes,
+                "1",
+                1,
+                "1",
+            ),
+            (
+                "unique_event_id_3",
+                "neuronHotkey_3",
+                "neuronUid_3",
+                "1",
+                current_interval_minutes,
                 "1",
                 1,
                 "1",
@@ -204,10 +237,12 @@ class TestExportPredictions:
                             "unique_event_id": "unique_event_id_1",
                             "provider_type": "market_1",
                             "prediction": "1",
-                            "interval_start_minutes": 10,
+                            "interval_start_minutes": previous_interval_minutes,
                             "interval_agg_prediction": 1.0,
                             "interval_agg_count": 1,
-                            "interval_datetime": "2024-01-01T00:10:00+00:00",
+                            "interval_datetime": get_interval_iso_datetime(
+                                previous_interval_minutes
+                            ),
                             "miner_hotkey": "neuronHotkey_1",
                             "miner_uid": "neuronUid_1",
                             "validator_hotkey": "validator_hotkey_test",
@@ -229,10 +264,12 @@ class TestExportPredictions:
                             "unique_event_id": "unique_event_id_2",
                             "provider_type": "market_2",
                             "prediction": "1",
-                            "interval_start_minutes": 10,
+                            "interval_start_minutes": previous_interval_minutes,
                             "interval_agg_prediction": 1.0,
                             "interval_agg_count": 1,
-                            "interval_datetime": "2024-01-01T00:10:00+00:00",
+                            "interval_datetime": get_interval_iso_datetime(
+                                previous_interval_minutes
+                            ),
                             "miner_hotkey": "neuronHotkey_2",
                             "miner_uid": "neuronUid_2",
                             "validator_hotkey": "validator_hotkey_test",
@@ -251,9 +288,10 @@ class TestExportPredictions:
             """
         )
 
-        assert len(result) == 2
+        assert len(result) == 3
         assert result[0][0] == PredictionExportedStatus.EXPORTED
         assert result[1][0] == PredictionExportedStatus.EXPORTED
+        assert result[2][0] == PredictionExportedStatus.NOT_EXPORTED
 
     async def test_run_no_predictions(self, export_predictions_task: ExportPredictions):
         # Mock API client
