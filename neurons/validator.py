@@ -87,7 +87,7 @@ class Validator(BaseValidatorNeuron):
         self.integrations = integrations
         self.db_path = db_path
         self.last_log_block = 0
-        self.is_test = self.subtensor.network in ["test", "mock", "local"]
+        self.is_test = self.subtensor.network in ["test", "mock"]
         self.base_api_url = "https://stage.ifgames.win" if self.is_test else "https://ifgames.win"
         if self.is_test:
             log_msg = (
