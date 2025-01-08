@@ -179,8 +179,6 @@ docker-compose*
 .bittensor
 
 # local dbs
-validator.db
-test.db
 *.db
 
 # validator state

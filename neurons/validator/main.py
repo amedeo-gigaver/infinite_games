@@ -39,9 +39,7 @@ async def main():
     validator_uid = bt_metagraph.hotkeys.index(validator_hotkey)
 
     env: EnvType = "prod" if bt_network == "finney" else "test"
-    # To switch before publishing
-    # db_path = "new_validator.db" if env == "prod" else "new_validator_test.db"
-    db_path = "new_validator.db"
+    db_path = "validator.db" if env == "prod" else "validator_test.db"
 
     # Components
     db_client = DatabaseClient(db_path=db_path, logger=logger)

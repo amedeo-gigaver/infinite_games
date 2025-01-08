@@ -72,7 +72,7 @@ class Validator(BaseValidatorNeuron):
     Additionally, the scores are reset for new hotkeys at the end of each epoch.
     """
 
-    def __init__(self, integrations, db_path="validator.db", config=None):
+    def __init__(self, integrations, db_path="old_validator.db", config=None):
         bt.logging.info("Validator __init__ start")
         start_time = time.time()
         super(Validator, self).__init__(config=config)
