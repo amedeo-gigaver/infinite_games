@@ -34,7 +34,7 @@ from infinite_games.events.base import (
     EventStatus,
     ProviderEvent,
 )
-from neurons.validator import Validator
+from neurons.old_validator import Validator
 from tests.providers import (
     MockAzuroProviderIntegration,
     MockIFGamesProviderIntegration,
@@ -107,7 +107,7 @@ class TestTemplateValidatorNeuronTestCase:
             mock_response[4].events["ifgames-dbcba93a-fe3b-4092-b918-8231b23f2faa"][
                 "probability"
             ] = 1
-            monkeypatch.setattr("neurons.validator.query_miners", lambda a, b, c: mock_response)
+            monkeypatch.setattr("neurons.old_validator.query_miners", lambda a, b, c: mock_response)
             await self.next_run(v)
         for window in range(1, 42):
             window_time = initial_date + timedelta(
@@ -185,7 +185,7 @@ class TestTemplateValidatorNeuronTestCase:
             assert v.event_provider.integrations
 
             mock_response = fake_synapse_response(v.event_provider.get_events_for_submission())
-            monkeypatch.setattr("neurons.validator.query_miners", lambda a, b, c: mock_response)
+            monkeypatch.setattr("neurons.old_validator.query_miners", lambda a, b, c: mock_response)
             await self.next_run(v)
 
             mock_response[3].events[f"{test_event.market_type}-{test_event.event_id}"][
@@ -195,7 +195,7 @@ class TestTemplateValidatorNeuronTestCase:
                 "probability"
             ] = 0.5
 
-            monkeypatch.setattr("neurons.validator.query_miners", lambda a, b, c: mock_response)
+            monkeypatch.setattr("neurons.old_validator.query_miners", lambda a, b, c: mock_response)
             await self.next_run(v)
             mock_response = fake_synapse_response(v.event_provider.get_events_for_submission())
             mock_response[3].events[f"{test_event.market_type}-{test_event.event_id}"][
@@ -205,7 +205,7 @@ class TestTemplateValidatorNeuronTestCase:
                 "probability"
             ] = 0.9
 
-            monkeypatch.setattr("neurons.validator.query_miners", lambda a, b, c: mock_response)
+            monkeypatch.setattr("neurons.old_validator.query_miners", lambda a, b, c: mock_response)
             await self.next_run(v)
 
         second_window = initial_date + timedelta(minutes=CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES)
@@ -255,7 +255,7 @@ class TestTemplateValidatorNeuronTestCase:
             mock_response[4].events["ifgames-cbcba93a-fe3b-4092-b918-8231b23f2faa"][
                 "probability"
             ] = 1
-            monkeypatch.setattr("neurons.validator.query_miners", lambda a, b, c: mock_response)
+            monkeypatch.setattr("neurons.old_validator.query_miners", lambda a, b, c: mock_response)
             await self.next_run(v)
         for window in range(1, 42):
             window_time = initial_date + timedelta(
@@ -330,7 +330,7 @@ class TestTemplateValidatorNeuronTestCase:
             mock_response[4].events[f"{test_event.market_type}-{test_event.event_id}"][
                 "probability"
             ] = 0.9
-            monkeypatch.setattr("neurons.validator.query_miners", lambda a, b, c: mock_response)
+            monkeypatch.setattr("neurons.old_validator.query_miners", lambda a, b, c: mock_response)
             await self.next_run(v)
 
         second_window = initial_date + timedelta(minutes=CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES)
@@ -401,7 +401,7 @@ class TestTemplateValidatorNeuronTestCase:
             mock_response[4].events[f"{test_event.market_type}-{test_event.event_id}"][
                 "probability"
             ] = 0.9
-            monkeypatch.setattr("neurons.validator.query_miners", lambda a, b, c: mock_response)
+            monkeypatch.setattr("neurons.old_validator.query_miners", lambda a, b, c: mock_response)
             await self.next_run(v)
 
         second_window = initial_date + timedelta(minutes=CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES)
@@ -473,7 +473,7 @@ class TestTemplateValidatorNeuronTestCase:
             mock_response[4].events[f"{test_event.market_type}-{test_event.event_id}"][
                 "probability"
             ] = 0.9
-            monkeypatch.setattr("neurons.validator.query_miners", lambda a, b, c: mock_response)
+            monkeypatch.setattr("neurons.old_validator.query_miners", lambda a, b, c: mock_response)
             await self.next_run(v)
 
         second_window = initial_date + timedelta(minutes=CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES)
@@ -550,7 +550,7 @@ class TestTemplateValidatorNeuronTestCase:
             mock_response[4].events[f"{test_event.market_type}-{test_event.event_id}"][
                 "probability"
             ] = 0.9
-            monkeypatch.setattr("neurons.validator.query_miners", lambda a, b, c: mock_response)
+            monkeypatch.setattr("neurons.old_validator.query_miners", lambda a, b, c: mock_response)
             await self.next_run(v)
 
         test_event.status = EventStatus.SETTLED
@@ -586,7 +586,7 @@ class TestTemplateValidatorNeuronTestCase:
 
         reg_time = "2028-12-31 00:00"
         monkeypatch.setattr(
-            "neurons.validator.get_miner_data_by_uid",
+            "neurons.old_validator.get_miner_data_by_uid",
             lambda validator, uid: {
                 "registered_date": reg_time if uid == 1 else "2024-01-01 00:00"
             },
@@ -626,7 +626,7 @@ class TestTemplateValidatorNeuronTestCase:
             mock_response[5].events[f"{test_event.market_type}-{test_event.event_id}"][
                 "probability"
             ] = 0.0
-            monkeypatch.setattr("neurons.validator.query_miners", lambda a, b, c: mock_response)
+            monkeypatch.setattr("neurons.old_validator.query_miners", lambda a, b, c: mock_response)
             await self.next_run(v)
 
         test_event.status = EventStatus.SETTLED
@@ -714,7 +714,7 @@ class TestTemplateValidatorNeuronTestCase:
             mock_response[12].events[f"{test_event.market_type}-{test_event.event_id}"][
                 "probability"
             ] = 1.0
-            monkeypatch.setattr("neurons.validator.query_miners", lambda a, b, c: mock_response)
+            monkeypatch.setattr("neurons.old_validator.query_miners", lambda a, b, c: mock_response)
             await self.next_run(v)
             mock_response = fake_synapse_response(v.event_provider.get_events_for_submission())
             mock_response[2].events[f"{test_event.market_type}-{test_event.event_id}"][
@@ -750,7 +750,7 @@ class TestTemplateValidatorNeuronTestCase:
             mock_response[12].events[f"{test_event.market_type}-{test_event.event_id}"][
                 "probability"
             ] = 1.0
-            monkeypatch.setattr("neurons.validator.query_miners", lambda a, b, c: mock_response)
+            monkeypatch.setattr("neurons.old_validator.query_miners", lambda a, b, c: mock_response)
             await self.next_run(v)
         second_window = initial_date + timedelta(minutes=CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES)
         with freeze_time(second_window, tick=True):
@@ -869,7 +869,7 @@ class TestTemplateValidatorNeuronTestCase:
 
             # first run, register miners but None predictions
             mock_response = fake_synapse_response(v.event_provider.get_events_for_submission())
-            monkeypatch.setattr("neurons.validator.query_miners", lambda a, b, c: mock_response)
+            monkeypatch.setattr("neurons.old_validator.query_miners", lambda a, b, c: mock_response)
             await self.next_run(v)
 
             actual_events = self.get_all_records_table("events")
@@ -903,7 +903,7 @@ class TestTemplateValidatorNeuronTestCase:
                 mock_response[255].events[f"{event.market_type}-{event.event_id}"][
                     "probability"
                 ] = 0.3
-            monkeypatch.setattr("neurons.validator.query_miners", lambda a, b, c: mock_response)
+            monkeypatch.setattr("neurons.old_validator.query_miners", lambda a, b, c: mock_response)
             await self.next_run(v)
 
             actual_events = self.get_all_records_table("events")
@@ -944,7 +944,7 @@ class TestTemplateValidatorNeuronTestCase:
                 mock_response[255].events[f"{event.market_type}-{event.event_id}"][
                     "probability"
                 ] = 0.4
-            monkeypatch.setattr("neurons.validator.query_miners", lambda a, b, c: mock_response)
+            monkeypatch.setattr("neurons.old_validator.query_miners", lambda a, b, c: mock_response)
             await self.next_run(v)
 
             actual_events = self.get_all_records_table("events")
@@ -1013,7 +1013,7 @@ class TestTemplateValidatorNeuronTestCase:
                     mock_response[miner_uid].events[f"{event.market_type}-{event.event_id}"][
                         "probability"
                     ] = (5 * random.random())
-            monkeypatch.setattr("neurons.validator.query_miners", lambda a, b, c: mock_response)
+            monkeypatch.setattr("neurons.old_validator.query_miners", lambda a, b, c: mock_response)
             await self.next_run(v)
 
         # move to the next window and set some predictions again
@@ -1026,7 +1026,7 @@ class TestTemplateValidatorNeuronTestCase:
                     mock_response[miner_uid].events[f"{event.market_type}-{event.event_id}"][
                         "probability"
                     ] = random.random()
-            monkeypatch.setattr("neurons.validator.query_miners", lambda a, b, c: mock_response)
+            monkeypatch.setattr("neurons.old_validator.query_miners", lambda a, b, c: mock_response)
             await self.next_run(v)
 
             # no predictions should be exported
@@ -1063,7 +1063,7 @@ class TestTemplateValidatorNeuronTestCase:
                     mock_response[miner_uid].events[f"{event.market_type}-{event.event_id}"][
                         "probability"
                     ] = random.random()
-            monkeypatch.setattr("neurons.validator.query_miners", lambda a, b, c: mock_response)
+            monkeypatch.setattr("neurons.old_validator.query_miners", lambda a, b, c: mock_response)
             await self.next_run(v)
 
             # the older predictions are not exported
