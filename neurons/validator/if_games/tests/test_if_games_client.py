@@ -2,7 +2,7 @@ import asyncio
 import base64
 import json
 from types import SimpleNamespace
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from aiohttp import ClientResponseError
@@ -75,7 +75,11 @@ class TestIfGamesClient:
         await client_test_env.on_request_end(
             None,
             context,
-            MagicMock(response=Response(status=response_status), method=method, url=URL(url)),
+            MagicMock(
+                response=Response(status=response_status),
+                method=method,
+                url=URL(url),
+            ),
         )
 
         # Verify the debug call
@@ -95,21 +99,22 @@ class TestIfGamesClient:
         context = SimpleNamespace()
         method = "GET"
         response_status = 500
+        response_message = '{"message": "error"}'
         url = "/test"
+
+        response = MagicMock(status=response_status, text=AsyncMock(return_value=response_message))
+        params = MagicMock(response=response, method=method, url=URL(url))
 
         # Test success response
         await client_test_env.on_request_start(None, context, None)
-        await client_test_env.on_request_end(
-            None,
-            context,
-            MagicMock(response=Response(status=response_status), method=method, url=URL(url)),
-        )
+        await client_test_env.on_request_end(None, context, params)
 
         # Verify the error call
         logger.error.assert_called_once_with(
             "Http request failed",
             extra={
                 "response_status": response_status,
+                "response_message": response_message,
                 "method": method,
                 "url": url,
                 "elapsed_time_ms": pytest.approx(100, abs=100),

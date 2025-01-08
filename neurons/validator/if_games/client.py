@@ -77,6 +77,10 @@ class IfGamesClient:
         }
 
         if response_status >= 400:
+            # Add message if error
+            response_message = await params.response.text()
+            extra["response_message"] = response_message
+
             self.__logger.error("Http request failed", extra=extra)
         else:
             self.__logger.debug("Http request finished", extra=extra)
