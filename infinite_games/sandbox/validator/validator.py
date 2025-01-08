@@ -11,7 +11,7 @@ from bittensor_wallet import Wallet
 
 from infinite_games.sandbox.validator.db.client import DatabaseClient
 from infinite_games.sandbox.validator.db.operations import DatabaseOperations
-from infinite_games.sandbox.validator.if_games.client import IfGamesClient
+from infinite_games.sandbox.validator.if_games.client import EnvType, IfGamesClient
 from infinite_games.sandbox.validator.scheduler.tasks_scheduler import TasksScheduler
 from infinite_games.sandbox.validator.tasks.export_predictions import ExportPredictions
 from infinite_games.sandbox.validator.tasks.pull_events import PullEvents
@@ -40,17 +40,20 @@ async def main():
     validator_hotkey = bt_wallet.hotkey.ss58_address
     validator_uid = bt_metagraph.hotkeys.index(validator_hotkey)
 
-    db_client = DatabaseClient(db_path="new_validator.db", logger=logger)
+    env: EnvType = "prod" if bt_network == "finney" else "test"
+    # To switch before publishing
+    # db_path = "new_validator.db" if env == "prod" else "new_validator_test.db"
+    db_path = "new_validator.db"
 
+    # Components
+    db_client = DatabaseClient(db_path=db_path, logger=logger)
     db_operations = DatabaseOperations(db_client=db_client)
-
-    env: IfGamesClient.EnvType = "prod" if bt_network == "finney" else "test"
     api_client = IfGamesClient(env=env, logger=logger, bt_wallet=bt_wallet)
 
     # Migrate db
     await db_client.migrate()
 
-    # Set tasks
+    # Tasks
     pull_events_task = PullEvents(
         interval_seconds=50.0, page_size=50, db_operations=db_operations, api_client=api_client
     )
@@ -88,7 +91,7 @@ async def main():
         wallet=bt_wallet,
     )
 
-    # Set scheduler and add tasks
+    # Add tasks to scheduler
     scheduler = TasksScheduler(logger=logger)
 
     scheduler.add(task=pull_events_task)
