@@ -33,7 +33,7 @@ class EventsModel(BaseModel):
     metadata: str
     processed: Optional[bool] = False
     exported: Optional[bool] = False
-    created_at: datetime
+    created_at: Optional[datetime] = None
     cutoff: Optional[datetime] = None
     end_date: Optional[datetime] = None
     resolved_at: Optional[datetime] = None
