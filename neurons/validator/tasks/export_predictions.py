@@ -99,10 +99,10 @@ class ExportPredictions(AbstractTask):
 
         for prediction in predictions:
             unique_event_id = prediction[1]
-            miner_hotkey = prediction[2]
+            miner_hotkey = prediction[2] or "almighty_missing_hotkey"
             miner_uid = prediction[3]
             event_type = prediction[4]
-            predicted_outcome = prediction[5]
+            predicted_outcome = prediction[5] or -999
             interval_start_minutes = prediction[6]
             interval_agg_prediction = prediction[7]
             interval_count = prediction[8]
