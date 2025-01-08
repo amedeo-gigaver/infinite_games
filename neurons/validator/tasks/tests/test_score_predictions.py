@@ -389,6 +389,18 @@ class TestScorePredictions:
                 1.0,
                 1.0,
             ),
+            # Case 5: Miner registered during the event and no predictions
+            (
+                pd.DataFrame(),
+                {
+                    "miner_uid": "miner_1",
+                    "n_intervals": 3,
+                    "registered_date_start_minutes": 519840,
+                },
+                datetime(2024, 12, 27, 5, 0, 0, 0, timezone.utc),
+                0.4305727,
+                0.2870484,
+            ),
         ],
     )
     def test_process_miner_event_score(

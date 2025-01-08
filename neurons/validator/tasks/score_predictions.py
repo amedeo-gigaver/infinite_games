@@ -273,11 +273,6 @@ class ScorePredictions(AbstractTask):
                 "rema_prediction": -999,
             }
 
-        # clamp predictions between 0 and 1
-        miner_predictions["interval_agg_prediction"] = miner_predictions[
-            "interval_agg_prediction"
-        ].clip(0, 1)
-
         weights_brier_sum = 0
         weights_pred_sum = 0
         weights_sum = 0
@@ -293,18 +288,21 @@ class ScorePredictions(AbstractTask):
             if miner_reg_date_since_epoch > interval_end:
                 # if miner registered after the interval, gets a neutral score
                 ans = 0.5
+            elif (
+                miner_predictions.empty
+                or interval_start not in miner_predictions["interval_start_minutes"].values
+            ):
+                # if miner should have answered but didn't, assume wrong prediction
+                # and will get a m1_brier_score of 0
+                ans = 1 - outcome
             else:
                 agg_predictions = miner_predictions[
                     miner_predictions["interval_start_minutes"] == interval_start
                 ]["interval_agg_prediction"]
 
-                if agg_predictions.empty:
-                    # if miner should have answered but didn't, assume wrong prediction
-                    # and will get a m1_brier_score of 0
-                    ans = 1 - outcome
-                else:
-                    # DB primary key for predictions ensures maximum one prediction
-                    ans = agg_predictions.iloc[0]
+                # DB primary key for predictions ensures maximum one prediction
+                # clip the prediction between 0 and 1
+                ans = agg_predictions.iloc[0].clip(0, 1)
 
             m1_brier_score = 1 - ((ans - outcome) ** 2)
 
@@ -367,16 +365,28 @@ class ScorePredictions(AbstractTask):
                 "n_intervals": n_intervals,
             }
 
-            miner_remas = self.process_miner_event_score(event, miner_predictions, context)
+            try:
+                miner_remas = self.process_miner_event_score(event, miner_predictions, context)
 
-            scores_ls.append(
-                {
-                    "miner_uid": miner_uid,
-                    "hotkey": miner_hotkey,
-                    "rema_brier_score": miner_remas["rema_brier_score"],
-                    "rema_prediction": miner_remas["rema_prediction"],
-                },
-            )
+                scores_ls.append(
+                    {
+                        "miner_uid": miner_uid,
+                        "hotkey": miner_hotkey,
+                        "rema_brier_score": miner_remas["rema_brier_score"],
+                        "rema_prediction": miner_remas["rema_prediction"],
+                    },
+                )
+            except Exception:
+                # avoid impacting other miners if one miner fails
+                self.errors_count += 1
+                logger.exception(
+                    "Failed to process miner predictions.",
+                    extra={
+                        "miner_uid": miner_uid,
+                        "miner_hotkey": miner_hotkey,
+                        "unique_event_id": event.unique_event_id,
+                    },
+                )
 
         scores_df = pd.DataFrame(scores_ls)
 
