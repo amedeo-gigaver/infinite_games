@@ -85,5 +85,7 @@ class TestValidator:
                     "validator_uid": unittest.mock.ANY,
                     "validator_hotkey": unittest.mock.ANY,
                     "network": unittest.mock.ANY,
+                    "python": unittest.mock.ANY,
+                    "sqlite": unittest.mock.ANY,
                 },
             )

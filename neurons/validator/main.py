@@ -1,3 +1,6 @@
+import sqlite3
+import sys
+
 from bittensor import Dendrite, Subtensor
 from bittensor_wallet import Wallet
 
@@ -96,6 +99,8 @@ async def main():
             "validator_uid": validator_uid,
             "validator_hotkey": validator_hotkey,
             "network": bt_network,
+            "python": sys.version,
+            "sqlite": sqlite3.sqlite_version,
         },
     )
 
