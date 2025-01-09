@@ -10,6 +10,7 @@
         "blocktime",
         "btlogging",
         "dataframe",
+        "delenv",
         "dropna",
         "executemany",
         "executescript",

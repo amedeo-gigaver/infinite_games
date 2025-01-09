@@ -1,9 +1,3 @@
-# Force torch - must be set before importing bittensor
-# flake8: noqa: E402
-import os
-
-os.environ["USE_TORCH"] = "1"
-
 from bittensor import Dendrite, Subtensor
 from bittensor_wallet import Wallet
 
