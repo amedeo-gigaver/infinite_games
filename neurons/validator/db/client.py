@@ -36,8 +36,10 @@ class DatabaseClient:
 
         caller = self.__get_caller_name()
 
+        connection = None
+
         try:
-            connection = await aiosqlite.connect(self.__db_path)
+            connection = await aiosqlite.connect(self.__db_path, timeout=30)
             response = await operation(connection)
 
             elapsed_time_ms = round((time.time() - start_time) * 1000)
@@ -61,7 +63,7 @@ class DatabaseClient:
 
             raise e
         finally:
-            if connection:
+            if connection is not None:
                 await connection.close()
 
     async def insert(
