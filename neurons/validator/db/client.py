@@ -255,10 +255,10 @@ class DatabaseClient:
                 UPDATE
                     events
                 SET
-                    cutoff = datetime(metadata->>'cutoff', 'unixepoch')
+                    cutoff = datetime(json_extract(metadata, '$.cutoff'), 'unixepoch')
                 WHERE
                     cutoff IS NULL
-                    AND metadata->>'cutoff' IS NOT NULL
+                    AND json_extract(metadata, '$.cutoff') IS NOT NULL
             """
         )
 
@@ -274,10 +274,10 @@ class DatabaseClient:
                 UPDATE
                     events
                 SET
-                    end_date = datetime(metadata->>'end_date', 'unixepoch')
+                    end_date = datetime(json_extract(metadata, '$.end_date'), 'unixepoch')
                 WHERE
                     end_date IS NULL
-                    AND metadata->>'end_date' IS NOT NULL
+                    AND json_extract(metadata, '$.end_date') IS NOT NULL
             """
         )
 
@@ -300,9 +300,9 @@ class DatabaseClient:
                 UPDATE
                     events
                 SET
-                    event_type = metadata->>'market_type'
+                    event_type = json_extract(metadata, '$.market_type')
                 WHERE
                     event_type IS NULL
-                    AND metadata->>'market_type' IS NOT NULL
+                    AND json_extract(metadata, '$.market_type') IS NOT NULL
             """
         )
