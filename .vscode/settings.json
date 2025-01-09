@@ -30,6 +30,7 @@
         "polymarket",
         "pydatetime",
         "pytest",
+        "PYTHONPATH",
         "rema",
         "remas",
         "subtensor",
