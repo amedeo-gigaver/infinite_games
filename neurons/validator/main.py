@@ -14,10 +14,14 @@ from neurons.validator.tasks.query_miners import QueryMiners
 from neurons.validator.tasks.resolve_events import ResolveEvents
 from neurons.validator.tasks.score_predictions import ScorePredictions
 from neurons.validator.utils.config import get_config
+from neurons.validator.utils.env import assert_requirements
 from neurons.validator.utils.logger.logger import logger
 
 
 async def main():
+    # Assert system requirements
+    assert_requirements()
+
     # Start session id
     logger.start_session()
 

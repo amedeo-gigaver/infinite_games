@@ -39,7 +39,7 @@ class DatabaseClient:
         connection = None
 
         try:
-            connection = await aiosqlite.connect(self.__db_path, timeout=30)
+            connection = await aiosqlite.connect(self.__db_path, timeout=90)
             response = await operation(connection)
 
             elapsed_time_ms = round((time.time() - start_time) * 1000)

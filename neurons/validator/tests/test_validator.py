@@ -38,6 +38,7 @@ class TestValidator:
     def test_main(self):
         # Patch key dependencies inside the method
         with (
+            patch("neurons.validator.main.assert_requirements") as mock_assert_requirements,
             patch("neurons.validator.main.get_config"),
             patch("neurons.validator.main.Dendrite", spec=True),
             patch("neurons.validator.main.Wallet", spec=True),
@@ -65,6 +66,9 @@ class TestValidator:
 
             # Run the validator
             asyncio.run(main())
+
+            # Verify assert_requirements() was called
+            mock_assert_requirements.assert_called_once()
 
             # Verify start session called
             mock_logger.start_session.assert_called_once()
