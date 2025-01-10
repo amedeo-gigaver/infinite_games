@@ -40,11 +40,19 @@ class DatabaseClient:
 
         try:
             connection = await aiosqlite.connect(self.__db_path, timeout=90)
+
+            query_start_time = time.time()
+
             response = await operation(connection)
 
+            query_ms = round((time.time() - query_start_time) * 1000)
             elapsed_time_ms = round((time.time() - start_time) * 1000)
 
-            extra = {"elapsed_time_ms": elapsed_time_ms, "caller": caller}
+            extra = {
+                "caller": caller,
+                "query_ms": query_ms,
+                "elapsed_time_ms": elapsed_time_ms,
+            }
 
             if elapsed_time_ms > 500:
                 log_method = self.__logger.warning
