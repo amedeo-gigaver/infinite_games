@@ -13,7 +13,7 @@ from neurons.validator.utils.common.converters import (
 )
 
 
-class TestModel(BaseModel):
+class ExperimentalModel(BaseModel):
     id: int
     name: str
     score: float
@@ -31,7 +31,7 @@ class TestPydanticModelToDataFrame:
 
     def test_single_model(self):
         # Convert a single model
-        model = TestModel(
+        model = ExperimentalModel(
             id=1,
             name="Alice",
             score=9.5,
@@ -59,7 +59,7 @@ class TestPydanticModelToDataFrame:
 
     def test_multiple_models(self):
         models = [
-            TestModel(
+            ExperimentalModel(
                 id=1,
                 name="Alice",
                 score=9.5,
@@ -67,7 +67,7 @@ class TestPydanticModelToDataFrame:
                 created_at=datetime(2024, 1, 1, 12, 0),
                 optional_field=10,
             ),
-            TestModel(
+            ExperimentalModel(
                 id=2,
                 name="Bob",
                 score=7.2,

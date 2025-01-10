@@ -28,6 +28,4 @@ RUN pip install --upgrade pip \
     && pip install --no-cache-dir -r /workspace/requirements.txt \
     && pip install --no-cache-dir -r /workspace/requirements_dev.txt
 
-ENV PYTHONPATH="/workspace:${PYTHONPATH}"
-
 WORKDIR /workspace/infinite_games
