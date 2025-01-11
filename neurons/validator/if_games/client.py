@@ -2,17 +2,15 @@ import asyncio
 import base64
 import json
 import time
-from typing import Literal
 
 import aiohttp
 import aiohttp.typedefs
 from bittensor_wallet import Wallet
 
 from infinite_games import __version__
+from neurons.validator.utils.config import IfgamesEnvType
 from neurons.validator.utils.git import commit_short_hash
 from neurons.validator.utils.logger.logger import InfiniteGamesLogger
-
-EnvType = Literal["test", "prod"]
 
 
 class IfGamesClient:
@@ -22,7 +20,7 @@ class IfGamesClient:
     __logger: InfiniteGamesLogger
     __bt_wallet: Wallet
 
-    def __init__(self, env: EnvType, logger: InfiniteGamesLogger, bt_wallet: Wallet) -> None:
+    def __init__(self, env: IfgamesEnvType, logger: InfiniteGamesLogger, bt_wallet: Wallet) -> None:
         # Validate env
         if not isinstance(env, str):
             raise TypeError("env must be an instance of str.")

@@ -6,7 +6,7 @@ from bittensor_wallet import Wallet
 
 from neurons.validator.db.client import DatabaseClient
 from neurons.validator.db.operations import DatabaseOperations
-from neurons.validator.if_games.client import EnvType, IfGamesClient
+from neurons.validator.if_games.client import IfGamesClient
 from neurons.validator.scheduler.tasks_scheduler import TasksScheduler
 from neurons.validator.tasks.export_predictions import ExportPredictions
 from neurons.validator.tasks.pull_events import PullEvents
@@ -26,7 +26,7 @@ async def main():
     logger.start_session()
 
     # Set dependencies
-    config = get_config()
+    config, ifgames_env, db_path = get_config()
 
     # Bittensor stuff
     bt_netuid = config.get("netuid")
@@ -39,13 +39,10 @@ async def main():
     validator_hotkey = bt_wallet.hotkey.ss58_address
     validator_uid = bt_metagraph.hotkeys.index(validator_hotkey)
 
-    env: EnvType = "prod" if bt_network == "finney" else "test"
-    db_path = "validator.db" if env == "prod" else "validator_test.db"
-
     # Components
     db_client = DatabaseClient(db_path=db_path, logger=logger)
     db_operations = DatabaseOperations(db_client=db_client)
-    api_client = IfGamesClient(env=env, logger=logger, bt_wallet=bt_wallet)
+    api_client = IfGamesClient(env=ifgames_env, logger=logger, bt_wallet=bt_wallet)
 
     # Migrate db
     await db_client.migrate()
@@ -102,7 +99,10 @@ async def main():
         extra={
             "validator_uid": validator_uid,
             "validator_hotkey": validator_hotkey,
-            "network": bt_network,
+            "bt_network": bt_network,
+            "bt_netuid": bt_netuid,
+            "ifgames_env": ifgames_env,
+            "db_path": db_path,
             "python": sys.version,
             "sqlite": sqlite3.sqlite_version,
         },

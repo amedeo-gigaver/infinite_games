@@ -1,9 +1,12 @@
 import argparse
+from typing import Literal
 
 from bittensor.core.config import Config
 from bittensor.core.subtensor import Subtensor
 from bittensor.utils.btlogging import LoggingMachine
 from bittensor_wallet.wallet import Wallet
+
+IfgamesEnvType = Literal["test", "prod"]
 
 VALID_NETWORK_CONFIGS = [
     {"subtensor.network": "finney", "netuid": 6, "ifgames.env": None},
@@ -13,7 +16,7 @@ VALID_NETWORK_CONFIGS = [
 ]
 
 
-def get_config() -> Config:
+def get_config():
     # Build parser
     parser = argparse.ArgumentParser()
 
@@ -50,4 +53,8 @@ def get_config() -> Config:
             )
         )
 
-    return Config(parser=parser, strict=True)
+    config = Config(parser=parser, strict=True)
+    env = "prod" if netuid == 6 else "test"
+    db_path = "validator.db" if env == "prod" else "validator_test.db"
+
+    return config, env, db_path

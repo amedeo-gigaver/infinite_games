@@ -53,13 +53,15 @@ class TestConfig:
                 netuid=6, network="finney", ifgames_env=None
             )
 
-            config = get_config()
+            config, env, db_path = get_config()
 
             mock_subtensor.add_args.assert_called_once()
             mock_logging_machine.add_args.assert_called_once()
             mock_wallet.add_args.assert_called_once()
 
             assert isinstance(config, Config)
+            assert env == "prod"
+            assert db_path == "validator.db"
 
     def test_required_args_missing(self):
         """Test behavior when required arguments are missing"""
@@ -84,22 +86,24 @@ class TestConfig:
         assert test_config["ifgames.env"] in ["prod", "test", None]
 
     @pytest.mark.parametrize(
-        "test_args,expected_valid",
+        "test_args,expected_valid,expected_env,expected_db_path",
         [
-            ((6, "finney", None), True),
-            ((155, "test", None), True),
-            ((6, "local", "prod"), True),
-            ((155, "local", "test"), True),
-            ((7, "finney", None), False),
-            ((6, "invalid", None), False),
-            ((6, "local", None), False),
-            ((155, "local", "invalid"), False),
+            ((6, "finney", None), True, "prod", "validator.db"),
+            ((155, "test", None), True, "test", "validator_test.db"),
+            ((6, "local", "prod"), True, "prod", "validator.db"),
+            ((155, "local", "test"), True, "test", "validator_test.db"),
+            ((7, "finney", None), False, None, None),
+            ((6, "invalid", None), False, None, None),
+            ((6, "local", None), False, None, None),
+            ((155, "local", "invalid"), False, None, None),
         ],
     )
     def test_configurations(
         self,
         test_args: tuple,
         expected_valid: bool,
+        expected_env: str | None,
+        expected_db_path: str | None,
         mock_config,
     ):
         """Test various network configurations for validity"""
@@ -110,9 +114,15 @@ class TestConfig:
             )
 
             if expected_valid:
-                get_config()
+                _, env, db_path = get_config()
 
                 mock_config.assert_called_once()
+
+                # Assert env
+                assert env == expected_env
+
+                # Assert db_path
+                assert db_path == expected_db_path
             else:
                 with pytest.raises(ValueError) as exc_info:
                     get_config()
