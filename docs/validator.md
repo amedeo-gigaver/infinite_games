@@ -2,7 +2,7 @@
 
 # Validator
 
-Your validator will be sending binary outcomes events to miners. In the first phase of the subnet the events will come from external APIs. The validator for example fetches events from [Polymarket](https://polymarket.com/) and [Azuro](https://azuro.org/), a prediction market and an exclusive outcomes market respectively. Every time an event settles, your validator will score the miners that submitted a prediction for that event. The core validator logic is contained in the `neurons/validator.py` file. 
+The validator is streaming binary outcomes events to miners. The events can come directly from external APIs or be LLM generated. Every time an event settles, the validator will score the miners which submitted a prediction for that given event. 
 
 The main computational prerequisite is related to storage. Validators are now storing the entire time-series of a miner's predictions for a given event, cf. the [scoring doc](https://hackmd.io/@nielsma/S1sB8xO_C). 
 
@@ -37,7 +37,7 @@ Below are the computational prerequisites for validators.
 - Validators should have at least 8GB of RAM and 2CPUs. We expect daily requirements to be lower but this would provide sufficient margin.
 - On [Digital Ocean](https://www.digitalocean.com/) a sufficient setup would be the one for $42/month with Premium AMD and 8GB RAM. 
 
-As we optimize the fetching and processing of events these requirements may evolve.
+As we optimize the fetching and processing of events these requirements may evolve. 
 
 # Getting Started
 
