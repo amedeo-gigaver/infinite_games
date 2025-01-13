@@ -7,10 +7,10 @@ import aiohttp
 import aiohttp.typedefs
 from bittensor_wallet import Wallet
 
-from infinite_games import __version__
 from neurons.validator.utils.config import IfgamesEnvType
 from neurons.validator.utils.git import commit_short_hash
 from neurons.validator.utils.logger.logger import InfiniteGamesLogger
+from neurons.validator.version import __version__
 
 
 class IfGamesClient:

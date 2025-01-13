@@ -1,48 +1,38 @@
 # The MIT License (MIT)
 # Copyright © 2023 Yuma Rao
 
-# Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
-# documentation files (the “Software”), to deal in the Software without restriction, including without limitation
-# the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
-# and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+# -- DO NOT TOUCH BELOW - ENV SET --
+# flake8: noqa: E402
+import os
+import sys
 
-# The above copyright notice and this permission notice shall be included in all copies or substantial portions of
-# the Software.
+# Force torch - must be set before importing bittensor
+os.environ["USE_TORCH"] = "1"
 
-# THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
-# THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
-# THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-# OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
-# DEALINGS IN THE SOFTWARE.
+# Add the parent directory of the script to PYTHONPATH
+script_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(script_dir)
+sys.path.append(parent_dir)
+# -- DO NOT TOUCH ABOVE --
 
 import asyncio
 import base64
 import json
 import math
-import os
 import sqlite3
-import sys
+import time
 import traceback
 from datetime import datetime, timedelta, timezone
 
+import bittensor as bt
 import pandas as pd
 import requests
-
-from infinite_games.events.ifgames import IFGamesProviderIntegration
-from infinite_games.utils.misc import split_chunks
-from infinite_games.utils.uids import get_miner_data_by_uid
-
-os.environ["USE_TORCH"] = "1"
-
-import time
-
-import bittensor as bt
 import torch
 
 import infinite_games
 
 # import base validator class which takes care of most of the boilerplate
-from infinite_games import __spec_version__ as spec_version
+from infinite_games import __deprecated_spec_version__
 from infinite_games.base.validator import TENSOR_DEBUG_SLICE, BaseValidatorNeuron
 from infinite_games.events.base import (
     CLUSTER_EPOCH_2024,
@@ -52,7 +42,10 @@ from infinite_games.events.base import (
     ProviderEvent,
     ProviderIntegration,
 )
+from infinite_games.events.ifgames import IFGamesProviderIntegration
+from infinite_games.utils.misc import split_chunks
 from infinite_games.utils.query import query_miners
+from infinite_games.utils.uids import get_miner_data_by_uid
 
 # The minimum time between querying miners in seconds - avoid spamming miners
 MIN_TIME_BETWEEN_QUERY_MINERS = 300
@@ -72,7 +65,7 @@ class Validator(BaseValidatorNeuron):
     Additionally, the scores are reset for new hotkeys at the end of each epoch.
     """
 
-    def __init__(self, integrations, db_path="old_validator.db", config=None):
+    def __init__(self, integrations, db_path="validator.db", config=None):
         bt.logging.info("Validator __init__ start")
         start_time = time.time()
         super(Validator, self).__init__(config=config)
@@ -441,7 +434,7 @@ class Validator(BaseValidatorNeuron):
                             "validator_hotkey": self.wallet.get_hotkey().ss58_address,
                             "validator_uid": int(v_uid),
                             "metadata": p_event.metadata,
-                            "spec_version": str(spec_version) or "0",
+                            "spec_version": str(__deprecated_spec_version__) or "0",
                         }
                         for miner_uid, score, effective_score in miner_score_data
                     ]
@@ -659,7 +652,7 @@ if "trace" in ("".join(sys.argv)):
 if __name__ == "__main__":
     version = sys.version
     version_info = sys.version_info
-    bt.logging.debug(f"Subnet version {spec_version}")
+    bt.logging.debug(f"Subnet version {__deprecated_spec_version__}")
     bt.logging.debug(f"Python version {version} {version_info}")
     bt.logging.debug(f"Bittensor version  {bt.__version__}")
     bt.logging.debug(f"SQLite version  {sqlite3.sqlite_version}")

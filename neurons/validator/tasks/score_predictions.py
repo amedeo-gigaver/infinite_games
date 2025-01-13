@@ -12,7 +12,6 @@ import torch
 from bittensor.core.metagraph import MetagraphMixin
 from bittensor_wallet.wallet import Wallet
 
-from infinite_games import __spec_version__ as spec_version
 from neurons.validator.db.operations import DatabaseOperations
 from neurons.validator.if_games.client import IfGamesClient
 from neurons.validator.models.event import EventsModel
@@ -20,6 +19,7 @@ from neurons.validator.models.prediction import PredictionsModel
 from neurons.validator.scheduler.task import AbstractTask
 from neurons.validator.utils.common.converters import pydantic_models_to_dataframe
 from neurons.validator.utils.logger.logger import logger
+from neurons.validator.version import __spec_version__ as spec_version
 
 # The base time epoch for clustering intervals.
 SCORING_REFERENCE_DATE = datetime(2024, 1, 1, 0, 0, 0, tzinfo=timezone.utc)

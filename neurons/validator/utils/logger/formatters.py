@@ -3,9 +3,9 @@ import logging
 
 from colorama import Back, Fore, Style
 
-from infinite_games import __version__
 from neurons.validator.utils.git import commit_short_hash
 from neurons.validator.utils.logger.context import get_context
+from neurons.validator.version import __version__
 
 
 # A custom logging formatter for console output with color coding for log levels

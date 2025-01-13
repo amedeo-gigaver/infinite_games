@@ -11,10 +11,10 @@ from aioresponses import aioresponses
 from bittensor_wallet import Wallet
 from yarl import URL
 
-from infinite_games import __version__
 from neurons.validator.if_games.client import IfGamesClient
 from neurons.validator.utils.git import commit_short_hash
 from neurons.validator.utils.logger.logger import InfiniteGamesLogger
+from neurons.validator.version import __version__
 
 
 class TestIfGamesClient:

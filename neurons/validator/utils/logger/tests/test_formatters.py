@@ -2,10 +2,10 @@ import json
 import logging
 import sys
 
-from infinite_games import __version__
 from neurons.validator.utils.git import commit_short_hash
 from neurons.validator.utils.logger.context import logger_context
 from neurons.validator.utils.logger.formatters import ConsoleFormatter, JSONFormatter
+from neurons.validator.version import __version__
 
 
 class TestConsoleFormatter:
