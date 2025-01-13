@@ -1,6 +1,7 @@
 import copy
 import json
 import math
+import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -690,29 +691,34 @@ class ScorePredictions(AbstractTask):
                 },
             )
 
+        start_time = time.time()
+
         successful, sw_msg = self.subtensor.set_weights(
             wallet=self.wallet,
             netuid=self.config.netuid,
             uids=processed_uids,
             weights=processed_weights,
             version_key=self.spec_version,
-            wait_for_inclusion=False,
-            wait_for_finalization=False,
+            wait_for_inclusion=True,
+            wait_for_finalization=True,
             max_retries=5,
         )
+
+        elapsed_time_ms = round((time.time() - start_time) * 1000)
 
         if not successful:
             self.errors_count += 1
             logger.error(
                 "Failed to set the weights.",
                 extra={
+                    "elapsed_time_ms": elapsed_time_ms,
                     "fail_msg": sw_msg,
                     "processed_uids[:10]": processed_uids.tolist()[:10],
                     "processed_weights[:10]": processed_weights.tolist()[:10],
                 },
             )
         else:
-            logger.debug("Weights set successfully.")
+            logger.debug("Weights set successfully.", extra={"elapsed_time_ms": elapsed_time_ms})
 
         return successful, sw_msg
 
