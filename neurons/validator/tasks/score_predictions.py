@@ -601,6 +601,14 @@ class ScorePredictions(AbstractTask):
                 },
             )
             return True, "Not enough blocks passed."
+        else:
+            logger.debug(
+                "Attempting to set the weights - enough blocks passed.",
+                extra={
+                    "blocks_since_set_weights": blocks_since_set_weights,
+                    "weights_rate_limit": self.weights_rate_limit,
+                },
+            )
 
         # re-normalize the scores for the weights - should be already normalized
         raw_weights = torch.nn.functional.normalize(self.state["scores"], p=1, dim=0)

@@ -994,7 +994,7 @@ class TestScorePredictions:
 
             # Check logs
             if "error_message" in expected_logs:
-                assert debug_calls[0].args[0] == "Top 10 and bottom 10 weights."
+                assert debug_calls[1].args[0] == "Top 10 and bottom 10 weights."
                 assert success is False
                 assert msg == "Failed to process the weights."
                 assert warning_calls == []
@@ -1004,17 +1004,21 @@ class TestScorePredictions:
                 assert msg == "success"
                 assert error_calls == []
                 assert warning_calls == []
-                assert debug_calls[1].args[0] == "Weights set successfully."
-                assert debug_calls[0].args[0] == "Top 10 and bottom 10 weights."
-                assert debug_calls[0].kwargs["extra"]["top_10_weights"] == pytest.approx(
+                assert (
+                    debug_calls[0].args[0]
+                    == "Attempting to set the weights - enough blocks passed."
+                )
+                assert debug_calls[2].args[0] == "Weights set successfully."
+                assert debug_calls[1].args[0] == "Top 10 and bottom 10 weights."
+                assert debug_calls[1].kwargs["extra"]["top_10_weights"] == pytest.approx(
                     expected_logs["top_10_weights"], rel=1e-6
                 )
-                assert debug_calls[0].kwargs["extra"]["top_10_uids"] == expected_logs["top_10_uids"]
-                assert debug_calls[0].kwargs["extra"]["bottom_10_weights"] == pytest.approx(
+                assert debug_calls[1].kwargs["extra"]["top_10_uids"] == expected_logs["top_10_uids"]
+                assert debug_calls[1].kwargs["extra"]["bottom_10_weights"] == pytest.approx(
                     expected_logs["bottom_10_weights"], rel=1e-6
                 )
                 assert (
-                    debug_calls[0].kwargs["extra"]["bottom_10_uids"]
+                    debug_calls[1].kwargs["extra"]["bottom_10_uids"]
                     == expected_logs["bottom_10_uids"]
                 )
 
