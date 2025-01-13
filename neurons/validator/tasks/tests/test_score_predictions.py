@@ -1,6 +1,7 @@
 import logging
 import shutil
 import tempfile
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -974,7 +975,7 @@ class TestScorePredictions:
             # Mock bittensor
             bt_mock.utils.weight_utils.process_weights_for_netuid = mock_process_weights
 
-            unit.subtensor.blocks_since_last_update = MagicMock(return_value=99)
+            unit.last_set_weights_at = round(time.time()) - 100
             # Call the method
             success, msg = unit.set_weights()
             assert success is True
@@ -985,8 +986,11 @@ class TestScorePredictions:
             mock_logger.error = MagicMock(spec=logging.Logger.error)
             mock_logger.warning = MagicMock(spec=logging.Logger.warning)
 
-            unit.subtensor.blocks_since_last_update = MagicMock(return_value=101)
+            unit.last_set_weights_at = round(time.time()) - 1201
+            previous_last_set_weights_at = unit.last_set_weights_at
             success, msg = unit.set_weights()
+            # Check if updated
+            assert 1201 <= unit.last_set_weights_at - previous_last_set_weights_at < 1205
 
             debug_calls = mock_logger.debug.call_args_list
             warning_calls = mock_logger.warning.call_args_list

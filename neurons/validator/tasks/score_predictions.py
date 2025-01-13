@@ -30,6 +30,8 @@ AGGREGATION_INTERVAL_LENGTH_MINUTES = 60 * 4  # 240
 
 RESET_INTERVAL_SECONDS = 60 * 60 * 24  # 24 hours
 
+BLOCK_DURATION = 12  # 12 seconds block duration from bittensor
+
 EXP_FACTOR_K = 30
 NEURON_MOVING_AVERAGE_ALPHA = 0.8
 
@@ -71,6 +73,7 @@ class ScorePredictions(AbstractTask):
         self.wallet = wallet
         self.vali_uid = self.metagraph.hotkeys.index(self.wallet.hotkey.ss58_address)
         self.weights_rate_limit = self.subtensor.weights_rate_limit(self.config.netuid)
+        self.last_set_weights_at = round(time.time())
 
         self.spec_version = spec_version
 
@@ -590,14 +593,16 @@ class ScorePredictions(AbstractTask):
         return norm_scores_aligned
 
     def set_weights(self):
-        blocks_since_set_weights = self.subtensor.blocks_since_last_update(
-            netuid=self.config.netuid, uid=self.vali_uid
-        )
-        if blocks_since_set_weights < self.weights_rate_limit:
+        # do not attempt to set weights more often than the rate limit
+        blocks_since_last_attempt = (
+            round(time.time()) - self.last_set_weights_at
+        ) // BLOCK_DURATION
+        if blocks_since_last_attempt < self.weights_rate_limit:
             logger.debug(
                 "Not setting the weights - not enough blocks passed.",
                 extra={
-                    "blocks_since_set_weights": blocks_since_set_weights,
+                    "last_set_weights_at": self.last_set_weights_at,
+                    "blocks_since_last_attempt": blocks_since_last_attempt,
                     "weights_rate_limit": self.weights_rate_limit,
                 },
             )
@@ -606,10 +611,12 @@ class ScorePredictions(AbstractTask):
             logger.debug(
                 "Attempting to set the weights - enough blocks passed.",
                 extra={
-                    "blocks_since_set_weights": blocks_since_set_weights,
+                    "last_set_weights_at": self.last_set_weights_at,
+                    "blocks_since_last_attempt": blocks_since_last_attempt,
                     "weights_rate_limit": self.weights_rate_limit,
                 },
             )
+            self.last_set_weights_at = round(time.time())
 
         # re-normalize the scores for the weights - should be already normalized
         raw_weights = torch.nn.functional.normalize(self.state["scores"], p=1, dim=0)
@@ -691,34 +698,31 @@ class ScorePredictions(AbstractTask):
                 },
             )
 
-        start_time = time.time()
-
         successful, sw_msg = self.subtensor.set_weights(
             wallet=self.wallet,
             netuid=self.config.netuid,
             uids=processed_uids,
             weights=processed_weights,
             version_key=self.spec_version,
-            wait_for_inclusion=True,
-            wait_for_finalization=True,
+            wait_for_inclusion=False,
+            wait_for_finalization=False,  # can take more than 5 mins when True
             max_retries=5,
         )
-
-        elapsed_time_ms = round((time.time() - start_time) * 1000)
 
         if not successful:
             self.errors_count += 1
             logger.error(
                 "Failed to set the weights.",
                 extra={
-                    "elapsed_time_ms": elapsed_time_ms,
                     "fail_msg": sw_msg,
                     "processed_uids[:10]": processed_uids.tolist()[:10],
                     "processed_weights[:10]": processed_weights.tolist()[:10],
                 },
             )
         else:
-            logger.debug("Weights set successfully.", extra={"elapsed_time_ms": elapsed_time_ms})
+            logger.debug(
+                "Weights set successfully.", extra={"last_set_weights_at": self.last_set_weights_at}
+            )
 
         return successful, sw_msg
 
