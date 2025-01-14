@@ -1,5 +1,6 @@
 import argparse
 from typing import Literal
+from unittest.mock import ANY
 
 from bittensor.core.config import Config
 from bittensor.core.subtensor import Subtensor
@@ -13,6 +14,8 @@ VALID_NETWORK_CONFIGS = [
     {"subtensor.network": "test", "netuid": 155, "ifgames.env": None},
     {"subtensor.network": "local", "netuid": 6, "ifgames.env": "prod"},
     {"subtensor.network": "local", "netuid": 155, "ifgames.env": "test"},
+    {"subtensor.network": ANY, "netuid": 6, "ifgames.env": "prod"},
+    {"subtensor.network": ANY, "netuid": 155, "ifgames.env": "test"},
 ]
 
 
