@@ -82,7 +82,7 @@ class TestConfig:
         assert "netuid" in test_config
         assert "ifgames.env" in test_config
         assert isinstance(test_config["netuid"], int)
-        assert test_config["subtensor.network"] in ["finney", "test", "local"]
+        assert test_config["subtensor.network"] in ["finney", "test", "local", None]
         assert test_config["ifgames.env"] in ["prod", "test", None]
 
     @pytest.mark.parametrize(
@@ -92,10 +92,18 @@ class TestConfig:
             ((155, "test", None), True, "test", "validator_test.db"),
             ((6, "local", "prod"), True, "prod", "validator.db"),
             ((155, "local", "test"), True, "test", "validator_test.db"),
+            ((6, None, "prod"), True, "prod", "validator.db"),
+            ((155, None, "test"), True, "test", "validator_test.db"),
+            ((6, "ws://fake_ip:fake_port", "prod"), True, "prod", "validator.db"),
+            ((155, "ws://fake_ip:fake_port", "test"), True, "test", "validator_test.db"),
             ((7, "finney", None), False, None, None),
             ((6, "invalid", None), False, None, None),
             ((6, "local", None), False, None, None),
             ((155, "local", "invalid"), False, None, None),
+            ((155, None, "prod"), False, None, None),
+            ((6, None, "test"), False, None, None),
+            ((6, "ws://fake_ip:fake_port", "test"), False, None, None),
+            ((155, "ws://fake_ip:fake_port", "prod"), False, None, None),
         ],
     )
     def test_configurations(
