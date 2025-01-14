@@ -164,16 +164,17 @@ Possible values:
 
 Provide the subtensor network to connect to.
 <br/>
-Possible values:
+Typical values:
 
 - **finney** for mainnet
 - **test** for testnet
 - **local** for local node
+- **could be omitted** for additional configs
 
 `--ifgames.env`
 
 Provide the InfiniteGames environment.
-**Only required** when subtensor network is **local**.
+**Only required** when subtensor network is not **finney** or **test**.
 <br/>
 Possible values:
 
@@ -196,7 +197,7 @@ Run the following command inside the `infinite_games` directory:
 python neurons/validator.py --netuid 155 --subtensor.network test --wallet.name validator --wallet.hotkey default
 ```
 
-Example for local subtensor network
+Example when ifgames.env required
 
 ```bash
 python neurons/validator.py --netuid 155 --subtensor.network local --ifgames.env test --wallet.name validator --wallet.hotkey default
