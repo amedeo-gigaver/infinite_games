@@ -11,10 +11,10 @@ from bittensor.core.chain_data import AxonInfo
 from bittensor.core.dendrite import DendriteMixin
 from bittensor.core.metagraph import MetagraphMixin
 
+from neurons.protocol import EventPredictionSynapse
 from neurons.validator.db.client import DatabaseClient
 from neurons.validator.db.operations import DatabaseOperations
 from neurons.validator.models.event import EventStatus
-from neurons.validator.models.event_prediction_synapse import EventPredictionSynapse
 from neurons.validator.tasks.query_miners import QueryMiners
 from neurons.validator.utils.logger.logger import InfiniteGamesLogger
 

@@ -25,8 +25,7 @@ NEW_VERSION=$(git rev-parse HEAD)
 
 if [ "$VERSION" != "$NEW_VERSION" ]; then
   pip install -r requirements.txt
-  export USE_TORCH=1
   pm2 restart "$PM2_PROCESS_NAME" --update-env
 fi
-### use this command to add script in crontab 
+### use this command to add script in crontab
 ### (crontab -l 2>/dev/null; echo "*/10 * * * * /root/infinite_games/checker.sh validator >> /root/infinite_games/checker.log 2>&1") | crontab -

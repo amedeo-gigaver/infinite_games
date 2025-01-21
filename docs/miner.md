@@ -1,9 +1,9 @@
 
 # Miner
 
-You will be receiving data in the form defined in `infinite_games/events/base.py` and will only need to complete the `probability` entry. 
+You will be receiving data in the form defined in `neurons/protocol.py` and will only need to complete the `probability` entry.
 
-The current scoring mechanism is described [here](https://hackmd.io/@nielsma/S1sB8xO_C). 
+The current scoring mechanism is described [here](https://hackmd.io/@nielsma/S1sB8xO_C).
 
 You will be receiving requests from validators every minute. You do not have to recalculate your prediction every time. Our baseline miners are implementing a caching system that allows for a recalculation schedule. This is particularly important if you use a base model like GPT4 that might be expensive.
 
@@ -15,9 +15,9 @@ We integrate the LLM prompting [pipeline](https://github.com/dannyallover/llm_fo
 This pipeline can work with different base models.
 
 **version 1**
-GPT4 as base model. 
+GPT4 as base model.
 
-steps: 
+steps:
 - add an OpenAI key (OPENAI_KEY) to your local environment
 
 **version 2**
@@ -25,9 +25,11 @@ GPT-3.5 and GPT4 Mini as base models.
 
 steps:
 - add an OpenAI key to your local environment
-- add the parameter 1 to the `get_prediction` function in `miner.py`
+- add the parameter ***models_setup_option=1*** to the ***get_prediction*** function in `neurons/miner/main.py`
 
-```llm_prediction = (await self.llm.get_prediction(market, 1))```
+```bash
+llm_prediction = (await self.llm.get_prediction(market=market, models_setup_option=1))
+```
 
 **version 3**
 
@@ -35,18 +37,22 @@ Gemini as base model
 
 steps:
 - add a Google Gemini key (GOOGLE_AI_KEY) to your local environment
-- add the parameter 2 to the `get_prediction` function in `miner.py`
+- add the parameter ***models_setup_option=2*** to the ***get_prediction*** function in `neurons/miner/main.py`
 
-```llm_prediction = (await self.llm.get_prediction(market, 2))```
+```bash
+llm_prediction = (await self.llm.get_prediction(market=market, models_setup_option=2))
+```
 
 **version 4**
 GPT-3.5 (used for reasoning) and Gemini as base models
 
 steps:
 - add an OpenAI key and a Google Gemini key (GOOGLE_AI_KEY) to your local environment
-- add the parameter 3 to the `get_prediction` function in `miner.py`
+- add the parameter ***models_setup_option=3*** to the ***get_prediction*** function in `neurons/miner/main.py.py`
 
-```llm_prediction = (await self.llm.get_prediction(market, 3))```
+```bash
+llm_prediction = (await self.llm.get_prediction(market=market, models_setup_option=3))
+```
 
 You can also set up your own configurations.
 
@@ -63,9 +69,9 @@ This first set of events will have the following structure:
 - the cutoff will be set at the start of the time window
 - events will be generated daily but they will only resolve on Tuesday-Wednesday due to the schedule ACLED follows to update its data.
 
-Miners will have to retrieve protest data relevant to each of the countries listed above in order to improve their predictions. 
+Miners will have to retrieve protest data relevant to each of the countries listed above in order to improve their predictions.
 
-# Miner strategy 
+# Miner strategy
 
 A reference providing a **baseline miner** strategy is the article ["Approaching Human Level Forecasting with Language Models"](https://arxiv.org/html/2402.18563v1?s=35) ([1]). The authors fine-tune an LLM to generate predictions on binary events (including the ones listed on Polymarket) which nears the performance of human forecasters when submitting a forecast for each prediction, and which beats human forecasters in a setting where the LLM can choose to give a prediction or not based on its confidence.
 
@@ -76,7 +82,7 @@ The authors released a version of the code they used to build the LLM they descr
 
 The computational requirements for a miner will depend significantly on the frequency at which they need to send predictions to be competitive since the base model we consider consists of a set of LLM sub-modules that each need to perform computations. Miners will also need to eventually continually provide new data to their models.
 
-A significant cost in the case of the repo referenced above is the cost of using e.g the OpenAI API as well as the cost of retrieving news data. Every time a prediction is produced, a base model is used to generate various prompts. A miner could circumvent that by using a local model or by using the output of the [subnet 18](https://github.com/corcel-api/cortex.t.git). 
+A significant cost in the case of the repo referenced above is the cost of using e.g the OpenAI API as well as the cost of retrieving news data. Every time a prediction is produced, a base model is used to generate various prompts. A miner could circumvent that by using a local model or by using the output of the [subnet 18](https://github.com/corcel-api/cortex.t.git).
 News retrieval other than Google News is done through news provider like https://www.newscatcherapi.com/. They are most often behind a paywall.
 
 
@@ -115,11 +121,6 @@ Install dependencies
 
 ```bash
 pip install -r requirements.txt
-```
-Enable `torch`:
-
-```bash
-export USE_TORCH=1
 ```
 
 The venv should be active whenever the neurons are run.
@@ -190,7 +191,7 @@ miner  default  197    True   0.00000  0.00000  0.00000    0.00000    0.00000   
 
 ## Running a Miner
 
-### Direct Run 
+### Direct Run
 
 Run the following command inside the `infinite_games` directory:
 
@@ -203,7 +204,7 @@ Install and run pm2 commands to keep your miner online at all times.
 
 `sudo apt update`
 
-`sudo apt install npm` 
+`sudo apt install npm`
 
 `sudo npm install pm2 -g`
 

@@ -18,7 +18,7 @@ class MinerEventResult(BaseModel):
     resolve_date: typing.Optional[datetime.datetime]
     settle_date: datetime.datetime
     prediction: float
-    answer: float = Field(..., ge=0, le=1)  # noqa
+    answer: float = Field(..., json_schema_extra={"ge": 0, "le": 1})
     miner_hotkey: str
     miner_uid: int
     miner_score: float

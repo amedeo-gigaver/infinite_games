@@ -7,8 +7,8 @@ from bittensor.core.chain_data import AxonInfo
 from bittensor.core.dendrite import DendriteMixin
 from bittensor.core.metagraph import MetagraphMixin
 
+from neurons.protocol import EventPredictionSynapse
 from neurons.validator.db.operations import DatabaseOperations
-from neurons.validator.models.event_prediction_synapse import EventPredictionSynapse
 from neurons.validator.scheduler.task import AbstractTask
 from neurons.validator.utils.common.converters import torch_or_numpy_to_int
 from neurons.validator.utils.common.interval import get_interval_start_minutes

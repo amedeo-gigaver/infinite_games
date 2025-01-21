@@ -29,7 +29,7 @@ class TestGit:
             result = get_commit_short_hash()
 
             # Verify empty hash is returned
-            assert result == ""
+            assert result == "-"
 
             # Verify git command was called with correct arguments
             mock_check_output.assert_called_once_with(["git", "rev-parse", "--short", "HEAD"])

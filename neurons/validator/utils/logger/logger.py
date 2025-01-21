@@ -1,7 +1,7 @@
 import logging
 
 from neurons.validator.utils.logger.context import start_session, start_trace
-from neurons.validator.utils.logger.formatters import ConsoleFormatter, JSONFormatter
+from neurons.validator.utils.logger.formatters import JSONFormatter
 
 
 class InfiniteGamesLogger(logging.Logger):
@@ -31,24 +31,20 @@ original_makeRecord = logging.Logger.makeRecord
 logging.Logger.makeRecord = make_record_with_extra
 
 
-# Factory function to create and configure a logger with multiple handlers
+# Factory function to create and configure a logger
 def create_logger(
-    name: str = None, level: any = logging.DEBUG, message_log: bool = False
+    name: str = None,
+    level: any = logging.DEBUG,
 ) -> InfiniteGamesLogger:
     # Initialize the logger with the specified name and level
     logger = logging.getLogger(name)
     logger.setLevel(level)
-    logger.handlers.clear()
 
-    # Console message handler
-    if message_log:
-        console_handler = logging.StreamHandler()
-        console_handler.setFormatter(ConsoleFormatter())
-        logger.addHandler(console_handler)
-
-    # Console JSON handler
+    # Add a console handler with JSON formatter
     json_handler = logging.StreamHandler()
     json_handler.setFormatter(JSONFormatter())
+
+    logger.handlers.clear()
     logger.addHandler(json_handler)
 
     return logger

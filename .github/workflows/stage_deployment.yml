@@ -27,12 +27,20 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_PASSWORD }}
 
+      - name: Get Git Commit Short Hash
+        id: git-info
+        run: |
+          echo "commit_hash=$(git rev-parse --short HEAD)"
+          echo "commit_hash=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+
       - name: Build and push validator image
         uses: docker/build-push-action@v4
         with:
           context: .
           push: true
           tags: gigacodehub/validator:stage-latest
+          build-args: |
+            GIT_COMMIT_HASH=${{ env.commit_hash }}
 
   build-push-miner:
 
@@ -78,8 +86,6 @@ jobs:
       - name: Deploy to server
         env:
           SSH_AUTH_SOCK: /tmp/ssh_agent.sock
-          #TARGET_MONITOR_HOTKEY: ${{ secrets.TARGET_MONITOR_HOTKEY }}
-          #GRAFANA_API_KEY: ${{ secrets.GRAFANA_API_KEY }}
         run: |
             ssh-keyscan -p ${{ secrets.SERVER_PORT }} ${{ secrets.SERVER_STAGE_VALI_IP }} >> ~/.ssh/known_hosts
             ssh-keyscan github.com >> ~/.ssh/known_hosts

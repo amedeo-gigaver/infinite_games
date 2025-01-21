@@ -32,7 +32,7 @@ RESET_INTERVAL_SECONDS = 60 * 60 * 24  # 24 hours
 
 BLOCK_DURATION = 12  # 12 seconds block duration from bittensor
 
-EXP_FACTOR_K = 30
+EXP_FACTOR_K = 5
 NEURON_MOVING_AVERAGE_ALPHA = 0.8
 
 
@@ -115,7 +115,23 @@ class ScorePredictions(AbstractTask):
         self.n_hotkeys = len(self.current_hotkeys)
         self.current_uids = copy.deepcopy(self.metagraph.uids)
 
+    def log_state_info(self, location: str):
+        logger.debug(
+            "State info",
+            extra={
+                "location": location,
+                "miner_uid_length": len(self.state["miner_uids"].tolist()),
+                "hotkey_length": len(self.state["hotkeys"]),
+                "eff_scores_length": len(self.state["scores"].tolist()),
+                "average_scores_length": len(self.state["average_scores"].tolist()),
+                "previous_average_scores_length": len(
+                    self.state["previous_average_scores"].tolist()
+                ),
+            },
+        )
+
     def save_state(self):
+        self.log_state_info("save_state")
         try:
             self.state_file.parent.mkdir(parents=True, exist_ok=True)
             torch.save(self.state, self.state_file)
@@ -144,7 +160,7 @@ class ScorePredictions(AbstractTask):
         """Load the state from the state file."""
         return torch.load(self.state_file)
 
-    def _realign_loaded_state(self, state: dict) -> dict:
+    def _realign_state(self, state: dict) -> dict:
         """Realign the state to match the current hotkeys and UIDs using pandas."""
         # Convert current hotkeys and UIDs to a DataFrame
         current_df = pd.DataFrame(
@@ -219,7 +235,7 @@ class ScorePredictions(AbstractTask):
         try:
             logger.debug("State file found - loading state.")
             state = self._load_existing_state()
-            self.state = self._realign_loaded_state(state)
+            self.state = self._realign_state(state)
             logger.debug(
                 "State loaded and realigned.",
                 extra={
@@ -428,14 +444,20 @@ class ScorePredictions(AbstractTask):
         )
         logger.debug(
             "Scores exponentiation sample.",
-            extra={"processed_scores": processed_scores.head(n=5).to_dict(orient="index")},
+            extra={
+                "processed_scores": processed_scores.head(n=5).to_dict(orient="index"),
+                "len_scores": len(processed_scores),
+            },
         )
 
         # Normalize the scores - sum cannot be 0, all elements are >= 1
         processed_scores["normalized_score"] /= processed_scores["normalized_score"].sum()
         logger.debug(
             "Scores normalization sample.",
-            extra={"processed_scores": processed_scores.head(n=5).to_dict(orient="index")},
+            extra={
+                "processed_scores": processed_scores.head(n=5).to_dict(orient="index"),
+                "len_scores": len(processed_scores),
+            },
         )
 
         return processed_scores
@@ -452,19 +474,7 @@ class ScorePredictions(AbstractTask):
         )
         norm_scores_ext = pd.merge(norm_scores, miners_df, on=["miner_uid", "hotkey"], how="inner")
 
-        # TODO: remove this after we confirm the bug is fixed
-        logger.debug(
-            "State info before the daily update.",
-            extra={
-                "miner_uid_length": len(self.state["miner_uids"].tolist()),
-                "hotkey_length": len(self.state["hotkeys"]),
-                "eff_scores_length": len(self.state["scores"].tolist()),
-                "average_scores_length": len(self.state["average_scores"].tolist()),
-                "previous_average_scores_length": len(
-                    self.state["previous_average_scores"].tolist()
-                ),
-            },
-        )
+        self.log_state_info("before update_daily_scores")
 
         state_df = pd.DataFrame(
             {
@@ -535,6 +545,7 @@ class ScorePredictions(AbstractTask):
 
         self.metagraph_lite_sync()
         self.state["scoring_iterations"] += 1
+        self.log_state_info("before update_state")
 
         # realign the scores to the current hotkeys - right join:
         # - new hotkeys get effective score 0 right after registration
@@ -710,15 +721,19 @@ class ScorePredictions(AbstractTask):
         )
 
         if not successful:
-            self.errors_count += 1
-            logger.error(
-                "Failed to set the weights.",
-                extra={
-                    "fail_msg": sw_msg,
-                    "processed_uids[:10]": processed_uids.tolist()[:10],
-                    "processed_weights[:10]": processed_weights.tolist()[:10],
-                },
-            )
+            extra = {
+                "fail_msg": sw_msg,
+                "processed_uids[:10]": processed_uids.tolist()[:10],
+                "processed_weights[:10]": processed_weights.tolist()[:10],
+            }
+            log_msg = "Failed to set the weights."
+            if "No attempt made" in sw_msg:
+                # do not consider this as an error - pollutes the logs
+                logger.warning(log_msg, extra=extra)
+                successful = True
+            else:
+                self.errors_count += 1
+                logger.error(log_msg, extra=extra)
         else:
             logger.debug(
                 "Weights set successfully.", extra={"last_set_weights_at": self.last_set_weights_at}
@@ -801,6 +816,7 @@ class ScorePredictions(AbstractTask):
             self.errors_count += 1
             logger.error("Reset daily scores: average scores are 0, not resetting.")
         else:
+            self.log_state_info("before reset_daily_scores")
             logger.debug(
                 "Resetting daily scores.",
                 extra={
@@ -810,7 +826,10 @@ class ScorePredictions(AbstractTask):
                 },
             )
             self.state["previous_average_scores"] = self.state["average_scores"]
-            self.state["average_scores"] = torch.zeros((self.n_hotkeys), dtype=torch.float32)
+            # keep shape of the average_scores tensor but reset to zeros
+            self.state["average_scores"] = torch.zeros(
+                (len(self.state["average_scores"])), dtype=torch.float32
+            )
             self.state["latest_reset_date"] = today_midnight
             self.state["scoring_iterations"] = 0
             self.save_state()
@@ -870,7 +889,7 @@ class ScorePredictions(AbstractTask):
         scores = self.score_predictions(event=event, predictions=predictions)
         logger.debug(
             "Scores calculated, sample below.",
-            extra={"scores": scores.head(n=5).to_dict(orient="index")},
+            extra={"scores": scores.head(n=5).to_dict(orient="index"), "len_scores": len(scores)},
         )
 
         norm_scores = self.normalize_scores(scores=scores)
