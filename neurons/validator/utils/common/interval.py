@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta, timezone
 
 CLUSTER_EPOCH_2024 = datetime(2024, 1, 1, 0, 0, 0, 0, tzinfo=timezone.utc)
+# defines a time window for grouping miner predictions based on a specified number of minutes
 CLUSTERED_SUBMISSIONS_INTERVAL_MINUTES = 60 * 4
 
 

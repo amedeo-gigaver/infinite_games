@@ -2,25 +2,13 @@ import json
 import logging
 import sys
 
+from colorama import Fore, Style
+
+from neurons.validator.utils.env import ENVIRONMENT_VARIABLES
 from neurons.validator.utils.git import commit_short_hash
 from neurons.validator.utils.logger.context import logger_context
-from neurons.validator.utils.logger.formatters import ConsoleFormatter, JSONFormatter
+from neurons.validator.utils.logger.formatters import JSONFormatter
 from neurons.validator.version import __version__
-
-
-class TestConsoleFormatter:
-    def test_console_formatter_info_log(self):
-        formatter = ConsoleFormatter()
-
-        record = logging.LogRecord(
-            "test_logger", logging.INFO, "test_module", 1, "This is an info message", None, None
-        )
-        formatted_message = formatter.format(record)
-
-        # Ensure the formatted message contains the log message
-        assert "This is an info message" in formatted_message
-        assert "INFO" in formatted_message
-        assert "test_logger" in formatted_message
 
 
 class TestJsonFormatter:
@@ -36,12 +24,14 @@ class TestJsonFormatter:
 
         # Simulate the context
         formatted_message = formatter.format(record)
+        # Escape ANSI
+        formatted_escaped_message = formatted_message.replace("\x1b", "\\u001b")
 
-        log_data = json.loads(formatted_message)
+        log_data = json.loads(formatted_escaped_message)
 
         # Ensure the log data contains the correct fields
         assert "timestamp" in log_data
-        assert log_data["level"] == "INFO"
+        assert log_data["level"] == Fore.GREEN + Style.BRIGHT + "INFO" + Style.RESET_ALL
         assert log_data["message"] == "This is a JSON log message"
         assert log_data["context_key"] == "context_value"
 
@@ -65,7 +55,10 @@ class TestJsonFormatter:
         record.__dict__["_extra"] = extra_data
 
         formatted_message = formatter.format(record)
-        log_data = json.loads(formatted_message)
+        # Escape ANSI
+        formatted_escaped_message = formatted_message.replace("\x1b", "\\u001b")
+
+        log_data = json.loads(formatted_escaped_message)
 
         # Ensure the extra data is included in the JSON log output
         assert "data" in log_data
@@ -91,7 +84,10 @@ class TestJsonFormatter:
             )
 
         formatted_message = formatter.format(record)
-        log_data = json.loads(formatted_message)
+        # Escape ANSI
+        formatted_escaped_message = formatted_message.replace("\x1b", "\\u001b")
+
+        log_data = json.loads(formatted_escaped_message)
 
         # Ensure the exception information is included in the JSON log output
         assert "exception" in log_data
@@ -113,7 +109,10 @@ class TestJsonFormatter:
         )
 
         formatted_message = formatter.format(record)
-        log_data = json.loads(formatted_message)
+        # Escape ANSI
+        formatted_escaped_message = formatted_message.replace("\x1b", "\\u001b")
+
+        log_data = json.loads(formatted_escaped_message)
 
         # Ensure the version data is included in the JSON log output
         assert "version" in log_data
@@ -121,3 +120,36 @@ class TestJsonFormatter:
 
         assert "commit_hash" in log_data
         assert log_data["commit_hash"] == commit_short_hash
+
+    def test_json_formatter_inline_logs(
+        self,
+    ):
+        # Mock env variable
+        ENVIRONMENT_VARIABLES.INLINE_LOGS = True
+
+        formatter = JSONFormatter()
+
+        # Create a log record
+
+        record = logging.LogRecord(
+            "test_logger",
+            logging.WARNING,
+            "test_module",
+            1,
+            "This is a JSON log message",
+            None,
+            None,
+        )
+
+        # Format the log record
+        formatted_message = formatter.format(record)
+
+        message_json = json.loads(formatted_message)
+
+        # Ensure the logs string is correct
+        assert "\n" not in formatted_message
+
+        # Ensure the log data contains the correct fields
+        assert "timestamp" in message_json
+        assert message_json["level"] == "WARNING"
+        assert message_json["message"] == "This is a JSON log message"

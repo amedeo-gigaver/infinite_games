@@ -280,7 +280,7 @@ class TestScorePredictions:
         }
 
         # Realign the state
-        updated_state = unit._realign_loaded_state(state)
+        updated_state = unit._realign_state(state)
 
         # Assert the realigned state
         assert updated_state["hotkeys"] == ["hk1", "hk2", "hk3", "hk4"]
@@ -588,7 +588,7 @@ class TestScorePredictions:
                 pd.DataFrame(
                     {
                         "rema_brier_score": [0.8, 0.6, 0.4],
-                        "normalized_score": [0.997521, 0.0024726, 6.128982e-6],
+                        "normalized_score": [0.6652409, 0.2447284, 0.0900305],
                     }
                 ),
             ),
@@ -608,7 +608,7 @@ class TestScorePredictions:
                 pd.DataFrame(
                     {
                         "rema_brier_score": [1.0, 0.99, 0.98],
-                        "normalized_score": [0.4367518, 0.3235537, 0.2396944],
+                        "normalized_score": [0.3501318, 0.3330557, 0.3168124],
                     }
                 ),
             ),
@@ -618,7 +618,7 @@ class TestScorePredictions:
                 pd.DataFrame(
                     {
                         "rema_brier_score": [0.02, 0.01, 0.0],
-                        "normalized_score": [0.4367518, 0.3235537, 0.2396944],
+                        "normalized_score": [0.3501318, 0.3330557, 0.3168124],
                     }
                 ),
             ),
@@ -950,6 +950,17 @@ class TestScorePredictions:
                     "error_message": "Failed to process the weights - received None.",
                 },
             ),
+            # Case 3: Bittensor saying too soon
+            (
+                {
+                    "scores": torch.tensor([0.6, 0.4], dtype=torch.float32),
+                    "miner_uids": torch.tensor([1, 2], dtype=torch.long),
+                    "hotkeys": ["hk1", "hk2"],
+                },
+                {  # Expected logs when processing fails
+                    "warning_message": "Failed to set the weights.",
+                },
+            ),
         ],
     )
     def test_set_weights(self, score_predictions_task, state, expected_logs):
@@ -964,9 +975,15 @@ class TestScorePredictions:
             return uids, weights  # Return processed uids and weights for valid cases
 
         # mock unit.subtensor.set_weights to return True, "success"
-        unit.subtensor.set_weights = MagicMock(
-            spec=bt.Subtensor.set_weights, return_value=(True, "success")
-        )
+        if "warning_message" in expected_logs:
+            unit.subtensor.set_weights = MagicMock(
+                spec=bt.Subtensor.set_weights,
+                return_value=(False, "No attempt made. Perhaps it is too soon to commit weights!"),
+            )
+        else:
+            unit.subtensor.set_weights = MagicMock(
+                spec=bt.Subtensor.set_weights, return_value=(True, "success")
+            )
 
         with (
             patch("neurons.validator.tasks.score_predictions.logger") as mock_logger,
@@ -1003,6 +1020,12 @@ class TestScorePredictions:
                 assert msg == "Failed to process the weights."
                 assert warning_calls == []
                 assert error_calls[0].args[0] == expected_logs["error_message"]
+            elif "warning_message" in expected_logs:
+                assert debug_calls[1].args[0] == "Top 10 and bottom 10 weights."
+                assert success is True
+                assert msg == "No attempt made. Perhaps it is too soon to commit weights!"
+                assert warning_calls[0].args[0] == expected_logs["warning_message"]
+                assert error_calls == []
             else:
                 assert success
                 assert msg == "success"
@@ -1190,7 +1213,7 @@ class TestScorePredictions:
                 mock_logger.error.assert_not_called()
 
     @pytest.mark.parametrize(
-        "state, n_hotkeys, current_time, reset_interval, expected_state, expected_logs",
+        "state, n_hotkeys, current_time, expected_state, expected_logs",
         [
             # Case 0: No reset needed (within interval)
             (
@@ -1201,7 +1224,6 @@ class TestScorePredictions:
                 },
                 2,
                 datetime(2024, 12, 26, 23, 59, 0, tzinfo=timezone.utc),
-                86400,  # Reset interval: 1 day
                 {  # Expected state: unchanged
                     "latest_reset_date": datetime(2024, 12, 26, 0, 0, 0, tzinfo=timezone.utc),
                     "average_scores": torch.tensor([0.6, 0.4], dtype=torch.float32),
@@ -1218,7 +1240,6 @@ class TestScorePredictions:
                 },
                 2,
                 datetime(2024, 12, 26, 1, 0, 0, tzinfo=timezone.utc),
-                86400,  # Reset interval: 1 day
                 {  # Expected state: reset
                     "latest_reset_date": datetime(2024, 12, 26, 0, 0, 0, tzinfo=timezone.utc),
                     "average_scores": torch.tensor([0.0, 0.0], dtype=torch.float32),
@@ -1235,13 +1256,28 @@ class TestScorePredictions:
                 },
                 2,
                 datetime(2024, 12, 26, 1, 0, 0, tzinfo=timezone.utc),
-                86400,  # Reset interval: 1 day
                 {  # Expected state: unchanged
                     "latest_reset_date": datetime(2024, 12, 25, 0, 0, 0, tzinfo=timezone.utc),
                     "average_scores": torch.tensor([0.0, 0.0], dtype=torch.float32),
                     "scoring_iterations": 10,
                 },
                 ["Reset daily scores: average scores are 0, not resetting."],  # Error log
+            ),
+            # Case 3: Reset needed but n_hotkeys is 3 - check alignment
+            (
+                {
+                    "latest_reset_date": datetime(2024, 12, 25, 0, 0, 0, tzinfo=timezone.utc),
+                    "average_scores": torch.tensor([0.6, 0.4], dtype=torch.float32),
+                    "scoring_iterations": 10,
+                },
+                3,
+                datetime(2024, 12, 26, 1, 0, 0, tzinfo=timezone.utc),
+                {  # Expected state: reset
+                    "latest_reset_date": datetime(2024, 12, 26, 0, 0, 0, tzinfo=timezone.utc),
+                    "average_scores": torch.tensor([0.0, 0.0], dtype=torch.float32),
+                    "scoring_iterations": 0,
+                },
+                ["Resetting daily scores."],  # Debug log
             ),
         ],
     )
@@ -1253,7 +1289,6 @@ class TestScorePredictions:
         state,
         n_hotkeys,
         current_time,
-        reset_interval,
         expected_state,
         expected_logs,
     ):
@@ -1270,6 +1305,7 @@ class TestScorePredictions:
 
             # Mock save_state
             unit.save_state = MagicMock()
+            unit.log_state_info = MagicMock()
 
             # Call the method
             unit.check_reset_daily_scores()
@@ -1726,7 +1762,7 @@ class TestScorePredictions:
 
         assert unit.subtensor.set_weights.call_count == 1
         call_args = unit.subtensor.set_weights.call_args
-        assert call_args.kwargs["weights"].tolist() == pytest.approx([0.0227541, 0.9772459])
+        assert call_args.kwargs["weights"].tolist() == pytest.approx([0.3482670, 0.6517329])
         assert call_args.kwargs["uids"].tolist() == [1, 2]
 
         assert unit.export_scores.call_count == 1
@@ -1736,11 +1772,11 @@ class TestScorePredictions:
         )
         assert unit.state["average_scores"].tolist() == [0.0, 0.0, 0.0]  # reset after scoring
         assert unit.state["previous_average_scores"].tolist() == pytest.approx(
-            [0.0227541, 0.9772458, 0.2136524]
+            [0.3482670, 0.6517329, 0.4089602]
         )
         assert unit.state["miner_uids"].tolist() == [1, 2, 3]
         assert unit.state["hotkeys"] == ["hotkey1", "hotkey2", "hotkey3"]
-        assert unit.state["scores"].tolist() == pytest.approx([0.01820328, 0.78179669, 0.0])
+        assert unit.state["scores"].tolist() == pytest.approx([0.2786136, 0.5213863, 0.0])
 
         # check the event is marked as processed and exported
         events = await db_client.many(

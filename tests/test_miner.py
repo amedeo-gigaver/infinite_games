@@ -1,16 +1,14 @@
 from unittest.mock import Mock
 
 import pytest
-import torch
 
-from neurons.miner import Miner
-from tests.utils import MockMiner
+from tests.utils import MockMinerWithActualBlacklistMethod
 
 
 class TestMinerNeuronTestCase:
     @pytest.mark.asyncio
     async def test_miner_blacklisting(self):
-        mock_miner = MockMiner()
+        mock_miner = MockMinerWithActualBlacklistMethod()
 
         synapse = Mock()
         synapse.dendrite = Mock()

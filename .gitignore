@@ -9,7 +9,6 @@ nohup.out
 .miner-cache.json
 # C extensions
 *.so
-wandb/
 # Distribution / packaging
 .Python
 build/
@@ -169,8 +168,6 @@ venv/
 *.log
 venv-6.11/
 venv-testnet
-Dockerfile
-docker-compose*
 
 # macOS stuff
 .DS_Store

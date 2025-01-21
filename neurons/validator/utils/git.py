@@ -1,5 +1,7 @@
 import subprocess
 
+from neurons.validator.utils.env import ENVIRONMENT_VARIABLES
+
 
 def get_commit_short_hash() -> str:
     try:
@@ -9,7 +11,7 @@ def get_commit_short_hash() -> str:
 
         return commit_short_hash
     except Exception:
-        return ""
+        return ENVIRONMENT_VARIABLES.GIT_COMMIT_HASH
 
 
 commit_short_hash = get_commit_short_hash()
