@@ -4,6 +4,7 @@ from typing import Any, Awaitable, Callable, Iterable, Optional
 
 import aiosqlite
 
+from neurons.validator.alembic.migrate import run_migrations
 from neurons.validator.utils.logger.logger import InfiniteGamesLogger
 
 
@@ -179,140 +180,9 @@ class DatabaseClient:
 
         return await self.__wrap_execution(execute)
 
-    async def add_column_if_not_exists(
-        self,
-        table_name: str,
-        column_name: str,
-        column_type: str,
-        default_value: str | int | float | None = None,
-    ):
-        response = await self.many(f"PRAGMA table_info({table_name})")
-
-        columns = [row[1] for row in response]
-
-        if column_name not in columns:
-            alter_query = f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_type}"
-
-            if default_value is not None:
-                alter_query += f" DEFAULT {default_value}"
-
-            await self.script(alter_query)
-
     async def migrate(self):
-        await self.script(
-            """
-                CREATE TABLE IF NOT EXISTS events (
-                    unique_event_id PRIMARY KEY,
-                    event_id TEXT,
-                    market_type TEXT,
-                    registered_date DATETIME,
-                    description TEXT,
-                    starts DATETIME,
-                    resolve_date DATETIME,
-                    outcome TEXT,
-                    local_updated_at DATETIME,
-                    status TEXT,
-                    metadata TEXT,
-                    processed BOOLEAN DEFAULT false,
-                    exported INTEGER DEFAULT 0
-                );
+        self.__logger.info("Running migrations")
 
-                CREATE TABLE IF NOT EXISTS miners (
-                    miner_hotkey TEXT,
-                    miner_uid TEXT,
-                    node_ip TEXT,
-                    registered_date DATETIME,
-                    last_updated DATETIME,
-                    blocktime INTEGER,
-                    blocklisted boolean DEFAULT false,
-                    PRIMARY KEY (miner_hotkey, miner_uid)
-                );
+        run_migrations(db_file_name=self.__db_path)
 
-                CREATE TABLE IF NOT EXISTS predictions (
-                    unique_event_id TEXT,
-                    minerHotkey TEXT,
-                    minerUid TEXT,
-                    predictedOutcome TEXT,
-                    canOverwrite BOOLEAN,
-                    outcome TEXT,
-                    interval_start_minutes INTEGER,
-                    interval_agg_prediction REAL,
-                    interval_count INTEGER,
-                    submitted DATETIME,
-                    blocktime INTEGER,
-                    exported INTEGER DEFAULT 0,
-                    PRIMARY KEY (unique_event_id, interval_start_minutes, minerUid)
-                );
-            """
-        )
-
-        await self.add_column_if_not_exists(
-            table_name="events",
-            column_name="created_at",
-            column_type="DATETIME",
-            default_value=None,
-        )
-
-        await self.add_column_if_not_exists(
-            table_name="events",
-            column_name="cutoff",
-            column_type="DATETIME",
-            default_value=None,
-        )
-
-        await self.update(
-            """
-                UPDATE
-                    events
-                SET
-                    cutoff = datetime(json_extract(metadata, '$.cutoff'), 'unixepoch')
-                WHERE
-                    cutoff IS NULL
-                    AND json_extract(metadata, '$.cutoff') IS NOT NULL
-            """
-        )
-
-        await self.add_column_if_not_exists(
-            table_name="events",
-            column_name="end_date",
-            column_type="DATETIME",
-            default_value=None,
-        )
-
-        await self.update(
-            """
-                UPDATE
-                    events
-                SET
-                    end_date = datetime(json_extract(metadata, '$.end_date'), 'unixepoch')
-                WHERE
-                    end_date IS NULL
-                    AND json_extract(metadata, '$.end_date') IS NOT NULL
-            """
-        )
-
-        await self.add_column_if_not_exists(
-            table_name="events",
-            column_name="resolved_at",
-            column_type="DATETIME",
-            default_value=None,
-        )
-
-        await self.add_column_if_not_exists(
-            table_name="events",
-            column_name="event_type",
-            column_type="TEXT",
-            default_value=None,
-        )
-
-        await self.update(
-            """
-                UPDATE
-                    events
-                SET
-                    event_type = json_extract(metadata, '$.market_type')
-                WHERE
-                    event_type IS NULL
-                    AND json_extract(metadata, '$.market_type') IS NOT NULL
-            """
-        )
+        self.__logger.info("Migrations complete")

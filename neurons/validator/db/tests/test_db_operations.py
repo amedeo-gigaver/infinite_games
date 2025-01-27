@@ -86,6 +86,637 @@ class TestDbOperations:
         assert len(result) == 1
         assert result[0][0] == event_id_to_keep
 
+    async def test_delete_predictions_orphan_prediction(
+        self, db_operations: DatabaseOperations, db_client: DatabaseClient
+    ):
+        events = [
+            # No events - orphan prediction
+        ]
+
+        predictions = [
+            (
+                "no_event_orphan_prediction_id_1",
+                "neuronHotkey_1",
+                "neuronUid_1",
+                "1",
+                10,
+                "1",
+                1,
+                "1",
+            ),
+            (
+                "no_event_orphan_prediction_id_2",
+                "neuronHotkey_1",
+                "neuronUid_1",
+                "1",
+                10,
+                "1",
+                1,
+                "1",
+            ),
+        ]
+
+        await db_operations.upsert_events(events=events)
+        await db_operations.upsert_predictions(predictions=predictions)
+
+        # Mark first prediction as exported
+        await db_client.update(
+            """
+                UPDATE
+                    predictions
+                SET
+                    exported = ?
+                WHERE
+                    unique_event_id = ?
+                """,
+            [PredictionExportedStatus.EXPORTED, predictions[0][0]],
+        )
+
+        # delete predictions
+        result = await db_operations.delete_predictions(batch_size=100)
+
+        assert len(result) == 1
+        assert result[0][0] == 1
+
+        result = await db_client.many(
+            """
+                SELECT unique_event_id FROM predictions ORDER BY ROWID ASC
+            """
+        )
+
+        # Should have deleted the orphan exported prediction
+        assert len(result) == 1
+        assert result[0][0] == predictions[1][0]
+
+    async def test_delete_predictions_processed_unprocessed_events(
+        self, db_operations: DatabaseOperations, db_client: DatabaseClient
+    ):
+        events = [
+            (
+                "processed_event_prediction_id",
+                "event1",
+                "truncated_market1",
+                "market_1",
+                "desc1",
+                "2024-12-02",
+                "2024-12-03",
+                "outcome1",
+                "status1",
+                '{"key": "value"}',
+                "2000-12-02T14:30:00+00:00",
+                "2000-01-01T14:30:00+00:00",
+                "2000-01-02T14:30:00+00:00",
+            ),
+            (
+                "unprocessed_event_prediction_id",
+                "event2",
+                "truncated_market2",
+                "market_2",
+                "desc2",
+                "2024-12-03",
+                "2024-12-04",
+                "outcome2",
+                "status2",
+                '{"key": "value"}',
+                "2012-12-02T14:30:00+00:00",
+                "2001-01-01T14:30:00+00:00",
+                "2001-01-02T14:30:00+00:00",
+            ),
+        ]
+
+        predictions = [
+            (
+                "processed_event_prediction_id",
+                "neuronHotkey_2",
+                "neuronUid_2",
+                "1",
+                10,
+                "1",
+                1,
+                "1",
+            ),
+            (
+                "unprocessed_event_prediction_id",
+                "neuronHotkey_2",
+                "neuronUid_2",
+                "1",
+                10,
+                "1",
+                1,
+                "1",
+            ),
+        ]
+
+        await db_operations.upsert_events(events=events)
+        await db_operations.upsert_predictions(predictions=predictions)
+
+        # Mark processed event as processed
+        await db_client.update(
+            """
+                UPDATE
+                    events
+                SET
+                    processed = ?
+                WHERE
+                    unique_event_id = ?
+            """,
+            [True, events[0][0]],
+        )
+        # Mark all predictions as exported but not exported one
+        await db_client.update(
+            """
+                UPDATE
+                    predictions
+                SET
+                    exported = ?
+                """,
+            [PredictionExportedStatus.EXPORTED],
+        )
+
+        # delete
+        result = await db_operations.delete_predictions(batch_size=100)
+
+        assert len(result) == 1
+        assert result[0][0] == 1
+
+        result = await db_client.many(
+            """
+                SELECT unique_event_id FROM predictions ORDER BY ROWID ASC
+            """
+        )
+
+        # Should have deleted the processed event prediction
+        assert len(result) == 1
+        assert result[0][0] == "unprocessed_event_prediction_id"
+
+    async def test_delete_predictions_discarded_event(
+        self, db_operations: DatabaseOperations, db_client: DatabaseClient
+    ):
+        events = [
+            (
+                "discarded_event_prediction_id",
+                "event3",
+                "truncated_market3",
+                "market_3",
+                "desc2",
+                "2024-12-03",
+                "2024-12-04",
+                "outcome3",
+                EventStatus.DISCARDED,
+                '{"key": "value"}',
+                "2012-12-02T14:30:00+00:00",
+                "2001-01-01T14:30:00+00:00",
+                "2001-01-02T14:30:00+00:00",
+            ),
+            (
+                "pending_event_prediction_id",
+                "event3",
+                "truncated_market3",
+                "market_3",
+                "desc2",
+                "2024-12-03",
+                "2024-12-04",
+                "outcome3",
+                EventStatus.PENDING,
+                '{"key": "value"}',
+                "2012-12-02T14:30:00+00:00",
+                "2001-01-01T14:30:00+00:00",
+                "2001-01-02T14:30:00+00:00",
+            ),
+        ]
+
+        predictions = [
+            (
+                "discarded_event_prediction_id",
+                "neuronHotkey_2",
+                "neuronUid_2",
+                "1",
+                10,
+                "1",
+                1,
+                "1",
+            ),
+            (
+                "pending_event_prediction_id",
+                "neuronHotkey_2",
+                "neuronUid_2",
+                "1",
+                10,
+                "1",
+                1,
+                "1",
+            ),
+        ]
+
+        await db_operations.upsert_events(events=events)
+        await db_operations.upsert_predictions(predictions=predictions)
+
+        # Mark all predictions as exported
+        await db_client.update(
+            """
+                UPDATE
+                    predictions
+                SET
+                    exported = ?
+                """,
+            [PredictionExportedStatus.EXPORTED],
+        )
+
+        # delete
+        result = await db_operations.delete_predictions(batch_size=100)
+
+        assert len(result) == 1
+        assert result[0][0] == 1
+
+        result = await db_client.many(
+            """
+                SELECT unique_event_id FROM predictions ORDER BY ROWID ASC
+            """
+        )
+
+        assert len(result) == 1
+        assert result[0][0] == "pending_event_prediction_id"
+
+    async def test_delete_predictions_exported_unexported(
+        self, db_operations: DatabaseOperations, db_client: DatabaseClient
+    ):
+        events = [
+            (
+                "exported_prediction_event_id",
+                "event1",
+                "truncated_market1",
+                "market_1",
+                "desc1",
+                "2024-12-02",
+                "2024-12-03",
+                "outcome1",
+                "status1",
+                '{"key": "value"}',
+                "2000-12-02T14:30:00+00:00",
+                "2000-01-01T14:30:00+00:00",
+                "2000-01-02T14:30:00+00:00",
+            ),
+            (
+                "not_exported_prediction_event_id",
+                "event4",
+                "truncated_market4",
+                "market_4",
+                "desc4",
+                "2024-12-03",
+                "2024-12-04",
+                "outcome4",
+                "status4",
+                '{"key": "value"}',
+                "2012-12-02T14:30:00+00:00",
+                "2001-01-01T14:30:00+00:00",
+                "2001-01-02T14:30:00+00:00",
+            ),
+        ]
+
+        predictions = [
+            (
+                "exported_prediction_event_id",
+                "neuronHotkey_1",
+                "neuronUid_1",
+                "1",
+                10,
+                "1",
+                1,
+                "1",
+            ),
+            (
+                "not_exported_prediction_event_id",
+                "neuronHotkey_2",
+                "neuronUid_2",
+                "1",
+                10,
+                "1",
+                1,
+                "1",
+            ),
+        ]
+
+        await db_operations.upsert_events(events=events)
+        await db_operations.upsert_predictions(predictions=predictions)
+
+        # Mark all events as processed but unprocessed and discarded ones
+        await db_client.update(
+            """
+                UPDATE
+                    events
+                SET
+                    processed = ?
+            """,
+            [
+                True,
+            ],
+        )
+
+        # Mark all predictions as exported but not exported one
+        await db_client.update(
+            """
+                UPDATE
+                    predictions
+                SET
+                    exported = ?
+                WHERE
+                    unique_event_id NOT IN ('not_exported_prediction_event_id')
+                """,
+            [PredictionExportedStatus.EXPORTED],
+        )
+
+        # delete
+        result = await db_operations.delete_predictions(batch_size=100)
+
+        assert len(result) == 1
+        assert result[0][0] == 1
+
+        result = await db_client.many(
+            """
+                SELECT unique_event_id FROM predictions ORDER BY ROWID ASC
+            """
+        )
+
+        # Should have unexported prediction left
+        assert len(result) == 1
+        assert result[0][0] == "not_exported_prediction_event_id"
+
+    async def test_delete_predictions_batch_size(
+        self, db_operations: DatabaseOperations, db_client: DatabaseClient
+    ):
+        events = [
+            (
+                "event_id_1",
+                "event1",
+                "truncated_market1",
+                "market_1",
+                "desc1",
+                "2024-12-02",
+                "2024-12-03",
+                "outcome1",
+                "status1",
+                '{"key": "value"}',
+                "2000-12-02T14:30:00+00:00",
+                "2000-01-01T14:30:00+00:00",
+                "2000-01-02T14:30:00+00:00",
+            ),
+            (
+                "event_id_2",
+                "event2",
+                "truncated_market2",
+                "market_2",
+                "desc2",
+                "2024-12-03",
+                "2024-12-04",
+                "outcome2",
+                "status2",
+                '{"key": "value"}',
+                "2012-12-02T14:30:00+00:00",
+                "2001-01-01T14:30:00+00:00",
+                "2001-01-02T14:30:00+00:00",
+            ),
+            (
+                "event_id_3",
+                "event3",
+                "truncated_market3",
+                "market_3",
+                "desc2",
+                "2024-12-03",
+                "2024-12-04",
+                "outcome3",
+                EventStatus.DISCARDED,
+                '{"key": "value"}',
+                "2012-12-02T14:30:00+00:00",
+                "2001-01-01T14:30:00+00:00",
+                "2001-01-02T14:30:00+00:00",
+            ),
+        ]
+
+        predictions = [
+            (
+                "event_id_1",
+                "neuronHotkey_1",
+                "neuronUid_1",
+                "1",
+                10,
+                "1",
+                1,
+                "1",
+            ),
+            (
+                "event_id_2",
+                "neuronHotkey_2",
+                "neuronUid_2",
+                "1",
+                10,
+                "1",
+                1,
+                "1",
+            ),
+            (
+                "event_id_3",
+                "neuronHotkey_2",
+                "neuronUid_2",
+                "1",
+                10,
+                "1",
+                1,
+                "1",
+            ),
+        ]
+
+        await db_operations.upsert_events(events=events)
+        await db_operations.upsert_predictions(predictions=predictions)
+
+        # Mark all events as processed
+        await db_client.update(
+            """
+                UPDATE
+                    events
+                SET
+                    processed = ?
+            """,
+            [
+                True,
+            ],
+        )
+        # Mark all predictions as exported
+        await db_client.update(
+            """
+                UPDATE
+                    predictions
+                SET
+                    exported = ?
+                """,
+            [PredictionExportedStatus.EXPORTED],
+        )
+
+        # delete with batch size 2
+        result = await db_operations.delete_predictions(batch_size=2)
+
+        assert len(result) == 2
+
+        # Check the rows are deleted in ASC order
+        assert result[0][0] == 1
+        assert result[1][0] == 2
+
+        result = await db_client.many(
+            """
+                SELECT unique_event_id FROM predictions ORDER BY ROWID ASC
+            """
+        )
+
+        # Should have 1 prediction left
+        assert len(result) == 1
+        assert result[0][0] == "event_id_3"
+
+        # Delete the rest
+        result = await db_operations.delete_predictions(batch_size=1000)
+
+        assert len(result) == 1
+        assert result[0][0] == 3
+
+        result = await db_client.many(
+            """
+                SELECT unique_event_id FROM predictions ORDER BY ROWID ASC
+            """
+        )
+
+        # Should have no predictions left
+        assert len(result) == 0
+
+    async def test_get_events_last_resolved_at(self, db_operations: DatabaseOperations):
+        events = [
+            (
+                "unique1",
+                "event1",
+                "truncated_market1",
+                "market_1",
+                "desc1",
+                "2024-12-02",
+                "2024-12-03",
+                "outcome1",
+                EventStatus.PENDING,
+                '{"key": "value"}',
+                "1900-12-02T14:30:00+00:00",
+                "2024-12-03",
+                "2024-12-04",
+            ),
+            (
+                "unique2",
+                "event2",
+                "truncated_market2",
+                "market_2",
+                "desc2",
+                "2024-12-02",
+                "2024-12-03",
+                "outcome2",
+                EventStatus.PENDING,
+                '{"key": "value"}',
+                "3000-12-02T14:30:00+00:00",
+                "2024-12-03",
+                "2024-12-04",
+            ),
+            (
+                "unique3",
+                "event3",
+                "truncated_market3",
+                "market_3",
+                "desc3",
+                "2024-12-02",
+                "2024-12-03",
+                "outcome3",
+                EventStatus.PENDING,
+                '{"key": "value"}',
+                "1950-12-02T14:30:00+00:00",
+                "2024-12-03",
+                "2024-12-04",
+            ),
+        ]
+
+        current_time = datetime.now(timezone.utc)
+        current_time_iso = current_time.isoformat()
+        future_time_iso = (current_time + timedelta(seconds=1)).isoformat()
+
+        await db_operations.upsert_events(events)
+
+        # Resolve events 1 and 3
+        await db_operations.resolve_event(
+            event_id="event1", outcome=1, resolved_at=current_time_iso
+        )
+        await db_operations.resolve_event(event_id="event3", outcome=1, resolved_at=future_time_iso)
+
+        result = await db_operations.get_events_last_resolved_at()
+
+        assert result == future_time_iso
+
+    async def test_get_events_last_resolved_at_no_events(self, db_operations: DatabaseOperations):
+        result = await db_operations.get_events_last_resolved_at()
+
+        assert result is None
+
+    async def test_get_events_pending_first_created_at(self, db_operations: DatabaseOperations):
+        events = [
+            (
+                "unique1",
+                "resolved_event",
+                "truncated_market1",
+                "market_1",
+                "desc1",
+                "2024-12-02",
+                "2024-12-03",
+                "outcome1",
+                EventStatus.SETTLED,
+                '{"key": "value"}',
+                "1900-12-02T14:30:00+00:00",
+                "2024-12-03",
+                "2024-12-04",
+            ),
+            (
+                "unique2",
+                "pending_event_new",
+                "truncated_market2",
+                "market_2",
+                "desc2",
+                "2024-12-02",
+                "2024-12-03",
+                "outcome2",
+                EventStatus.PENDING,
+                '{"key": "value"}',
+                "3000-12-02T14:30:00+00:00",
+                "2024-12-03",
+                "2024-12-04",
+            ),
+            (
+                "unique3",
+                "pending_event_old",
+                "truncated_market3",
+                "market_3",
+                "desc3",
+                "2024-12-02",
+                "2024-12-03",
+                "outcome3",
+                EventStatus.PENDING,
+                '{"key": "value"}',
+                "1950-12-02T14:30:00+00:00",
+                "2024-12-03",
+                "2024-12-04",
+            ),
+        ]
+
+        await db_operations.upsert_events(events)
+
+        result = await db_operations.get_events_pending_first_created_at()
+
+        assert result == "1950-12-02T14:30:00+00:00"
+
+    async def test_get_events_pending_first_created_at_no_events(
+        self, db_operations: DatabaseOperations
+    ):
+        result = await db_operations.get_events_pending_first_created_at()
+
+        assert result is None
+
     async def test_get_last_event_from(self, db_operations: DatabaseOperations):
         created_at = "2000-12-02T14:30:00+00:00"
 
@@ -482,6 +1113,60 @@ class TestDbOperations:
         assert result[0][2] == str(outcome)
         assert result[0][3] == resolved_at
         assert isinstance(result[0][4], str)
+
+    async def test_resolve_event_not_resolving_again(
+        self, db_client: DatabaseClient, db_operations: DatabaseOperations
+    ):
+        event_id = "event1"
+        outcome = 1
+        resolved_at = "2000-12-31T14:30:00+00:00"
+
+        events = [
+            (
+                "unique1",
+                event_id,
+                "truncated_market1",
+                "market_1",
+                "desc1",
+                "2024-12-02",
+                "2024-12-03",
+                None,
+                EventStatus.PENDING,
+                '{"key": "value"}',
+                "2000-12-02T14:30:00+00:00",
+                "2000-12-30T14:30:00+00:00",
+                "2000-12-31T14:30:00+00:00",
+            ),
+        ]
+
+        await db_operations.upsert_events(events)
+
+        await db_operations.resolve_event(
+            event_id=event_id,
+            outcome=outcome,
+            resolved_at=resolved_at,
+        )
+
+        outcome_2 = 0
+        resolved_at_2 = "1900-12-31T14:30:00+00:00"
+
+        await db_operations.resolve_event(
+            event_id=event_id,
+            outcome=outcome_2,
+            resolved_at=resolved_at_2,
+        )
+
+        result = await db_client.many(
+            """
+                SELECT event_id, status, outcome, resolved_at, local_updated_at FROM events
+            """
+        )
+
+        # Assert event not resolved with new values
+        assert len(result) == 1
+        assert result[0][0] == event_id
+        assert result[0][2] == str(outcome)
+        assert result[0][3] == resolved_at
 
     async def test_upsert_events(
         self, db_operations: DatabaseOperations, db_client: DatabaseClient

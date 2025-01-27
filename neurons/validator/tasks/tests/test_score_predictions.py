@@ -19,11 +19,11 @@ from pydantic import ValidationError
 from neurons.validator.db.client import DatabaseClient
 from neurons.validator.db.operations import DatabaseOperations
 from neurons.validator.if_games.client import IfGamesClient
+from neurons.validator.models.backend_models import MinerEventResultItems
 from neurons.validator.models.event import EventsModel
 from neurons.validator.models.miner import MinersModel
 from neurons.validator.models.prediction import PredictionsModel
 from neurons.validator.tasks.score_predictions import ScorePredictions
-from neurons.validator.tasks.tests.backend_models import MinerEventResultItems
 from neurons.validator.utils.logger.logger import InfiniteGamesLogger
 
 CURRENT_DIR = Path(__file__).parent

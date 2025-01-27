@@ -31,24 +31,6 @@ class TestDbClient:
 
         return client
 
-    async def test_add_column_if_not_exists(self, db_client: DatabaseClient):
-        await db_client.add_column_if_not_exists(
-            table_name="test_table",
-            column_name="created_at",
-            column_type="DATETIME",
-            default_value=None,
-        )
-
-        response = await db_client.add_column_if_not_exists(
-            table_name="test_table",
-            column_name="created_at",
-            column_type="DATETIME",
-            default_value=None,
-        )
-
-        # No error thrown
-        assert response is None
-
     async def test_insert(self, db_client: DatabaseClient, mocked_logger: MagicMock):
         sql = "INSERT INTO test_table (name) VALUES (?) returning name"
         params = ("test_insert",)

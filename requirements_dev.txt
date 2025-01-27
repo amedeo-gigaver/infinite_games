@@ -1,7 +1,6 @@
 # please sort alphabetically to avoid duplicates
 -r requirements.txt
 aioresponses==0.7.7
-bittensor-wallet==2.1.3
 black>=23,<24
 coverage==7.6.7
 flake8-isort==6.1.1

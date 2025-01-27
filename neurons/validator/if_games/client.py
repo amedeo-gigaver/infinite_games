@@ -111,6 +111,18 @@ class IfGamesClient:
             "Validator": hot_key.ss58_address,
         }
 
+    async def get_event(self, event_id: str):
+        if not isinstance(event_id, str):
+            raise ValueError("Invalid parameter")
+
+        async with self.create_session() as session:
+            path = f"/api/v2/events/{event_id}"
+
+            async with session.get(path) as response:
+                response.raise_for_status()
+
+                return await response.json()
+
     async def get_events(self, from_date: int, offset: int, limit: int):
         # Check that all parameters are provided
         if from_date is None or offset is None or limit is None:
@@ -124,12 +136,26 @@ class IfGamesClient:
 
                 return await response.json()
 
-    async def get_event(self, event_id: str):
-        if not isinstance(event_id, str):
-            raise ValueError("Invalid parameter")
+    async def get_events_deleted(self, deleted_since: str, offset: int, limit: int):
+        # Check that all parameters are provided
+        if not isinstance(deleted_since, str) or offset is None or limit is None:
+            raise ValueError("Invalid parameters")
 
         async with self.create_session() as session:
-            path = f"/api/v2/events/{event_id}"
+            path = f"/api/v2/events/deleted?deleted_since={deleted_since}&offset={offset}&limit={limit}"
+
+            async with session.get(path) as response:
+                response.raise_for_status()
+
+                return await response.json()
+
+    async def get_resolved_events(self, resolved_since: str, offset: int, limit: int):
+        # Check that all parameters are provided
+        if not isinstance(resolved_since, str) or offset is None or limit is None:
+            raise ValueError("Invalid parameters")
+
+        async with self.create_session() as session:
+            path = f"/api/v2/events/resolved?resolved_since={resolved_since}&offset={offset}&limit={limit}"
 
             async with session.get(path) as response:
                 response.raise_for_status()

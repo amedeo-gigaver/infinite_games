@@ -33,6 +33,7 @@ jobs:
             source venv/bin/activate
             pip install -r requirements.txt
             pm2 delete validator
+            export INLINE_LOGS=1
             pm2 start neurons/validator.py --name validator --interpreter python3 -- --netuid 6 --subtensor.network finney --wallet.name ifkey --wallet.hotkey ifhkey --logging.debug
             EOF
       - name: Send success message to Discord
