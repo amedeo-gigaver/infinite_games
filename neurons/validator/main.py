@@ -8,6 +8,7 @@ from neurons.validator.db.client import DatabaseClient
 from neurons.validator.db.operations import DatabaseOperations
 from neurons.validator.if_games.client import IfGamesClient
 from neurons.validator.scheduler.tasks_scheduler import TasksScheduler
+from neurons.validator.tasks.db_cleaner import DbCleaner
 from neurons.validator.tasks.export_predictions import ExportPredictions
 from neurons.validator.tasks.pull_events import PullEvents
 from neurons.validator.tasks.query_miners import QueryMiners
@@ -68,7 +69,7 @@ async def main():
         interval_seconds=180.0,
         db_operations=db_operations,
         api_client=api_client,
-        batch_size=50,
+        batch_size=300,
         validator_uid=validator_uid,
         validator_hotkey=validator_hotkey,
         logger=logger,
@@ -85,6 +86,10 @@ async def main():
         wallet=bt_wallet,
     )
 
+    db_cleaner__task = DbCleaner(
+        interval_seconds=53.0, db_operations=db_operations, batch_size=2000, logger=logger
+    )
+
     # Add tasks to scheduler
     scheduler = TasksScheduler(logger=logger)
 
@@ -93,6 +98,7 @@ async def main():
     scheduler.add(task=query_miners_task)
     scheduler.add(task=export_predictions_task)
     scheduler.add(task=score_predictions_task)
+    scheduler.add(task=db_cleaner__task)
 
     logger.info(
         "Validator started",

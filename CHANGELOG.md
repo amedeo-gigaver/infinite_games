@@ -1,5 +1,14 @@
 # Release Notes
 
+## [1.3.6] - 2025-01-27
+- **Bittensor Upgrade**: Upgraded to Bittensor version 8.5.2
+- **Requirements Update**: Removed unused pip requirements and switched the torch requirement to the CPU version. This significantly reduces the size of the required Python environment.
+- **Maintenance**:
+    - Added a task to gradually and regularly delete old records from the local database, preventing uncontrolled database growth.
+    - In a future update, the database will be vacuumed to reclaim storage from deleted records.
+- **Database Enhancements**: Integrated Alembic for managing all changes to the local database schema.
+- **Data Exporting**: Increased the payload batch size for data export to improve efficiency.
+
 ## [1.3.5] - 2025-01-20
 - **Scoring**: After scoring data analysis and simulations, we reduced the pre-normalization exponential factor from 30 to 5. This will prevent outlier miners to get disproportionate gains for some events. Additionally, it improves the chances of new miners to catchup with the existing miners.
 - **Maintenance**: Removed deprecated validator code, reorganize existing miner code, cleanup dead code.

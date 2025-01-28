@@ -28,6 +28,63 @@ class DatabaseOperations:
             [event_id],
         )
 
+    async def delete_predictions(self, batch_size: int) -> Iterable[tuple[int]]:
+        return await self.__db_client.delete(
+            """
+                WITH predictions_to_delete AS (
+                    SELECT
+                        p.ROWID
+                    FROM
+                        predictions p
+                    LEFT JOIN
+                        events e ON p.unique_event_id = e.unique_event_id
+                    WHERE
+                        (
+                            e.unique_event_id IS NULL
+                            OR e.processed = TRUE
+                            OR e.status = ?
+                        )
+                        AND p.exported = ?
+                    ORDER BY
+                        p.ROWID ASC
+                    LIMIT ?
+                )
+                DELETE FROM
+                    predictions
+                WHERE
+                    ROWID IN (
+                        SELECT
+                            ROWID
+                        FROM
+                            predictions_to_delete
+                    )
+                RETURNING
+                    ROWID
+            """,
+            [EventStatus.DISCARDED, PredictionExportedStatus.EXPORTED, batch_size],
+        )
+
+    async def get_events_last_resolved_at(self) -> str | None:
+        row = await self.__db_client.one(
+            """
+                SELECT MAX(resolved_at) FROM events
+            """
+        )
+
+        if row is not None:
+            return row[0]
+
+    async def get_events_pending_first_created_at(self) -> str | None:
+        row = await self.__db_client.one(
+            """
+                SELECT MIN(created_at) FROM events WHERE status = ?
+            """,
+            [EventStatus.PENDING],
+        )
+
+        if row is not None:
+            return row[0]
+
     async def get_events_to_predict(self) -> Iterable[tuple[str]]:
         return await self.__db_client.many(
             """
@@ -135,10 +192,11 @@ class DatabaseOperations:
                     local_updated_at = CURRENT_TIMESTAMP
                 WHERE
                     event_id = ?
+                    AND status <> ?
                 RETURNING
                     event_id
             """,
-            [EventStatus.SETTLED, outcome, resolved_at, event_id],
+            [EventStatus.SETTLED, outcome, resolved_at, event_id, EventStatus.SETTLED],
         )
 
     async def upsert_events(self, events: list[list[any]]) -> None:

@@ -323,6 +323,158 @@ class TestIfGamesClient:
             # Assert the exception
             assert e.value.status == status_code
 
+    @pytest.mark.parametrize(
+        "resolved_since,offset,limit",
+        [
+            (None, 0, 10),  # Missing resolved_since
+            (1, 0, 10),  # Not str resolved_since
+            ("2025-01-23T16:10:15Z", None, 10),  # Missing offset
+            ("2025-01-23T16:10:15Z", 0, None),  # Missing limit
+        ],
+    )
+    async def test_get_resolved_events_invalid_params(
+        self, client_test_env: IfGamesClient, resolved_since, offset, limit
+    ):
+        with pytest.raises(ValueError, match="Invalid parameters"):
+            await client_test_env.get_resolved_events(
+                resolved_since=resolved_since, offset=offset, limit=limit
+            )
+
+    async def test_get_resolved_events_response(self, client_test_env: IfGamesClient):
+        # Define mock response data
+
+        mock_response_data = {
+            "count": 2,
+            "items": [
+                {
+                    "event_id": "21a1578e-705b-4935-9dd1-5138bf279ad0",
+                    "answer": 0,
+                    "resolved_at": "2025-01-23T16:10:15Z",
+                },
+                {
+                    "event_id": "2837d80d-6c90-4b10-9dda-44ee0db617a3",
+                    "answer": 1,
+                    "resolved_at": "2025-01-23T16:10:15Z",
+                },
+            ],
+        }
+
+        # Use aioresponses context manager to mock HTTP requests
+        with aioresponses() as mocked:
+            mocked.get(
+                "/api/v2/events/resolved?resolved_since=2000-12-30T14:30&offset=0&limit=10",
+                status=200,
+                body=json.dumps(mock_response_data).encode("utf-8"),
+            )
+
+            result = await client_test_env.get_resolved_events(
+                resolved_since="2000-12-30T14:30", offset=0, limit=10
+            )
+
+            mocked.assert_called_once()
+
+            # Verify the response matches the mock data
+            assert result == mock_response_data
+
+    async def test_get_resolved_events_error_raised(self, client_test_env: IfGamesClient):
+        # Define mock response data
+        mock_response_data = {"message": "Internal error"}
+        status_code = 500
+
+        # Use aioresponses context manager to mock HTTP requests
+        with aioresponses() as mocked:
+            url_path = "/api/v2/events/resolved?resolved_since=2000-12-30T14:30&offset=0&limit=10"
+            mocked.get(
+                url_path,
+                status=status_code,
+                body=json.dumps(mock_response_data).encode("utf-8"),
+            )
+
+            with pytest.raises(ClientResponseError) as e:
+                await client_test_env.get_resolved_events(
+                    resolved_since="2000-12-30T14:30", offset=0, limit=10
+                )
+
+            mocked.assert_called_with(url_path)
+
+            # Assert the exception
+            assert e.value.status == status_code
+
+    @pytest.mark.parametrize(
+        "deleted_since,offset,limit",
+        [
+            (None, 0, 10),  # Missing deleted_since
+            (1, 0, 10),  # Not str deleted_since
+            ("2025-01-23T16:10:15Z", None, 10),  # Missing offset
+            ("2025-01-23T16:10:15Z", 0, None),  # Missing limit
+        ],
+    )
+    async def test_get_events_deleted_invalid_params(
+        self, client_test_env: IfGamesClient, deleted_since, offset, limit
+    ):
+        with pytest.raises(ValueError, match="Invalid parameters"):
+            await client_test_env.get_events_deleted(
+                deleted_since=deleted_since, offset=offset, limit=limit
+            )
+
+    async def test_get_events_deleted_response(self, client_test_env: IfGamesClient):
+        # Define mock response data
+
+        mock_response_data = {
+            "count": 2,
+            "items": [
+                {
+                    "event_id": "21a1578e-705b-4935-9dd1-5138bf279ad0",
+                    "deleted_at": "2025-01-23T16:10:15Z",
+                },
+                {
+                    "event_id": "2837d80d-6c90-4b10-9dda-44ee0db617a3",
+                    "deleted_at": "2025-01-23T16:10:15Z",
+                },
+            ],
+        }
+
+        # Use aioresponses context manager to mock HTTP requests
+        with aioresponses() as mocked:
+            mocked.get(
+                "/api/v2/events/deleted?deleted_since=2000-12-30T14:30&offset=0&limit=10",
+                status=200,
+                body=json.dumps(mock_response_data).encode("utf-8"),
+            )
+
+            result = await client_test_env.get_events_deleted(
+                deleted_since="2000-12-30T14:30", offset=0, limit=10
+            )
+
+            mocked.assert_called_once()
+
+            # Verify the response matches the mock data
+            assert result == mock_response_data
+
+    async def test_get_events_deleted_error_raised(self, client_test_env: IfGamesClient):
+        # Define mock response data
+        mock_response_data = {"message": "Internal error"}
+        status_code = 500
+
+        # Use aioresponses context manager to mock HTTP requests
+        with aioresponses() as mocked:
+            url_path = "/api/v2/events/deleted?deleted_since=2000-12-30T14:30&offset=0&limit=10"
+            mocked.get(
+                url_path,
+                status=status_code,
+                body=json.dumps(mock_response_data).encode("utf-8"),
+            )
+
+            with pytest.raises(ClientResponseError) as e:
+                await client_test_env.get_events_deleted(
+                    deleted_since="2000-12-30T14:30", offset=0, limit=10
+                )
+
+            mocked.assert_called_with(url_path)
+
+            # Assert the exception
+            assert e.value.status == status_code
+
     def test_make_auth_headers(self, client_test_env: IfGamesClient):
         body = {"fake": "body"}
 

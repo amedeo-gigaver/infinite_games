@@ -75,7 +75,7 @@ class TestValidatorMain:
             mock_scheduler.start.assert_awaited_once()
 
             # Verify tasks
-            assert mock_scheduler.add.call_count == 5
+            assert mock_scheduler.add.call_count == 6
 
             # Verify logging
             mock_logger.info.assert_called_with(
