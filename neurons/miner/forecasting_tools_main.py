@@ -1,4 +1,5 @@
 import random
+from datetime import datetime
 
 import bittensor as bt
 from forecasting_tools import BinaryQuestion, ForecastBot
@@ -49,12 +50,18 @@ class ForecastingToolsMiner(Miner):
             title = market.event.description
             resolution_criteria = None
 
+        close_time = datetime.fromtimestamp(market.event.cutoff) if market.event.cutoff else None
+        open_time = datetime.fromtimestamp(market.event.starts) if market.event.starts else None
+
         question = BinaryQuestion(
             id_of_post=0,
             question_text=title,
             resolution_criteria=resolution_criteria,
             background_info=None,
             fine_print=None,
+            close_time=close_time,
+            open_time=open_time,
+            # scheduled_resolution_time=market.event.ends,
         )
         forecast_report = await self.forecaster.forecast_question(question)
         return forecast_report.prediction
