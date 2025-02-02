@@ -225,8 +225,11 @@ class Miner(BaseMinerNeuron):
             else:
                 # LLM
                 if self.forecaster is None and os.getenv("OPENAI_KEY"):
-                    llm_prediction = await Forecaster().get_prediction(market=market, models_setup_option=0))
-
+                    llm_prediction = await Forecaster().get_prediction(
+                        market=market, models_setup_option=0
+                    )
+                else:
+                    llm_prediction = await self._forecast_with_forecast_bot(market)
 
                 if llm_prediction is not None:
                     market.event.probability = llm_prediction
@@ -250,7 +253,7 @@ class Miner(BaseMinerNeuron):
         try:
             title = market.event.title
             resolution_criteria = market.event.description
-        except:
+        except Exception:
             title = market.event.description
             resolution_criteria = None
 
@@ -263,7 +266,6 @@ class Miner(BaseMinerNeuron):
         )
         forecast_report = await self.forecaster.forecast_question(question)
         return forecast_report.prediction
-
 
     async def _calculate_next_try(self, market: MinerCacheObject) -> (int, int):
         """
