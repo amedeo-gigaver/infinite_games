@@ -24,6 +24,7 @@
         "iterrows",
         "itertuples",
         "levelname",
+        "Metaculus",
         "metagraph",
         "ndarray",
         "netuid",
