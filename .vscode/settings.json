@@ -24,6 +24,7 @@
         "iterrows",
         "itertuples",
         "levelname",
+        "Metaculus",
         "metagraph",
         "ndarray",
         "netuid",
@@ -40,5 +41,5 @@
         "unixepoch",
         "vali"
     ],
-    "python.languageServer": "Pylance",
+    "python.languageServer": "Default",
 }
