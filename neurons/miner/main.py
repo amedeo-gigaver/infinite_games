@@ -5,13 +5,10 @@ import typing
 from datetime import datetime
 
 import bittensor as bt
-from forecasting_tools import BinaryQuestion, ForecastBot
 
 from neurons.miner.base.miner import BaseMinerNeuron
 from neurons.miner.events.azuro import AzuroProviderIntegration
 from neurons.miner.events.polymarket import PolymarketProviderIntegration
-from neurons.miner.llm.forecasting import Forecaster
-from neurons.miner.llm.model_eval import get_response_from_model
 from neurons.miner.utils.miner_cache import (
     MarketType,
     MinerCache,
@@ -22,6 +19,9 @@ from neurons.protocol import EventPredictionSynapse
 
 VAL_MIN_STAKE = 10000
 DEV_MINER_UID = 93
+
+if os.getenv("OPENAI_KEY"):
+    from neurons.miner.llm.forecasting import Forecaster
 
 
 class Miner(BaseMinerNeuron):
@@ -35,14 +35,14 @@ class Miner(BaseMinerNeuron):
 
     prev_emission = None
 
-    def __init__(self, config=None, forecaster: ForecastBot | None = None):
+    def __init__(self, config=None):
         super(Miner, self).__init__(config=config)
         self.providers_set = False
         self.azuro = None
         self.polymarket = None
         self.cache = MinerCache()
         self.cache.initialize_cache()
-        self.forecaster = forecaster
+        self.llm = Forecaster() if os.getenv("OPENAI_KEY") else None
         self.is_testnet = self.metagraph.network == "test"
         bt.logging.info(
             "Miner {} initialized on network: {}: testnet {}".format(
@@ -224,12 +224,11 @@ class Miner(BaseMinerNeuron):
 
             else:
                 # LLM
-                if self.forecaster is None and os.getenv("OPENAI_KEY"):
-                    llm_prediction = await Forecaster().get_prediction(
-                        market=market, models_setup_option=0
-                    )
-                else:
-                    llm_prediction = await self._forecast_with_forecast_bot(market)
+                llm_prediction = (
+                    (await self.llm.get_prediction(market=market, models_setup_option=0))
+                    if self.llm
+                    else None
+                )
 
                 if llm_prediction is not None:
                     market.event.probability = llm_prediction
@@ -247,25 +246,6 @@ class Miner(BaseMinerNeuron):
             )
         except Exception as e:
             bt.logging.error("Failed to assign, probability, {}".format(repr(e)), exc_info=True)
-
-    async def _forecast_with_forecast_bot(self, market: MinerCacheObject) -> float | None:
-        assert self.forecaster is not None
-        try:
-            title = market.event.title
-            resolution_criteria = market.event.description
-        except Exception:
-            title = market.event.description
-            resolution_criteria = None
-
-        question = BinaryQuestion(
-            id_of_post=0,
-            question_text=title,
-            resolution_criteria=resolution_criteria,
-            background_info=None,
-            fine_print=None,
-        )
-        forecast_report = await self.forecaster.forecast_question(question)
-        return forecast_report.prediction
 
     async def _calculate_next_try(self, market: MinerCacheObject) -> (int, int):
         """
