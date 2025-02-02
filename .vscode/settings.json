@@ -41,5 +41,5 @@
         "unixepoch",
         "vali"
     ],
-    "python.languageServer": "Default",
+    "python.languageServer": "Pylance",
 }
