@@ -290,18 +290,6 @@ class TestScorePredictions:
             [0.7, 0.3, 0.2, 0.3]
         )
 
-    def test_minutes_since_epoch(self, score_predictions_task: ScorePredictions):
-        unit = score_predictions_task
-
-        assert unit.minutes_since_epoch(datetime(2024, 12, 27, 0, 1, 0, 0, timezone.utc)) == 519841
-
-    def test_align_to_interval(self, score_predictions_task: ScorePredictions):
-        unit = score_predictions_task
-
-        assert unit.align_to_interval(519841) == 519840
-        assert unit.align_to_interval(520079) == 519840
-        assert unit.align_to_interval(520080) == 520080
-
     @pytest.mark.parametrize(
         "predictions, context, miner_reg_date, expected_rema_brier_score, expected_rema_prediction",
         [
@@ -1090,6 +1078,8 @@ class TestScorePredictions:
                                 "end_date": 1730937599,
                             },
                             "spec_version": "1.0.0",
+                            "registered_date": "2024-12-27T00:00:00+00:00",
+                            "scored_at": "2024-12-27T00:00:00+00:00",
                         },
                         {
                             "miner_uid": 2,
@@ -1115,6 +1105,8 @@ class TestScorePredictions:
                                 "end_date": 1730937599,
                             },
                             "spec_version": "1.0.0",
+                            "registered_date": "2024-12-27T00:00:00+00:00",
+                            "scored_at": "2024-12-27T00:00:00+00:00",
                         },
                     ]
                 },
@@ -1169,15 +1161,23 @@ class TestScorePredictions:
             outcome="1",
             status=3,
             metadata="""{"market_type": "acled", "cutoff": 1730677800, "end_date": 1730937599}""",
-            created_at=datetime(2024, 12, 27, 0, 0, 0, 0, timezone.utc),
+            registered_date=datetime(2024, 12, 27, 0, 0, 0, 0, timezone.utc),
         )
 
         unit.api_client.post_scores = AsyncMock(side_effect=post_scores_side_effect)
 
-        with patch("neurons.validator.tasks.score_predictions.logger") as mock_logger:
+        with (
+            patch("neurons.validator.tasks.score_predictions.logger") as mock_logger,
+            patch("neurons.validator.tasks.score_predictions.datetime") as mock_datetime,
+        ):
             # Mock logger methods
             mock_logger.warning = MagicMock()
             mock_logger.error = MagicMock()
+
+            # Mock datetime
+            mock_datetime.now = MagicMock(
+                return_value=datetime(2024, 12, 27, 0, 0, 0, 0, timezone.utc)
+            )
 
             # Call the method
             if post_scores_side_effect:
@@ -1522,6 +1522,8 @@ class TestScorePredictions:
                         miner_hotkey="hk1",
                         miner_uid="1",
                         registered_date=datetime(2024, 12, 1, 0, 0, 0, tzinfo=timezone.utc),
+                        is_validating=False,
+                        validator_permit=False,
                     ),
                 ],
                 [],
@@ -1536,6 +1538,8 @@ class TestScorePredictions:
                         miner_hotkey="hk1",
                         miner_uid="1",
                         registered_date=datetime(2024, 12, 1, 0, 0, 0, tzinfo=timezone.utc),
+                        is_validating=False,
+                        validator_permit=False,
                     ),
                 ],
                 [
@@ -1741,6 +1745,8 @@ class TestScorePredictions:
                 "0.0.0.0",
                 "2024-12-01",
                 "100",
+                False,
+                False,
                 "0.0.0.0",
                 "100",
             ),
@@ -1750,6 +1756,8 @@ class TestScorePredictions:
                 "0.0.0.0",
                 "2024-12-01",
                 "100",
+                False,
+                False,
                 "0.0.0.0",
                 "100",
             ),

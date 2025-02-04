@@ -76,6 +76,7 @@ class TestExportPredictions:
                 120,  # interval_start_minutes
                 0.8,  # interval_agg_prediction
                 5,  # interval_count
+                "2024-01-01 02:00:00",  # submitted
             )
         ]
 
@@ -109,8 +110,8 @@ class TestExportPredictions:
     ):
         # Test with multiple predictions
         predictions = [
-            (0, "event1", "miner1", "uid1", "weather", 0.75, 120, 0.8, 5),
-            (0, "event2", "miner2", "uid2", "sports", 0.25, 240, 0.3, 3),
+            (0, "event1", "miner1", "uid1", "weather", 0.75, 120, 0.8, 5, "2024-01-01 02:00:00"),
+            (0, "event2", "miner2", "uid2", "sports", 0.25, 240, 0.3, 3, "2024-01-01 04:00:00"),
         ]
 
         result = export_predictions_task.parse_predictions_for_exporting(predictions)
@@ -227,6 +228,13 @@ class TestExportPredictions:
         first_call = mock_calls[0]
         second_call = mock_calls[1]
 
+        # fetching it early to get submitted = CURRENT_TIMESTAMP from the database
+        result = await db_client.many(
+            """
+                SELECT exported, submitted FROM predictions
+            """
+        )
+
         assert first_call == (
             "__call__",
             {
@@ -249,6 +257,7 @@ class TestExportPredictions:
                             "validator_uid": 0,
                             "title": None,
                             "outcome": None,
+                            "submitted_at": result[0][1],
                         }
                     ],
                 }
@@ -276,16 +285,11 @@ class TestExportPredictions:
                             "validator_uid": 0,
                             "title": None,
                             "outcome": None,
+                            "submitted_at": result[1][1],
                         }
                     ],
                 }
             },
-        )
-
-        result = await db_client.many(
-            """
-                SELECT exported FROM predictions
-            """
         )
 
         assert len(result) == 3

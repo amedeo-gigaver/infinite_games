@@ -4,12 +4,22 @@ from unittest.mock import patch
 import pytest
 
 from neurons.validator.utils.common.interval import (
+    align_to_interval,
     get_interval_iso_datetime,
     get_interval_start_minutes,
+    minutes_since_epoch,
 )
 
 
 class TestInterval:
+    def test_minutes_since_epoch(self):
+        assert minutes_since_epoch(datetime(2024, 12, 27, 0, 1, 0, 0, timezone.utc)) == 519841
+
+    def test_align_to_interval(self):
+        assert align_to_interval(519841) == 519840
+        assert align_to_interval(520079) == 519840
+        assert align_to_interval(520080) == 520080
+
     @pytest.mark.parametrize(
         "test_time,expected",
         [

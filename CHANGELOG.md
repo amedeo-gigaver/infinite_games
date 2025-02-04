@@ -1,5 +1,8 @@
 # Release Notes
 
+## [1.3.7] - 2025-02-03
+- **Events Resolution**: Events resolution and deletion upgraded to batched requests to improve overhead and reduce resolution time.
+
 ## [1.3.6] - 2025-01-27
 - **Bittensor Upgrade**: Upgraded to Bittensor version 8.5.2
 - **Requirements Update**: Removed unused pip requirements and switched the torch requirement to the CPU version. This significantly reduces the size of the required Python environment.

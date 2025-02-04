@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from neurons.validator.db.operations import DatabaseOperations
 from neurons.validator.if_games.client import IfGamesClient
 from neurons.validator.scheduler.task import AbstractTask
@@ -61,6 +63,8 @@ class DeleteEvents(AbstractTask):
 
             return
 
+        deleted_since = datetime.fromisoformat(deleted_since).isoformat().replace("+00:00", "Z")
+
         offset = 0
 
         while True:
@@ -82,6 +86,14 @@ class DeleteEvents(AbstractTask):
 
                 if len(db_deleted_event) > 0:
                     self.logger.debug("Event deleted", extra={"event_id": event_id})
+                else:
+                    self.logger.warning(
+                        "Event not deleted",
+                        extra={
+                            "event_id": event_id,
+                            "details": "Event not found in DB",
+                        },
+                    )
 
             if len(deleted_events) < self.page_size:
                 # Break if no more events

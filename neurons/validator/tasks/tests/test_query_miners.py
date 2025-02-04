@@ -57,19 +57,44 @@ class TestQueryMiners:
         query_miners_task: QueryMiners,
     ):
         # Set up the mock attributes
-        query_miners_task.metagraph.uids = np.array([1, 2, 3])  # UIDs in the metagraph
-        query_miners_task.metagraph.axons = {
-            1: MagicMock(is_serving=True),  # Valid axon
-            2: MagicMock(is_serving=False),  # Not serving
-            3: None,  # No axon at this UID
-        }
+        query_miners_task.metagraph.uids = np.array([0, 1, 2, 3])  # UIDs in the metagraph
+        query_miners_task.metagraph.axons = (
+            AxonInfo(
+                hotkey="hotkey1", coldkey="coldkey", version=1, ip="ip1", port=1, ip_type=1
+            ),  # Serving axon
+            AxonInfo(
+                hotkey="hotkey2", coldkey="coldkey", version=1, ip="ip1", port=1, ip_type=1
+            ),  # Serving axon
+            AxonInfo(
+                hotkey="hotkey3", coldkey="coldkey", version=1, ip="0.0.0.0", port=1, ip_type=1
+            ),  # Not serving axon
+            None,  # No axon at this UID
+        )
+        query_miners_task.metagraph.validator_trust = torch.nn.Parameter(
+            torch.tensor([0.5, 0.0, 0.0, 0.0])
+        )
+        query_miners_task.metagraph.validator_permit = torch.nn.Parameter(
+            torch.tensor([1.0, 1.0, 0.0, 0.0])
+        )
 
         # Call the method
         result = query_miners_task.get_axons()
 
         # Assertions
-        # Only UID 1 should be included because it's serving
-        assert result == {1: query_miners_task.metagraph.axons[1]}
+        # Only UIDs 1 & 2 should be included because they are serving
+        assert len(result) == 2
+
+        # Check hotkeys
+        assert result[0].hotkey == "hotkey1"
+        assert result[1].hotkey == "hotkey2"
+
+        # Check is validating
+        assert result[0].is_validating is True
+        assert result[1].is_validating is False
+
+        # Check validator permit
+        assert result[0].validator_permit is True
+        assert result[1].validator_permit is True
 
     def test_get_axons_empty_metagraph(
         self,
@@ -260,7 +285,11 @@ class TestQueryMiners:
 
     async def test_store_miners(self, db_client: DatabaseClient, query_miners_task: QueryMiners):
         block = 12345
-        axons = {"uid_1": MagicMock(hotkey="hotkey_1", ip="ip_1")}
+        axons = {
+            "uid_1": MagicMock(
+                hotkey="hotkey_1", ip="ip_1", is_validating=False, validator_permit=True
+            )
+        }
 
         await query_miners_task.store_miners(block=block, axons=axons)
 
@@ -273,20 +302,35 @@ class TestQueryMiners:
                     node_ip,
                     registered_date,
                     last_updated,
-                    blocktime
+                    blocktime,
+                    is_validating,
+                    validator_permit
                 FROM
                     miners
             """
         )
 
         assert len(result) == 1
-        assert result[0] == ("uid_1", "hotkey_1", "ip_1", "2024-01-01T00:00:00", ANY, block)
+        assert result[0] == (
+            "uid_1",
+            "hotkey_1",
+            "ip_1",
+            "2024-01-01T00:00:00",
+            ANY,
+            block,
+            False,
+            True,
+        )
 
         # Conflicting insert
         new_block = 23456
         new_axons = {
-            "uid_1": MagicMock(hotkey="hotkey_1", ip="ip_2"),
-            "uid_2": MagicMock(hotkey="hotkey_2", ip="ip_3"),
+            "uid_1": MagicMock(
+                hotkey="hotkey_1", ip="ip_2", is_validating=True, validator_permit=False
+            ),
+            "uid_2": MagicMock(
+                hotkey="hotkey_2", ip="ip_3", is_validating=True, validator_permit=False
+            ),
         }
 
         # Wait 1s so last updated is different
@@ -303,15 +347,35 @@ class TestQueryMiners:
                     node_ip,
                     registered_date,
                     last_updated,
-                    blocktime
+                    blocktime,
+                    is_validating,
+                    validator_permit
                 FROM
                     miners
             """
         )
 
         assert len(result_2) == 2
-        assert result_2[0] == ("uid_1", "hotkey_1", "ip_2", "2024-01-01T00:00:00", ANY, new_block)
-        assert result_2[1] == ("uid_2", "hotkey_2", "ip_3", ANY, ANY, new_block)
+        assert result_2[0] == (
+            "uid_1",
+            "hotkey_1",
+            "ip_2",
+            "2024-01-01T00:00:00",
+            ANY,
+            new_block,
+            True,
+            False,
+        )
+        assert result_2[1] == (
+            "uid_2",
+            "hotkey_2",
+            "ip_3",
+            ANY,
+            ANY,
+            new_block,
+            True,
+            False,
+        )
 
         # Check that last update has been updated
         assert result[0][4] != result_2[0][4]
@@ -465,12 +529,32 @@ class TestQueryMiners:
         # Set up the bittensor mocks
         block = 101.0
 
-        query_miners_task.metagraph.uids = torch.nn.Parameter(torch.tensor([1.0, 2.0]))
+        query_miners_task.metagraph.uids = np.array([0, 1])
         query_miners_task.metagraph.block = torch.nn.Parameter(torch.tensor(block))
-        query_miners_task.metagraph.axons = {
-            1: MagicMock(is_serving=True, hotkey="hotkey_1", ip="ip_1"),
-            2: MagicMock(is_serving=True, hotkey="hotkey_2", ip="ip_2"),
-        }
+        query_miners_task.metagraph.axons = (
+            AxonInfo(
+                hotkey="hotkey_1", coldkey="coldkey", version=1, ip="ip_1", port=1, ip_type=1
+            ),  # Serving axon
+            AxonInfo(
+                hotkey="hotkey_2", coldkey="coldkey", version=1, ip="ip_2", port=1, ip_type=1
+            ),  # Serving axon
+        )
+        query_miners_task.metagraph.validator_trust = torch.nn.Parameter(
+            torch.tensor(
+                [
+                    0.5,
+                    0.0,
+                ]
+            )
+        )
+        query_miners_task.metagraph.validator_permit = torch.nn.Parameter(
+            torch.tensor(
+                [
+                    1.0,
+                    0.0,
+                ]
+            )
+        )
 
         async def forward(
             axons: list[AxonInfo], synapse: EventPredictionSynapse, deserialize: bool, timeout: int
@@ -513,7 +597,7 @@ class TestQueryMiners:
                 # minerHotkey
                 "hotkey_1",
                 # minerUid
-                "1",
+                "0",
                 # predictedOutcome
                 "0.8",
                 # canOverwrite
@@ -536,7 +620,7 @@ class TestQueryMiners:
             (
                 "ifgames-event2",
                 "hotkey_1",
-                "1",
+                "0",
                 "0.8",
                 None,
                 None,
@@ -550,7 +634,7 @@ class TestQueryMiners:
             (
                 "ifgames-event1",
                 "hotkey_2",
-                "2",
+                "1",
                 "0.8",
                 None,
                 None,
@@ -564,7 +648,7 @@ class TestQueryMiners:
             (
                 "ifgames-event2",
                 "hotkey_2",
-                "2",
+                "1",
                 "0.8",
                 None,
                 None,
@@ -581,15 +665,17 @@ class TestQueryMiners:
             """
                 SELECT
                     miner_uid,
-                    miner_hotkey
+                    miner_hotkey,
+                    is_validating,
+                    validator_permit
                 FROM
                     miners
                 """
         )
 
         assert len(miners) == 2
-        assert miners[0] == ("1", "hotkey_1")
-        assert miners[1] == ("2", "hotkey_2")
+        assert miners[0] == ("0", "hotkey_1", True, True)
+        assert miners[1] == ("1", "hotkey_2", False, False)
 
     async def test_run_no_events_to_predict(self, query_miners_task: QueryMiners):
         # Set mocks

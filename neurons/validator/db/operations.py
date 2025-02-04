@@ -124,15 +124,6 @@ class DatabaseOperations:
 
         return row[0]
 
-    async def get_pending_events(self) -> Iterable[tuple[str]]:
-        # TODO limit to events that passed cutoff
-        return await self.__db_client.many(
-            """
-                SELECT event_id FROM events WHERE status = ?
-            """,
-            parameters=[EventStatus.PENDING],
-        )
-
     async def get_predictions_to_export(self, current_interval_minutes: int, batch_size: int):
         return await self.__db_client.many(
             """
@@ -145,7 +136,8 @@ class DatabaseOperations:
                     p.predictedOutcome,
                     p.interval_start_minutes,
                     p.interval_agg_prediction,
-                    p.interval_count
+                    p.interval_count,
+                    p.submitted
                 FROM
                     predictions p
                 JOIN
@@ -256,7 +248,9 @@ class DatabaseOperations:
                         registered_date,
                         last_updated,
                         blocktime,
-                        blocklisted
+                        blocklisted,
+                        is_validating,
+                        validator_permit
                     )
                 VALUES
                     (
@@ -266,14 +260,18 @@ class DatabaseOperations:
                         ?,
                         CURRENT_TIMESTAMP,
                         ?,
-                        FALSE
+                        FALSE,
+                        ?,
+                        ?
                     )
                 ON CONFLICT
                     (miner_hotkey, miner_uid)
                 DO UPDATE
                     set node_ip = ?,
                     last_updated = CURRENT_TIMESTAMP,
-                    blocktime = ?
+                    blocktime = ?,
+                    is_validating = excluded.is_validating,
+                    validator_permit = excluded.validator_permit
             """,
             miners,
         )
