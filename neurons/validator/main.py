@@ -9,6 +9,7 @@ from neurons.validator.db.operations import DatabaseOperations
 from neurons.validator.if_games.client import IfGamesClient
 from neurons.validator.scheduler.tasks_scheduler import TasksScheduler
 from neurons.validator.tasks.db_cleaner import DbCleaner
+from neurons.validator.tasks.delete_events import DeleteEvents
 from neurons.validator.tasks.export_predictions import ExportPredictions
 from neurons.validator.tasks.pull_events import PullEvents
 from neurons.validator.tasks.query_miners import QueryMiners
@@ -54,7 +55,19 @@ async def main():
     )
 
     resolve_events_task = ResolveEvents(
-        interval_seconds=1800.0, db_operations=db_operations, api_client=api_client, logger=logger
+        interval_seconds=1800.0,
+        db_operations=db_operations,
+        api_client=api_client,
+        page_size=100,
+        logger=logger,
+    )
+
+    delete_events_task = DeleteEvents(
+        interval_seconds=1800.0,
+        db_operations=db_operations,
+        api_client=api_client,
+        page_size=100,
+        logger=logger,
     )
 
     query_miners_task = QueryMiners(
@@ -87,7 +100,7 @@ async def main():
     )
 
     db_cleaner__task = DbCleaner(
-        interval_seconds=53.0, db_operations=db_operations, batch_size=2000, logger=logger
+        interval_seconds=53.0, db_operations=db_operations, batch_size=4000, logger=logger
     )
 
     # Add tasks to scheduler
@@ -95,6 +108,7 @@ async def main():
 
     scheduler.add(task=pull_events_task)
     scheduler.add(task=resolve_events_task)
+    scheduler.add(task=delete_events_task)
     scheduler.add(task=query_miners_task)
     scheduler.add(task=export_predictions_task)
     scheduler.add(task=score_predictions_task)

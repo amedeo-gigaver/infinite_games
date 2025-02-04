@@ -106,6 +106,7 @@ class ExportPredictions(AbstractTask):
             interval_start_minutes = prediction[6]
             interval_agg_prediction = prediction[7]
             interval_count = prediction[8]
+            submitted_at = prediction[9]
 
             submission = {
                 "unique_event_id": unique_event_id,
@@ -121,6 +122,7 @@ class ExportPredictions(AbstractTask):
                 "validator_uid": self.validator_uid,
                 "title": None,
                 "outcome": None,
+                "submitted_at": submitted_at,
             }
 
             submissions.append(submission)

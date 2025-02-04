@@ -181,8 +181,12 @@ class DatabaseClient:
         return await self.__wrap_execution(execute)
 
     async def migrate(self):
+        start_time = time.time()
+
         self.__logger.info("Running migrations")
 
         run_migrations(db_file_name=self.__db_path)
 
-        self.__logger.info("Migrations complete")
+        elapsed_time_ms = round((time.time() - start_time) * 1000)
+
+        self.__logger.info("Migrations complete", extra={"elapsed_time_ms": elapsed_time_ms})

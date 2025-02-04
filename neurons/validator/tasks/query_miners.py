@@ -1,5 +1,6 @@
 import json
 import time
+from dataclasses import asdict, dataclass
 from datetime import datetime
 from typing import Iterable
 
@@ -14,7 +15,14 @@ from neurons.validator.utils.common.converters import torch_or_numpy_to_int
 from neurons.validator.utils.common.interval import get_interval_start_minutes
 from neurons.validator.utils.logger.logger import InfiniteGamesLogger
 
-AxonInfoByUidType = dict[int, AxonInfo]
+
+@dataclass
+class ExtendedAxonInfo(AxonInfo):
+    is_validating: bool = False
+    validator_permit: bool = False
+
+
+AxonInfoByUidType = dict[int, ExtendedAxonInfo]
 SynapseResponseByUidType = dict[int, EventPredictionSynapse]
 
 
@@ -112,7 +120,14 @@ class QueryMiners(AbstractTask):
             axon = self.metagraph.axons[int_uid]
 
             if axon is not None and axon.is_serving is True:
-                axons[int_uid] = axon
+                is_validating = True if self.metagraph.validator_trust[uid].float() > 0.0 else False
+                validator_permit = torch_or_numpy_to_int(self.metagraph.validator_permit[uid]) > 0
+
+                extended_axon = ExtendedAxonInfo(
+                    **asdict(axon), is_validating=is_validating, validator_permit=validator_permit
+                )
+
+                axons[int_uid] = extended_axon
 
         return axons
 
@@ -219,7 +234,17 @@ class QueryMiners(AbstractTask):
         )
 
         miners = [
-            (uid, axon.hotkey, axon.ip, registered_date, block, axon.ip, block)
+            (
+                uid,
+                axon.hotkey,
+                axon.ip,
+                registered_date,
+                block,
+                axon.is_validating,
+                axon.validator_permit,
+                axon.ip,
+                block,
+            )
             for uid, axon in axons.items()
         ]
 

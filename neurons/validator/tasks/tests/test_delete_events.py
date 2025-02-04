@@ -10,7 +10,7 @@ from neurons.validator.db.client import DatabaseClient
 from neurons.validator.db.operations import DatabaseOperations
 from neurons.validator.if_games.client import IfGamesClient
 from neurons.validator.models.event import EventStatus
-from neurons.validator.sandbox.tasks.delete_events import DeleteEvents
+from neurons.validator.tasks.delete_events import DeleteEvents
 from neurons.validator.utils.logger.logger import InfiniteGamesLogger
 
 
@@ -214,9 +214,9 @@ class TestDeleteEventsTask:
 
         # Mock API response
         with aioresponses() as mocked:
-            first_request_deleted_since = "1900-12-02T14:30:00+00:00"
+            first_request_deleted_since = "1900-12-02T14:30:00Z"
 
-            second_request_deleted_since = "1950-12-02T14:30:00+00:00"
+            second_request_deleted_since = "1950-12-02T14:30:00Z"
 
             mocked.get(
                 f"/api/v2/events/deleted?deleted_since={first_request_deleted_since}&offset=0&limit=1",

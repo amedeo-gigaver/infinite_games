@@ -19,18 +19,16 @@ from neurons.validator.models.event import EventsModel
 from neurons.validator.models.prediction import PredictionsModel
 from neurons.validator.scheduler.task import AbstractTask
 from neurons.validator.utils.common.converters import pydantic_models_to_dataframe
+from neurons.validator.utils.common.interval import (
+    AGGREGATION_INTERVAL_LENGTH_MINUTES,
+    BLOCK_DURATION,
+    align_to_interval,
+    minutes_since_epoch,
+)
 from neurons.validator.utils.logger.logger import logger
 from neurons.validator.version import __spec_version__ as spec_version
 
-# The base time epoch for clustering intervals.
-SCORING_REFERENCE_DATE = datetime(2024, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
-
-# Intervals are grouped in 4-hour blocks (240 minutes).
-AGGREGATION_INTERVAL_LENGTH_MINUTES = 60 * 4  # 240
-
 RESET_INTERVAL_SECONDS = 60 * 60 * 24  # 24 hours
-
-BLOCK_DURATION = 12  # 12 seconds block duration from bittensor
 
 EXP_FACTOR_K = 5
 NEURON_MOVING_AVERAGE_ALPHA = 0.8
@@ -252,17 +250,6 @@ class ScorePredictions(AbstractTask):
 
         return self.state
 
-    def minutes_since_epoch(self, dt: datetime) -> int:
-        """Convert a given datetime to the 'minutes since the reference date'."""
-        return int((dt - SCORING_REFERENCE_DATE).total_seconds()) // 60
-
-    def align_to_interval(self, minutes_since: int) -> int:
-        """
-        Align a given number of minutes_since_epoch down to
-        the nearest AGGREGATION_INTERVAL_LENGTH_MINUTES boundary.
-        """
-        return minutes_since - (minutes_since % AGGREGATION_INTERVAL_LENGTH_MINUTES)
-
     def process_miner_event_score(
         self, event: EventsModel, miner_predictions: pd.DataFrame, context: dict
     ) -> float:
@@ -296,7 +283,7 @@ class ScorePredictions(AbstractTask):
         weights_brier_sum = 0
         weights_pred_sum = 0
         weights_sum = 0
-        miner_reg_date_since_epoch = self.minutes_since_epoch(miner_reg_date)
+        miner_reg_date_since_epoch = minutes_since_epoch(miner_reg_date)
 
         for interval_idx in range(context["n_intervals"]):
             interval_start = (
@@ -361,12 +348,12 @@ class ScorePredictions(AbstractTask):
         self, event: EventsModel, predictions: list[PredictionsModel]
     ) -> pd.DataFrame:
         # Convert cutoff and now to minutes since epoch, then align them to the interval start
-        effective_cutoff_minutes = self.minutes_since_epoch(event.cutoff)
-        effective_cutoff_start_minutes = self.align_to_interval(effective_cutoff_minutes)
+        effective_cutoff_minutes = minutes_since_epoch(event.cutoff)
+        effective_cutoff_start_minutes = align_to_interval(effective_cutoff_minutes)
 
         # Determine when we started, based on registered_date
-        registered_date_minutes = self.minutes_since_epoch(event.registered_date)
-        registered_date_start_minutes = self.align_to_interval(registered_date_minutes)
+        registered_date_minutes = minutes_since_epoch(event.registered_date)
+        registered_date_start_minutes = align_to_interval(registered_date_minutes)
 
         n_intervals = (
             effective_cutoff_start_minutes - registered_date_start_minutes
@@ -779,6 +766,10 @@ class ScorePredictions(AbstractTask):
                     "validator_uid": int(self.vali_uid),
                     "metadata": json.loads(event.metadata),
                     "spec_version": str(self.spec_version),
+                    # TODO: to align field names, align date formats
+                    "registered_date": event.registered_date.isoformat(),
+                    # placeholder for the scored date
+                    "scored_at": datetime.now(timezone.utc).isoformat(),
                 }
                 for _, row in final_scores.iterrows()
             ]

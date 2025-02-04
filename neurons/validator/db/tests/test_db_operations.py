@@ -1,6 +1,6 @@
 import tempfile
 from datetime import datetime, timedelta, timezone
-from unittest.mock import MagicMock
+from unittest.mock import ANY, MagicMock
 
 import pytest
 
@@ -749,49 +749,6 @@ class TestDbOperations:
 
         assert result is None
 
-    async def test_get_pending_events(self, db_operations: DatabaseOperations):
-        pending_event_id = "event1"
-
-        events = [
-            (
-                "unique1",
-                pending_event_id,
-                "truncated_market1",
-                "market_1",
-                "desc1",
-                "2024-12-02",
-                "2024-12-03",
-                None,
-                EventStatus.PENDING,
-                '{"key": "value"}',
-                "2000-12-02T14:30:00+00:00",
-                "2000-12-29T14:30:00+00:00",
-                "2000-12-30T14:30:00+00:00",
-            ),
-            (
-                "unique2",
-                "event2",
-                "truncated_market2",
-                "market_2",
-                "desc2",
-                "2024-12-03",
-                "2024-12-04",
-                "outcome2",
-                EventStatus.SETTLED,
-                '{"key": "value"}',
-                "2012-12-02T14:30:00+00:00",
-                "2000-12-29T14:30:00+00:00",
-                "2000-12-30T14:30:00+00:00",
-            ),
-        ]
-
-        await db_operations.upsert_events(events)
-
-        result = await db_operations.get_pending_events()
-
-        assert len(result) == 1
-        assert result[0][0] == pending_event_id
-
     async def test_get_events_to_predict(self, db_operations: DatabaseOperations):
         event_to_predict_id = "event3"
 
@@ -1228,6 +1185,79 @@ class TestDbOperations:
 
         await db_operations.upsert_events(events)
 
+    async def test_upsert_miners(
+        self, db_operations: DatabaseOperations, db_client: DatabaseClient
+    ):
+        miners = [
+            (
+                "uid1",
+                "hotkey1",
+                "ip1",
+                "2000-12-02T14:30:00+00:00",
+                1,
+                False,
+                True,
+                "ip1",
+                1,
+            ),
+            (
+                "uid2",
+                "hotkey2",
+                "ip2",
+                "2000-12-02T14:30:00+00:00",
+                2,
+                True,
+                False,
+                "ip2",
+                2,
+            ),
+        ]
+
+        await db_operations.upsert_miners(miners)
+
+        result = await db_client.many(
+            """
+                SELECT
+                    miner_hotkey,
+                    miner_uid,
+                    registered_date,
+                    last_updated,
+                    is_validating,
+                    validator_permit
+                FROM
+                    miners
+            """
+        )
+
+        assert len(result) == 2
+
+        print(result)
+        # Assert miner hotkey
+        assert result[0][0] == "hotkey1"
+        assert result[1][0] == "hotkey2"
+
+        # Assert miner uid
+        assert result[0][1] == "uid1"
+        assert result[1][1] == "uid2"
+
+        # Assert registered_date
+        assert result[0][2] == "2000-12-02T14:30:00+00:00"
+        assert result[1][2] == "2000-12-02T14:30:00+00:00"
+
+        # Assert last_registration
+        assert result[0][3] == ANY
+        assert result[1][3] == ANY
+
+        # Assert is_validating
+        assert result[0][4] == 0
+        assert result[1][4] == 1
+
+        # Assert validator_permit
+        assert result[0][5] == 1
+        assert result[1][5] == 0
+
+        # TODO: Test update fields on conflict
+
     async def test_upsert_predictions(
         self, db_operations: DatabaseOperations, db_client: DatabaseClient
     ):
@@ -1397,27 +1427,42 @@ class TestDbOperations:
             miner_hotkey="hotkey1",
             miner_uid="uid1",
             registered_date=datetime(2024, 1, 1, 10, 0, 0),
+            is_validating=False,
+            validator_permit=False,
         )
 
         miner_2 = MinersModel(
             miner_hotkey="hotkey2",
             miner_uid="uid2",
             registered_date=datetime(2024, 1, 1, 10, 0, 0),
+            is_validating=False,
+            validator_permit=True,
         )
 
         miner_1_replaced = MinersModel(
             miner_hotkey="hotkey2",
             miner_uid="uid1",
             registered_date=datetime(2024, 1, 1, 11, 0, 1),
+            is_validating=True,
+            validator_permit=True,
         )
 
         miners = [miner_1, miner_2, miner_1_replaced]
         await db_client.insert_many(
             """
-            INSERT INTO miners (miner_hotkey, miner_uid, registered_date)
-            VALUES (?, ?, ?)
+            INSERT INTO miners (miner_hotkey, miner_uid, registered_date, is_validating, validator_permit)
+            VALUES (?, ?, ?, ?, ?)
             """,
-            [(m.miner_hotkey, m.miner_uid, m.registered_date) for m in miners],
+            [
+                (
+                    m.miner_hotkey,
+                    m.miner_uid,
+                    m.registered_date,
+                    m.is_validating,
+                    m.validator_permit,
+                )
+                for m in miners
+            ],
         )
 
         all_miners = await db_client.many(
