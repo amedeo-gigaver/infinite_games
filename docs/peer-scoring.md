@@ -19,13 +19,6 @@ In order to incentivise full coverage we have the following rule:
 $S(p_{\emptyset},o_q) = \text{worst possible score on a given question}$
 
 
-<!--
-When the event $E$ resolves we compute the Brier score of each submission and we multiply this score by the corresponding weight. We then obtain the following weighted time series:
-$(w_{t,D} \times S(p_{t,k}, o_E))_{t \leq D}$
-
-The final scoring rule is obtained by averaging this quantity. We detail all the steps below as well as add an additional discretization step.
--->
-
 ## Weights
 
 We associate a weight $w_{q, t}$ to each depending on the time of the submission $t \in T_q$. 
