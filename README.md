@@ -73,16 +73,26 @@ According to the article, the performance of forecasting LLMs depends significan
 
 Validators record the miners' predictions and score them once the events settle. At each event settlement, a score is added to the moving average of the miner's score. This simple model ensures that all validators score the miners at roughly the same time. We implement a **cutoff** for the submission time of a prediction. The cutoff is set at 24 hours before the resolution date for most events.
 
-## Scoring rule
+## Brier score (legacy)
 
-Denote by $S(p_i, o_i)$ the Brier score of a prediction $p_i$ on the binary event $E_i$ and where $o_i$ is $1$ if $E_i$ is realized and $0$ otherwise. We have that $S(p_i, 1)= 1- (1-p_i)^2$ if $o_i$ is $1$ and $S(p_i,0)=1-p_i^2$ if $o_i$ is $0$. The Brier score is strictly proper i.e it strictly incentivizes miners to report their true prediction. 
+Denote by $S(p_i, o_q)$ the Brier score score of a prediction $p_i$ on the binary question $q$ where $o_q$ is $1$ if $q$ is realized and $0$ otherwise. We have that $S(p_i, 1)= 1- (1-p_i)^2$ if $o_q$ is $1$ and $S(p_i,0)=1-p_i^2$ if $o_q$ is $0$. The Brier score is strictly proper i.e it strictly incentivizes miners to report their true prediction. 
 
 The validator stores **the time series of the miner's predictions** and computes the Brier score of each element of the time series. It hence obtains a new time series of Brier scores. A number $n$ of intervals is set between the issues date and the resolution date. The validator then computes a **weighted average of the Brier scores**, where the weight is exponentially decreasing with time, in interval $k$ it has value $exp(-\frac{n}{k} +1)$ where $k$ starts at $n$ and decreases to $1$.
 
-The final score is a linear combination of the weighted average and of a linear component that depends on how good is the miner compared to other miners.
 
-This is described in details [here](https://hackmd.io/@nielsma/S1sB8xO_C). We give miners a score of $0$ on the events for which they did not submit a prediction.
+We give miners a score of $0$ on the events for which they did not submit a prediction.
 
+## Peer scoring 
+
+The peer score $S(p_i, o_i)$ of a miner $i$ on a given question is:
+
+$S(p_i, o_i) = \frac{1}{n}\sum_{i\neq j} (\log(p_i) - \log(p_j)) = log(p_i) - log(\text{GM}(p_j)_{j \neq i})$
+
+where $\text{GM}(p_j)_{j \neq i}$ is the geometric mean over the prediction of all the other miners except $i$.
+
+The validator then sums this across all the time intervals for each questin using the exponential described above weights. We compute a moving average $M_i$ over the last $N$ questions where $N$ is the average number of questions during an immunity period.
+
+We then extremise $M_i$ using $F=\max(x,0)^2$. Finally we normalise the scores across all miners.
 
 <!--
 ### model 3
@@ -113,16 +123,16 @@ See [here](docs/mechanism.md) for a discussion of our mechanism. -->
 - [x] Synthetic event generation with UMA resolution - human verifiers resolve our events through the OOv2 
 - [x] Synthetic event generation from news data using an LLM 
 
-- [ ] Validator v2 - modular and much higher throughput 
+- [x] Validator v2 - modular and much higher throughput 
 - [ ] Scoring v2 (batches, peer score)
-- [ ] Exposing the silicon crowd predictions 
-- [ ] Decentralisation of event generation and validator dynamic desirability (inspired from SN13)
+- [ ] Exposing the silicon crowd predictions
 
-- [ ] Trustless event resolution using UMA - leveraging the data asserter framework
-- [ ] Advanced aggregation mechanism based on sequential scoring
+      
+- [ ] Decentralisation of event generation and validator dynamic desirability (inspired from SN13)
+- [ ] Trustless event resolution
 - [ ] Commit-reveal on the miners' predictions
-- [ ] Scoring a reasoning component
-- [ ] Data generation for iterative fine-tuning of prediction focused LLMs
+- [ ] Reasoning component
+- [ ] Data generation for iterative fine-tuning of forecasting LLMs
 
 
 <!-- We first aim at adjusting the scoring rule by updating to a variation of the *model 2* described above. We will likely implement several other updates in order to make the mechanism more robust. One of them could be a commit-reveal step for the predictions submitted by miners. Some updates may be due to experimental data.
