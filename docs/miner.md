@@ -3,13 +3,29 @@
 
 You will be receiving data in the form defined in `neurons/protocol.py` and will only need to complete the `probability` entry.
 
-The current scoring mechanism is described [here](https://hackmd.io/@nielsma/S1sB8xO_C).
+The legacy scoring mechanism is described [here](https://hackmd.io/@nielsma/S1sB8xO_C).
+
+
 
 You will be receiving requests from validators every minute. You do not have to recalculate your prediction every time. Our baseline miners are implementing a caching system that allows for a recalculation schedule. This is particularly important if you use a base model like GPT4 that might be expensive.
 
+## General
+
+Before registering your miner on the main network you can register it on testnet.
+Our testnet netuid is 155. You will also need faucet TAO. You can ask for them [here](https://discord.com/channels/799672011265015819/1190048018184011867).
+
+To register on mainnet you will need real TAO. You can get TAO by swapping them against USDC on an exchange like [MEXC](https://www.mexc.com/). Other exchanges supporting TAO are listed [here](https://taostats.io/). We give steps below on creating your own wallet from [btcli](https://docs.bittensor.com/btcli). The registration cost fluctuates depending on the current demand to register on the network but it's minimum price is 0.7 TAO. After you register there is an immunity period during which you cannot be excluded, if you are the lowest miner at the end of it you are deregistered. 
+
+Here are entries in the Bittensor documentation for [miners](https://docs.bittensor.com/miners/) and [coldkeys](https://docs.bittensor.com/getting-started/wallets). 
+
+## Key insights into the scoring system
+
+- You have to predict all events, you get the worst score if you don't sent a prediction for a given time interval (current each interval lasts 4h) on a given event
+- You are mostly rewarded for your early predictions
+- In the new peer score system if you are a new miner we give you a score of $0$ on all the intervals for which you could not submit a prediction but where the associated question is taken into account in your score (in the legacy system we assume you sent 0.5)
+
 ## Baseline Miner
 
-We are constantly working on improving the baseline miners, especially with regards to new categories of synthetic events being added to the subnet.
 
 We integrate the LLM prompting [pipeline](https://github.com/dannyallover/llm_forecasting.git) with news retrieval developed by the authors of the forecasting LLM paper quoted in the readme. In the current form it only uses [Google News](https://news.google.com/home?hl=en-US&gl=US&ceid=US:en) for news retrieval while the original model from the article used 4 other different sources (Newscatcher, Newsdata.io, Aylien, NewsAPI.org).
 This pipeline can work with different base models.
@@ -57,7 +73,24 @@ llm_prediction = (await self.llm.get_prediction(market=market, models_setup_opti
 You can also set up your own configurations.
 
 
-## Sample data for generated events from ACLED
+# Miner strategy
+
+A reference providing a **baseline miner** strategy is the article ["Approaching Human Level Forecasting with Language Models"](https://arxiv.org/html/2402.18563v1?s=35) ([1]). The authors fine-tune an LLM to generate predictions on binary events (including the ones listed on Polymarket) which nears the performance of human forecasters when submitting a forecast for each prediction, and which beats human forecasters in a setting where the LLM can choose to give a prediction or not based on its confidence.
+
+The authors released a version of the code they used to build the LLM they describe in the paper. You can find it [here](https://github.com/dannyallover/llm_forecasting.git). 
+
+
+# System requirements
+
+The computational requirements for a miner will depend significantly on the frequency at which they need to send predictions to be competitive since the base model we consider consists of a set of LLM sub-modules that each need to perform computations. Miners will also need to eventually continually provide new data to their models.
+
+A significant cost in the case of the repo referenced above is the cost of using e.g the OpenAI API as well as the cost of retrieving news data. Every time a prediction is produced, a base model is used to generate various prompts. A miner could circumvent that by using a local model or by using the output of the [subnet 18](https://github.com/corcel-api/cortex.t.git).
+News retrieval is often done through news provider like https://www.newscatcherapi.com/. They are most often behind a paywall.
+
+
+# Background information on event types
+
+## ACLED
 
 We join [here](docs/ACLED-data/protest-data-3days.json) and [here](docs/ACLED-data/Protests-events-7-days.json) two dataset of events that stretches over 6 months (from January 2024 to June 2024) which represents the type of events that will be sent to miners from [ACLED](https://acleddata.com/) data.
 
@@ -71,19 +104,6 @@ This first set of events will have the following structure:
 
 Miners will have to retrieve protest data relevant to each of the countries listed above in order to improve their predictions.
 
-# Miner strategy
-
-A reference providing a **baseline miner** strategy is the article ["Approaching Human Level Forecasting with Language Models"](https://arxiv.org/html/2402.18563v1?s=35) ([1]). The authors fine-tune an LLM to generate predictions on binary events (including the ones listed on Polymarket) which nears the performance of human forecasters when submitting a forecast for each prediction, and which beats human forecasters in a setting where the LLM can choose to give a prediction or not based on its confidence.
-
-The authors released a version of the code they used to build the LLM they describe in the paper. You can find it [here](https://github.com/dannyallover/llm_forecasting.git).
-
-
-# System requirements
-
-The computational requirements for a miner will depend significantly on the frequency at which they need to send predictions to be competitive since the base model we consider consists of a set of LLM sub-modules that each need to perform computations. Miners will also need to eventually continually provide new data to their models.
-
-A significant cost in the case of the repo referenced above is the cost of using e.g the OpenAI API as well as the cost of retrieving news data. Every time a prediction is produced, a base model is used to generate various prompts. A miner could circumvent that by using a local model or by using the output of the [subnet 18](https://github.com/corcel-api/cortex.t.git).
-News retrieval other than Google News is done through news provider like https://www.newscatcherapi.com/. They are most often behind a paywall.
 
 
 # Getting Started
@@ -127,9 +147,7 @@ The venv should be active whenever the neurons are run.
 
 ## 2. Create Wallets
 
-This step creates local coldkey and hotkey pairs for your miner.
-
-The miner will be registered to the subnet specified. This ensures that the miner can run the respective miner scripts.
+This step creates local coldkey and hotkey pairs for your miner. Both of these items can be shared (for example you have to share you coldkey to get faucet tokens and these will appear on [Taostats](https://taostats.io/)). Do **not** share your mnemonic.
 
 Create a coldkey and hotkey for your miner wallet.
 
@@ -144,7 +162,8 @@ Faucet is disabled on the testnet. Hence, if you don't have sufficient faucet to
 
 ## 3. Register keys
 
-This step registers your subnet miner keys to the subnet.
+This step registers your subnet miner keys to the subnet. This ensures that the miner can run the respective miner scripts.
+
 
 ```bash
 btcli subnet register --wallet.name miner --wallet.hotkey default
