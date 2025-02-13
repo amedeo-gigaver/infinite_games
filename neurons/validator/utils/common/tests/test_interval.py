@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
 import pytest
@@ -8,10 +8,24 @@ from neurons.validator.utils.common.interval import (
     get_interval_iso_datetime,
     get_interval_start_minutes,
     minutes_since_epoch,
+    to_utc,
 )
 
 
 class TestInterval:
+    def test_to_utc(self):
+        assert to_utc(datetime(2024, 12, 27, 0, 1, 0, 0)) == datetime(
+            2024, 12, 27, 0, 1, 0, 0, timezone.utc
+        )
+        assert to_utc(datetime(2024, 12, 27, 0, 1, 0, 0, timezone.utc)) == datetime(
+            2024, 12, 27, 0, 1, 0, 0, timezone.utc
+        )
+
+        cet = timezone(timedelta(hours=1))
+        dt_cet = datetime(2024, 12, 27, 0, 1, 0, 0, timezone.utc).astimezone(cet)
+        assert dt_cet == datetime(2024, 12, 27, 1, 1, 0, 0, cet)
+        assert to_utc(dt_cet) == datetime(2024, 12, 27, 0, 1, 0, 0, timezone.utc)
+
     def test_minutes_since_epoch(self):
         assert minutes_since_epoch(datetime(2024, 12, 27, 0, 1, 0, 0, timezone.utc)) == 519841
 

@@ -29,6 +29,11 @@ class TestValidatorMain:
             patch("neurons.validator.main.logger", spec=True) as mock_logger,
             patch("neurons.validator.main.ExportPredictions", spec=True),
             patch("neurons.validator.main.ScorePredictions", spec=True),
+            patch("neurons.validator.main.PeerScoring", spec=True),
+            patch(
+                "neurons.validator.main.API",
+                spec=True,
+            ) as MockAPI,
         ):
             # Mock get_config
             get_config.return_value = MagicMock(), config_env, db_path
@@ -44,6 +49,10 @@ class TestValidatorMain:
             # Mock TasksScheduler
             mock_scheduler = MockTasksScheduler.return_value
             mock_scheduler.start = AsyncMock(return_value=None)
+
+            # Mock API
+            mock_api = MockAPI.return_value
+            mock_api.start = AsyncMock()
 
             # Mock Logger
             mock_logger.start_session = MagicMock()
@@ -75,7 +84,7 @@ class TestValidatorMain:
             mock_scheduler.start.assert_awaited_once()
 
             # Verify tasks
-            assert mock_scheduler.add.call_count == 7
+            assert mock_scheduler.add.call_count == 8
 
             # Verify logging
             mock_logger.info.assert_called_with(

@@ -1,0 +1,34 @@
+networks:
+  develop_network:
+    name: develop_network
+
+services:
+  if_validator_develop:
+    container_name: if_validator_develop
+
+    image: gigacodehub/validator:test-latest
+
+    networks:
+      - develop_network
+
+    ports:
+      - "8001:8000"
+
+    volumes:
+      - /root/validator_develop.db:/root/infinite_games/validator_test.db
+      - ./.bittensor:/root/.bittensor
+
+    restart: unless-stopped
+
+    environment:
+      - INLINE_LOGS=1
+      - API_ACCESS_KEY=$API_ACCESS_KEY
+
+    command: >
+      bash -c "python neurons/validator.py --netuid 155 --subtensor.network test --wallet.name testkey --wallet.hotkey hkey4 --logging.debug"
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"

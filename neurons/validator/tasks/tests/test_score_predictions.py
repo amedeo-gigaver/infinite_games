@@ -7,6 +7,7 @@ from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import bittensor as bt
+import numpy as np
 import pandas as pd
 import pytest
 import requests
@@ -53,7 +54,9 @@ class TestScorePredictions:
 
     @pytest.fixture
     def db_operations(self, db_client: DatabaseClient):
-        return DatabaseOperations(db_client=db_client)
+        logger = MagicMock(spec=InfiniteGamesLogger)
+
+        return DatabaseOperations(db_client=db_client, logger=logger)
 
     @pytest.fixture
     def bt_wallet(self):
@@ -75,6 +78,7 @@ class TestScorePredictions:
             env="test", logger=MagicMock(spec=InfiniteGamesLogger), bt_wallet=bt_wallet
         )
         metagraph = MagicMock(spec=MetagraphMixin)
+        metagraph.sync = MagicMock()
         config = MagicMock(spec=bt.Config)
         config.neuron = MagicMock()
         config.netuid = 155
@@ -1037,9 +1041,54 @@ class TestScorePredictions:
                     == expected_logs["bottom_10_uids"]
                 )
 
+    @pytest.mark.parametrize(
+        "input_data, expected_data",
+        [
+            # Test case 1: No NaNs present
+            (
+                {
+                    "miner_uid": [1, 2],
+                    "hotkey": ["a", "b"],
+                    "rema_prediction": [0.5, 0.6],
+                    "rema_brier_score": [0.1, 0.2],
+                    "eff_scores": [0.3, 0.4],
+                },
+                {
+                    "miner_uid": [1, 2],
+                    "hotkey": ["a", "b"],
+                    "rema_prediction": [0.5, 0.6],
+                    "rema_brier_score": [0.1, 0.2],
+                    "eff_scores": [0.3, 0.4],
+                },
+            ),
+            # Test case 2: Some NaNs present that should be replaced with fill values.
+            (
+                {
+                    "miner_uid": [np.nan, 2],
+                    "hotkey": [None, "b"],
+                    "rema_prediction": [np.nan, 0.6],
+                    "rema_brier_score": [np.nan, 0.2],
+                    "eff_scores": [np.nan, 0.4],
+                },
+                {
+                    "miner_uid": [-1, 2],
+                    "hotkey": ["unknown", "b"],
+                    "rema_prediction": [-998.0, 0.6],
+                    "rema_brier_score": [0.0, 0.2],
+                    "eff_scores": [0.0, 0.4],
+                },
+            ),
+        ],
+    )
+    def test_sanitize_final_scores(self, input_data, expected_data):
+        input_df = pd.DataFrame(input_data)
+        expected_df = pd.DataFrame(expected_data)
+        result_df = ScorePredictions.sanitize_final_scores(input_df)
+        pd.testing.assert_frame_equal(result_df, expected_df)
+
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "final_scores, expected_body, post_scores_side_effect, expected_logs",
+        "final_scores, expected_body, post_scores_side_effect, expected_logs, serializable_failure",
         [
             # Case 0: Successful export
             (
@@ -1112,6 +1161,7 @@ class TestScorePredictions:
                 },
                 None,  # No exception
                 [],  # No error logs
+                False,  # serializable_failure = False
             ),
             # Case 1: RequestException raised during post_scores
             (
@@ -1131,6 +1181,24 @@ class TestScorePredictions:
                     "Retrying export scores.",
                     "Failed to export scores.",
                 ],  # Expected error logs
+                False,  # serializable_failure = False
+            ),
+            # Case 2: Non-serializable scores.
+            # We simulate this by patching json.dumps to raise an exception.
+            (
+                pd.DataFrame(
+                    {
+                        "miner_uid": [1],
+                        "hotkey": ["hk1"],
+                        "rema_brier_score": [0.5],
+                        "rema_prediction": [0.5],
+                        "eff_scores": [0.5],
+                    }
+                ),
+                {},
+                None,  # No post_scores side effect.
+                ["Scores are not serializable."],
+                True,  # serializable_failure = True triggers the patch on json.dumps.
             ),
         ],
     )
@@ -1142,6 +1210,7 @@ class TestScorePredictions:
         expected_body,
         post_scores_side_effect,
         expected_logs,
+        serializable_failure,
     ):
         # TODO: speed up this test
         # Mock dependencies
@@ -1179,16 +1248,23 @@ class TestScorePredictions:
                 return_value=datetime(2024, 12, 27, 0, 0, 0, 0, timezone.utc)
             )
 
-            # Call the method
-            if post_scores_side_effect:
+            # call the method depending on the scenario
+            if serializable_failure:
+                with patch("json.dumps", side_effect=Exception("Not serializable")):
+                    body = await unit.export_scores(event, final_scores)
+            elif post_scores_side_effect:
                 with pytest.raises(post_scores_side_effect):
                     await unit.export_scores(event, final_scores)
             else:
                 body = await unit.export_scores(event, final_scores)
 
-                # Validate the API call
+            if serializable_failure:
+                assert body == {}
+                unit.api_client.post_scores.assert_not_called()
+            elif post_scores_side_effect:
+                assert unit.api_client.post_scores.await_count == 3
+            else:
                 unit.api_client.post_scores.assert_awaited_once_with(scores=expected_body)
-
                 # Validate the body and Pydantic parsing for Backend
                 try:
                     parsed_body = MinerEventResultItems(**body)
@@ -1202,13 +1278,18 @@ class TestScorePredictions:
             # Check logs
             if expected_logs:
                 warning_calls = mock_logger.warning.call_args_list
-                assert len(warning_calls) == 2
-                assert warning_calls[0].args[0] == expected_logs[0]
-                assert warning_calls[1].args[0] == expected_logs[1]
-
                 error_calls = mock_logger.error.call_args_list
-                assert len(error_calls) == 1
-                assert error_calls[0].args[0] == expected_logs[2]
+                exception_calls = mock_logger.exception.call_args_list
+                if serializable_failure:
+                    assert len(exception_calls) == 1
+                    assert exception_calls[0].args[0] == expected_logs[0]
+                else:
+                    assert len(warning_calls) == 2
+                    assert warning_calls[0].args[0] == expected_logs[0]
+                    assert warning_calls[1].args[0] == expected_logs[1]
+
+                    assert len(error_calls) == 1
+                    assert error_calls[0].args[0] == expected_logs[2]
             else:
                 mock_logger.error.assert_not_called()
 
@@ -1733,7 +1814,7 @@ class TestScorePredictions:
 
         await db_ops.upsert_predictions(predictions)
 
-        preds = await db_ops.get_predictions_for_scoring(event_id=expected_event_id)
+        preds = await db_ops.get_predictions_for_scoring(expected_event_id)
         assert len(preds) == 2
         assert preds[0].unique_event_id == expected_event_id
         assert preds[1].unique_event_id == expected_event_id

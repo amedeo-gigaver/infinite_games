@@ -23,19 +23,20 @@ jobs:
         env:
           SSH_AUTH_SOCK: /tmp/ssh_agent.sock
         run: |
-            ssh-keyscan -p ${{ secrets.SERVER_PORT }} ${{ secrets.SERVER_PROD_VALIDATOR_IP }} >> ~/.ssh/known_hosts
-            ssh-keyscan github.com >> ~/.ssh/known_hosts
-            ssh-agent -a $SSH_AUTH_SOCK > /dev/null
-            ssh-add - <<< "${{ secrets.SSH_STAGE_PRIVATE_KEY }}"
-            ssh -o StrictHostKeyChecking=no root@${{ secrets.SERVER_PROD_VALIDATOR_IP }} -p ${{ secrets.SERVER_PORT }} << 'EOF'
-            cd /root/if-games-validator
-            git pull --rebase
-            source venv/bin/activate
-            pip install -r requirements.txt
-            pm2 delete validator
-            export INLINE_LOGS=1
-            pm2 start neurons/validator.py --name validator --interpreter python3 -- --netuid 6 --subtensor.network finney --wallet.name ifkey --wallet.hotkey ifhkey --logging.debug
-            EOF
+          ssh-keyscan -p ${{ secrets.SERVER_PORT }} ${{ secrets.SERVER_PROD_VALIDATOR_IP }} >> ~/.ssh/known_hosts
+          ssh-keyscan github.com >> ~/.ssh/known_hosts
+          ssh-agent -a $SSH_AUTH_SOCK > /dev/null
+          ssh-add - <<< "${{ secrets.SSH_STAGE_PRIVATE_KEY }}"
+          ssh -o StrictHostKeyChecking=no root@${{ secrets.SERVER_PROD_VALIDATOR_IP }} -p ${{ secrets.SERVER_PORT }} << 'EOF'
+          cd /root/if-games-validator
+          git pull --rebase
+          source venv/bin/activate
+          pip install -r requirements.txt
+          pm2 delete validator
+          export INLINE_LOGS=1
+          export API_ACCESS_KEY=${{ secrets.API_ACCESS_KEY_PROD }}
+          pm2 start neurons/validator.py --name validator --interpreter python3 -- --netuid 6 --subtensor.network finney --wallet.name ifkey --wallet.hotkey ifhkey --logging.debug
+          EOF
       - name: Send success message to Discord
         if: success()
         run: |

@@ -56,10 +56,9 @@ class TestPullEventsTask:
 
     @pytest.fixture
     def pull_events_task(self, db_client: DatabaseClient, bt_wallet: Wallet):
-        db_operations = DatabaseOperations(db_client=db_client)
-        api_client = IfGamesClient(
-            env="test", logger=MagicMock(spec=InfiniteGamesLogger), bt_wallet=bt_wallet
-        )
+        logger = MagicMock(spec=InfiniteGamesLogger)
+        db_operations = DatabaseOperations(db_client=db_client, logger=logger)
+        api_client = IfGamesClient(env="test", logger=logger, bt_wallet=bt_wallet)
 
         return PullEvents(
             interval_seconds=60.0,

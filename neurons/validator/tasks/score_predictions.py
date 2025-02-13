@@ -728,6 +728,30 @@ class ScorePredictions(AbstractTask):
 
         return successful, sw_msg
 
+    @staticmethod
+    def sanitize_final_scores(final_scores: pd.DataFrame) -> pd.DataFrame:
+        # make sure no NaNs are present in the relevant columns
+        sanitized_scores = final_scores.copy()
+
+        fill_values = {
+            "miner_uid": -1,  # should not happen
+            "hotkey": "unknown",  # should not happen
+            "rema_prediction": -998,  # marker for missing predictions
+            "rema_brier_score": 0.0,
+            "eff_scores": 0.0,  # should not happen
+        }
+        sanitized_scores = sanitized_scores.fillna(value=fill_values)
+        # enforce serializable types
+        scores_types = {
+            "miner_uid": int,
+            "hotkey": str,
+            "rema_brier_score": float,
+            "rema_prediction": float,
+            "eff_scores": float,
+        }
+        sanitized_scores = sanitized_scores.astype(scores_types)
+        return sanitized_scores
+
     @backoff.on_exception(
         backoff.expo,
         Exception,  # TODO: specify the exception
@@ -744,6 +768,23 @@ class ScorePredictions(AbstractTask):
         ),
     )
     async def export_scores(self, event: EventsModel, final_scores: pd.DataFrame):
+        sanitized_scores = self.sanitize_final_scores(
+            final_scores[
+                ["miner_uid", "hotkey", "rema_brier_score", "rema_prediction", "eff_scores"]
+            ]
+        )
+        scores_records = sanitized_scores.to_dict(orient="records")
+        # double check that scores are serializable after sanitization
+        try:
+            _ = json.dumps(scores_records, default=str)
+        except Exception:
+            self.errors_count += 1
+            logger.exception(
+                "Scores are not serializable.",
+                extra={"event_id": event.unique_event_id, "len_scores": len(sanitized_scores)},
+            )
+            return {}
+
         body = {
             "results": [
                 {
@@ -756,12 +797,12 @@ class ScorePredictions(AbstractTask):
                     "end_date": event.resolve_date.isoformat() if event.resolve_date else None,
                     "resolve_date": event.resolve_date.isoformat() if event.resolve_date else None,
                     "settle_date": event.cutoff.isoformat(),  # as in the original
-                    "prediction": row.rema_prediction,
+                    "prediction": record["rema_prediction"],
                     "answer": float(event.outcome),
-                    "miner_hotkey": row.hotkey,
-                    "miner_uid": row.miner_uid,
-                    "miner_score": row.rema_brier_score,
-                    "miner_effective_score": row.eff_scores,
+                    "miner_hotkey": record["hotkey"],
+                    "miner_uid": record["miner_uid"],
+                    "miner_score": record["rema_brier_score"],
+                    "miner_effective_score": record["eff_scores"],
                     "validator_hotkey": self.wallet.get_hotkey().ss58_address,
                     "validator_uid": int(self.vali_uid),
                     "metadata": json.loads(event.metadata),
@@ -771,7 +812,7 @@ class ScorePredictions(AbstractTask):
                     # placeholder for the scored date
                     "scored_at": datetime.now(timezone.utc).isoformat(),
                 }
-                for _, row in final_scores.iterrows()
+                for record in scores_records
             ]
         }
 
@@ -893,9 +934,10 @@ class ScorePredictions(AbstractTask):
 
         await self.db_operations.mark_event_as_processed(unique_event_id=event.unique_event_id)
 
-        await self.export_scores(event=event, final_scores=norm_scores_aligned)
+        exported = await self.export_scores(event=event, final_scores=norm_scores_aligned)
 
-        await self.db_operations.mark_event_as_exported(unique_event_id=event.unique_event_id)
+        if exported:
+            await self.db_operations.mark_event_as_exported(unique_event_id=event.unique_event_id)
 
     async def run(self):
         miners_last_reg_rows = await self.db_operations.get_miners_last_registration()

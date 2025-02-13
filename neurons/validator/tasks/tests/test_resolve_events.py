@@ -55,7 +55,9 @@ class TestResolveEventsTask:
 
     @pytest.fixture
     def db_operations(self, db_client: DatabaseClient):
-        return DatabaseOperations(db_client=db_client)
+        logger = MagicMock(spec=InfiniteGamesLogger)
+
+        return DatabaseOperations(db_client=db_client, logger=logger)
 
     @pytest.fixture
     def logger_mock(self):

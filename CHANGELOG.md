@@ -1,5 +1,11 @@
 # Release Notes
 
+## [1.3.8] - 2025-02-11
+- **Bittensor Upgrade**: Upgraded to Bittensor version 9.0.0
+- **Scoring**: Peer Scores are computed and stored in a dedicated table while continuing to use Brier scoring.
+- **Validator API**: Introduced an optional API for validators, which can be enabled by setting the appropriate environment variable.
+- **Maintenance**: Improved the sanitization of scores exported to the database used for the Mainnet dashboard.
+
 ## [1.3.7] - 2025-02-03
 - **Events Resolution**: Events resolution and deletion upgraded to batched requests to improve overhead and reduce resolution time.
 

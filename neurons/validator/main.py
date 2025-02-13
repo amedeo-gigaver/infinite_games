@@ -1,9 +1,11 @@
+import asyncio
 import sqlite3
 import sys
 
 from bittensor import Dendrite, Subtensor
 from bittensor_wallet import Wallet
 
+from neurons.validator.api.api import API
 from neurons.validator.db.client import DatabaseClient
 from neurons.validator.db.operations import DatabaseOperations
 from neurons.validator.if_games.client import IfGamesClient
@@ -11,13 +13,14 @@ from neurons.validator.scheduler.tasks_scheduler import TasksScheduler
 from neurons.validator.tasks.db_cleaner import DbCleaner
 from neurons.validator.tasks.delete_events import DeleteEvents
 from neurons.validator.tasks.export_predictions import ExportPredictions
+from neurons.validator.tasks.peer_scoring import PeerScoring
 from neurons.validator.tasks.pull_events import PullEvents
 from neurons.validator.tasks.query_miners import QueryMiners
 from neurons.validator.tasks.resolve_events import ResolveEvents
 from neurons.validator.tasks.score_predictions import ScorePredictions
 from neurons.validator.utils.config import get_config
-from neurons.validator.utils.env import assert_requirements
-from neurons.validator.utils.logger.logger import logger
+from neurons.validator.utils.env import ENVIRONMENT_VARIABLES, assert_requirements
+from neurons.validator.utils.logger.logger import logger, set_bittensor_logger
 
 
 async def main():
@@ -31,6 +34,8 @@ async def main():
     config, ifgames_env, db_path = get_config()
 
     # Bittensor stuff
+    set_bittensor_logger()
+
     bt_netuid = config.get("netuid")
     bt_network = config.get("subtensor").get("network")
     bt_wallet = Wallet(config=config)
@@ -43,8 +48,15 @@ async def main():
 
     # Components
     db_client = DatabaseClient(db_path=db_path, logger=logger)
-    db_operations = DatabaseOperations(db_client=db_client)
+    db_operations = DatabaseOperations(db_client=db_client, logger=logger)
     api_client = IfGamesClient(env=ifgames_env, logger=logger, bt_wallet=bt_wallet)
+
+    api = API(
+        host="0.0.0.0",
+        port=8000,
+        db_operations=db_operations,
+        api_access_key=ENVIRONMENT_VARIABLES.API_ACCESS_KEY,
+    )
 
     # Migrate db
     await db_client.migrate()
@@ -99,6 +111,14 @@ async def main():
         wallet=bt_wallet,
     )
 
+    peer_scoring_task = PeerScoring(
+        interval_seconds=463.0,
+        db_operations=db_operations,
+        metagraph=bt_metagraph,
+        logger=logger,
+        page_size=100,
+    )
+
     db_cleaner__task = DbCleaner(
         interval_seconds=53.0, db_operations=db_operations, batch_size=4000, logger=logger
     )
@@ -112,7 +132,14 @@ async def main():
     scheduler.add(task=query_miners_task)
     scheduler.add(task=export_predictions_task)
     scheduler.add(task=score_predictions_task)
+    scheduler.add(task=peer_scoring_task)
     scheduler.add(task=db_cleaner__task)
+
+    # Start API
+    api_task = asyncio.create_task(api.start())
+
+    # Start scheduler
+    scheduler_task = asyncio.create_task(scheduler.start())
 
     logger.info(
         "Validator started",
@@ -128,5 +155,4 @@ async def main():
         },
     )
 
-    # Start scheduler
-    await scheduler.start()
+    await asyncio.gather(scheduler_task, api_task)

@@ -1,0 +1,34 @@
+networks:
+  stage_network:
+    name: stage_network
+
+services:
+  if_validator_stage:
+    container_name: if_validator_stage
+
+    image: gigacodehub/validator:stage-latest
+
+    networks:
+      - stage_network
+
+    ports:
+      - "8002:8000"
+
+    volumes:
+      - /root/validator_stage.db:/root/infinite_games/validator_test.db
+      - ./.bittensor:/root/.bittensor
+
+    restart: unless-stopped
+
+    environment:
+      - INLINE_LOGS=1
+      - API_ACCESS_KEY=$API_ACCESS_KEY
+
+    command: >
+      bash -c "python neurons/validator.py --netuid 155 --subtensor.network test --wallet.name testkey --wallet.hotkey hkey2 --logging.debug"
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
