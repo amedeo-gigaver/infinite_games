@@ -145,9 +145,15 @@ class DatabaseClient:
         return await self.__wrap_execution(execute)
 
     async def one(
-        self, sql: str, parameters: Optional[Iterable[Any]] = None
+        self,
+        sql: str,
+        parameters: Optional[Iterable[Any]] = None,
+        use_row_factory: bool = False,
     ) -> Optional[aiosqlite.Row]:
         async def execute(connection: aiosqlite.Connection):
+            if use_row_factory:
+                connection.row_factory = aiosqlite.Row
+
             cursor = await connection.execute(sql=sql, parameters=parameters)
             row = await cursor.fetchone()
 

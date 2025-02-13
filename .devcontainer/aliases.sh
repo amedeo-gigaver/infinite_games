@@ -5,6 +5,24 @@ alias gcm="git commit -m"
 alias gacm="git add . && git commit -m"
 alias regen_test_wallet="bash .devcontainer/regen_test_wallet.sh"
 
+function validator_testnet() {
+    python neurons/validator.py \
+        --netuid 155 \
+        --subtensor.network test \
+        --wallet.name validator \
+        --wallet.hotkey default \
+        --logging.debug 2>&1 | tee validator.log
+}
+
+function miner_testnet() {
+    python neurons/miner.py \
+        --netuid 155 \
+        --subtensor.network test \
+        --wallet.name validator \
+        --wallet.hotkey default \
+        --logging.debug 2>&1 | tee miner.log
+}
+
 export PATH="/usr/local/bin:$PATH"
 
 # this is to simplify setting up the git ssh key for local devcontainers

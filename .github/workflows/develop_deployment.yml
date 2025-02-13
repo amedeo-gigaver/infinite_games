@@ -6,9 +6,7 @@ on:
       - develop
 
 jobs:
-
   build-push-validator:
-
     runs-on: ubuntu-latest
 
     steps:
@@ -43,7 +41,6 @@ jobs:
             GIT_COMMIT_HASH=${{ env.commit_hash }}
 
   build-push-miner:
-
     runs-on: ubuntu-latest
 
     steps:
@@ -87,15 +84,19 @@ jobs:
         env:
           SSH_AUTH_SOCK: /tmp/ssh_agent.sock
         run: |
-            ssh-keyscan -p ${{ secrets.SERVER_PORT }} ${{ secrets.SERVER_STAGE_VALI_IP }} >> ~/.ssh/known_hosts
-            ssh-keyscan github.com >> ~/.ssh/known_hosts
-            ssh-agent -a $SSH_AUTH_SOCK > /dev/null
-            ssh-add - <<< "${{ secrets.SSH_STAGE_PRIVATE_KEY }}"
-            ssh -o StrictHostKeyChecking=no root@${{ secrets.SERVER_STAGE_VALI_IP }} -p ${{ secrets.SERVER_PORT }} << 'EOF'
-            docker-compose -f docker-compose.vali.yml down
-            docker rmi gigacodehub/validator:test-latest
-            docker-compose -f docker-compose.vali.yml up -d
-            EOF
+          ssh-keyscan -p ${{ secrets.SERVER_PORT }} ${{ secrets.SERVER_STAGE_VALI_IP }} >> ~/.ssh/known_hosts
+          ssh-keyscan github.com >> ~/.ssh/known_hosts
+          ssh-agent -a $SSH_AUTH_SOCK > /dev/null
+          ssh-add - <<< "${{ secrets.SSH_STAGE_PRIVATE_KEY }}"
+          ssh -o StrictHostKeyChecking=no root@${{ secrets.SERVER_STAGE_VALI_IP }} -p ${{ secrets.SERVER_PORT }} << 'EOF'
+          docker-compose -f docker-compose.dev.yaml down
+          EOF
+          scp -P ${{ secrets.SERVER_PORT }} docker-compose.dev.yaml root@${{ secrets.SERVER_STAGE_VALI_IP }}:/root/docker-compose.dev.yaml
+          ssh -o StrictHostKeyChecking=no root@${{ secrets.SERVER_STAGE_VALI_IP }} -p ${{ secrets.SERVER_PORT }} << EOF
+          docker rmi gigacodehub/validator:test-latest
+          export API_ACCESS_KEY=${{ secrets.API_ACCESS_KEY_DEV }}
+          docker-compose -f docker-compose.dev.yaml up -d
+          EOF
 
   deploy_miner:
     timeout-minutes: 30

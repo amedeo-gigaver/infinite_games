@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from typing import Iterable
 
 from neurons.validator.db.client import DatabaseClient
@@ -8,17 +10,25 @@ from neurons.validator.models.prediction import (
     PredictionExportedStatus,
     PredictionsModel,
 )
-from neurons.validator.utils.logger.logger import db_logger
+from neurons.validator.models.score import ScoresModel
+from neurons.validator.utils.logger.logger import InfiniteGamesLogger
+
+SQL_FOLDER = Path(Path(__file__).parent, "sql")
 
 
 class DatabaseOperations:
     __db_client: DatabaseClient
+    logger: InfiniteGamesLogger
 
-    def __init__(self, db_client: DatabaseClient):
+    def __init__(self, db_client: DatabaseClient, logger: InfiniteGamesLogger):
         if not isinstance(db_client, DatabaseClient):
             raise ValueError("Invalid db_client arg")
 
+        if not isinstance(logger, InfiniteGamesLogger):
+            raise TypeError("logger must be an instance of InfiniteGamesLogger.")
+
         self.__db_client = db_client
+        self.logger = logger
 
     async def delete_event(self, event_id: str) -> Iterable[tuple[str]]:
         return await self.__db_client.delete(
@@ -41,7 +51,10 @@ class DatabaseOperations:
                     WHERE
                         (
                             e.unique_event_id IS NULL
-                            OR e.processed = TRUE
+                            OR (
+                                    e.processed = TRUE
+                                    AND datetime(e.resolved_at) < datetime(CURRENT_TIMESTAMP, '-4 day')
+                                )
                             OR e.status = ?
                         )
                         AND p.exported = ?
@@ -63,6 +76,24 @@ class DatabaseOperations:
             """,
             [EventStatus.DISCARDED, PredictionExportedStatus.EXPORTED, batch_size],
         )
+
+    async def get_event(self, unique_event_id: str) -> None | EventsModel:
+        result = await self.__db_client.one(
+            f"""
+                SELECT
+                    {', '.join(EVENTS_FIELDS)}
+                FROM events
+                WHERE
+                    unique_event_id = ?
+            """,
+            parameters=[unique_event_id],
+            use_row_factory=True,
+        )
+
+        if result is None:
+            return None
+
+        return EventsModel(**dict(result))
 
     async def get_events_last_resolved_at(self) -> str | None:
         row = await self.__db_client.one(
@@ -363,11 +394,54 @@ class DatabaseOperations:
                 event = EventsModel(**dict(row))
                 events.append(event)
             except Exception:
-                db_logger.exception("Error parsing event", extra={"row": row[0]})
+                self.logger.exception("Error parsing event", extra={"row": row[0]})
 
         return events
 
-    async def get_predictions_for_scoring(self, event_id: str) -> list[PredictionsModel]:
+    async def get_predictions_by_unique_event_id(
+        self, unique_event_id: str
+    ) -> list[PredictionsModel]:
+        rows = await self.__db_client.many(
+            f"""
+                WITH ranked_predictions AS (
+                    SELECT
+                        *,
+                        ROW_NUMBER() OVER (
+                            PARTITION BY
+                                minerUid,
+                                minerHotkey
+                            ORDER BY interval_start_minutes DESC
+                        ) AS row_num
+                    FROM
+                        predictions
+                    WHERE
+                        unique_event_id = ?
+                )
+                SELECT
+                    {', '.join(PREDICTION_FIELDS)}
+                FROM
+                    ranked_predictions
+                WHERE
+                    row_num = 1
+                ORDER BY
+                    minerUid ASC
+            """,
+            parameters=(unique_event_id,),
+            use_row_factory=True,
+        )
+
+        predictions = []
+
+        for row in rows:
+            try:
+                prediction = PredictionsModel(**dict(row))
+                predictions.append(prediction)
+            except Exception:
+                self.logger.exception("Error parsing prediction", extra={"row": row[0]})
+
+        return predictions
+
+    async def get_predictions_for_scoring(self, unique_event_id: str) -> list[PredictionsModel]:
         rows = await self.__db_client.many(
             f"""
                 SELECT
@@ -375,7 +449,7 @@ class DatabaseOperations:
                 FROM predictions
                 WHERE unique_event_id = ?
             """,
-            parameters=(event_id,),
+            parameters=(unique_event_id,),
             use_row_factory=True,
         )
 
@@ -385,7 +459,7 @@ class DatabaseOperations:
                 prediction = PredictionsModel(**dict(row))
                 predictions.append(prediction)
             except Exception:
-                db_logger.exception("Error parsing prediction", extra={"row": row[0]})
+                self.logger.exception("Error parsing prediction", extra={"row": row[0]})
 
         return predictions
 
@@ -415,7 +489,7 @@ class DatabaseOperations:
                 miner = MinersModel(**dict(row))
                 miners.append(miner)
             except Exception:
-                db_logger.exception("Error parsing miner", extra={"row": row[0]})
+                self.logger.exception("Error parsing miner", extra={"row": row[0]})
 
         return miners
 
@@ -438,3 +512,120 @@ class DatabaseOperations:
             """,
             parameters=(unique_event_id,),
         )
+
+    async def insert_peer_scores(self, scores: list[ScoresModel]) -> None:
+        """Insert raw peer scores into the scores table"""
+
+        fields_to_insert = [
+            "event_id",
+            "miner_uid",
+            "miner_hotkey",
+            "prediction",
+            "event_score",
+            "spec_version",
+        ]
+        placeholders = ", ".join("?" for _ in fields_to_insert)
+        columns = ", ".join(fields_to_insert)
+
+        # Convert each event into a tuple of values in the same order as fields_to_insert
+        score_tuples = [
+            tuple(getattr(score, field_name) for field_name in fields_to_insert) for score in scores
+        ]
+
+        sql = f"""
+                INSERT INTO scores ({columns})
+                VALUES ({placeholders})
+                ON CONFLICT
+                    (event_id, miner_uid, miner_hotkey)
+                DO UPDATE SET
+                    prediction = excluded.prediction,
+                    event_score = excluded.event_score,
+                    spec_version = excluded.spec_version
+        """
+        return await self.__db_client.insert_many(
+            sql=sql,
+            parameters=score_tuples,
+        )
+
+    async def get_events_for_peer_scoring(
+        self, since_datetime=None, max_events: int = 1000
+    ) -> list[EventsModel]:
+        """
+        Temporary method to get events for Peer Scoring
+        Returns all events that were recently resolved and need to be scored
+        """
+        if since_datetime is None:
+            since_datetime = datetime.now(timezone.utc) - timedelta(days=3)
+            since_datetime = since_datetime.isoformat()
+
+        rows = await self.__db_client.many(
+            f"""
+                SELECT
+                    {', '.join(EVENTS_FIELDS)}
+                FROM events
+                WHERE status = ?
+                    AND outcome IS NOT NULL
+                    AND resolved_at > ?
+                    AND event_id NOT IN (
+                        SELECT event_id FROM scores
+                    )
+                ORDER BY resolved_at ASC
+                LIMIT ?
+            """,
+            parameters=[EventStatus.SETTLED, since_datetime, max_events],
+            use_row_factory=True,
+        )
+
+        events = []
+        for row in rows:
+            try:
+                event = EventsModel(**dict(row))
+                events.append(event)
+            except Exception:
+                self.logger.exception("Error parsing event", extra={"row": row[0]})
+
+        return events
+
+    async def get_events_for_metagraph_scoring(self, max_events: int = 1000) -> list[dict]:
+        """
+        Returns all events that were recently peer scored and not processed.
+        These events need to be ordered by row_id for the moving average calculation.
+        """
+
+        rows = await self.__db_client.many(
+            """
+                SELECT
+                    event_id,
+                    MIN(ROWID) AS min_row_id
+                FROM scores
+                WHERE processed = false
+                GROUP BY event_id
+                ORDER BY min_row_id ASC
+                LIMIT ?
+            """,
+            use_row_factory=True,
+            parameters=[
+                max_events,
+            ],
+        )
+
+        events = []
+        for row in rows:
+            try:
+                event = dict(row)
+                events.append(event)
+            except Exception:
+                self.logger.exception("Error parsing event", extra={"row": row[0]})
+        return events
+
+    async def set_metagraph_peer_scores(self, event_id: str, n_events: int) -> list:
+        """
+        Calculate the moving average of peer scores for a given event
+        """
+        raw_sql = Path(SQL_FOLDER, "metagraph_peer_score.sql").read_text()
+        updated = await self.__db_client.update(
+            raw_sql,
+            parameters={"event_id": event_id, "n_events": n_events},
+        )
+
+        return updated

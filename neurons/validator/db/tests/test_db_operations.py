@@ -1,3 +1,4 @@
+import json
 import tempfile
 from datetime import datetime, timedelta, timezone
 from unittest.mock import ANY, MagicMock
@@ -9,6 +10,7 @@ from neurons.validator.db.operations import DatabaseOperations
 from neurons.validator.models.event import EventsModel, EventStatus
 from neurons.validator.models.miner import MinersModel
 from neurons.validator.models.prediction import PredictionExportedStatus
+from neurons.validator.models.score import ScoresModel
 from neurons.validator.utils.logger.logger import InfiniteGamesLogger
 
 
@@ -28,8 +30,10 @@ class TestDbOperations:
         return db_client
 
     @pytest.fixture
-    async def db_operations(self, db_client):
-        db_operations = DatabaseOperations(db_client=db_client)
+    async def db_operations(self, db_client: DatabaseClient):
+        logger = MagicMock(spec=InfiniteGamesLogger)
+
+        db_operations = DatabaseOperations(db_client=db_client, logger=logger)
 
         return db_operations
 
@@ -216,12 +220,18 @@ class TestDbOperations:
                 UPDATE
                     events
                 SET
-                    processed = ?
+                    processed = ?,
+                    resolved_at = ?
                 WHERE
                     unique_event_id = ?
             """,
-            [True, events[0][0]],
+            [
+                True,
+                (datetime.now(timezone.utc) - timedelta(days=4, hours=1)).isoformat(),
+                events[0][0],
+            ],
         )
+
         # Mark all predictions as exported but not exported one
         await db_client.update(
             """
@@ -405,10 +415,12 @@ class TestDbOperations:
                 UPDATE
                     events
                 SET
-                    processed = ?
+                    processed = ?,
+                    resolved_at = ?
             """,
             [
                 True,
+                (datetime.now(timezone.utc) - timedelta(days=4, hours=1)).isoformat(),
             ],
         )
 
@@ -534,10 +546,12 @@ class TestDbOperations:
                 UPDATE
                     events
                 SET
-                    processed = ?
+                    processed = ?,
+                    resolved_at = ?
             """,
             [
                 True,
+                (datetime.now(timezone.utc) - timedelta(days=4, hours=1)).isoformat(),
             ],
         )
         # Mark all predictions as exported
@@ -584,6 +598,42 @@ class TestDbOperations:
 
         # Should have no predictions left
         assert len(result) == 0
+
+    async def test_get_event(self, db_operations: DatabaseOperations):
+        unique_event_id = "unique1"
+
+        events = [
+            (
+                "unique1",
+                "event1",
+                "truncated_market1",
+                "market_1",
+                "desc1",
+                "2024-12-02",
+                "2024-12-03",
+                "outcome1",
+                EventStatus.PENDING,
+                '{"key": "value"}',
+                "2000-12-02T14:30:00+00:00",
+                "2000-12-02T14:30:00+00:00",
+                "2000-12-03T14:30:00+00:00",
+            )
+        ]
+
+        await db_operations.upsert_events(events)
+
+        result = await db_operations.get_event(unique_event_id)
+
+        assert isinstance(result, EventsModel)
+        assert result.unique_event_id == "unique1"
+        assert result.event_id == "event1"
+
+    async def test_get_event_no_event(self, db_operations: DatabaseOperations):
+        unique_event_id = "unique_1"
+
+        result = await db_operations.get_event(unique_event_id=unique_event_id)
+
+        assert result is None
 
     async def test_get_events_last_resolved_at(self, db_operations: DatabaseOperations):
         events = [
@@ -824,6 +874,68 @@ class TestDbOperations:
 
         assert len(result) == 1
         assert result[0][0] == event_to_predict_id
+
+    async def test_get_predictions_by_event_id(self, db_operations: DatabaseOperations):
+        unique_event_id = "unique_event_id_1"
+
+        predictions = [
+            (
+                unique_event_id,
+                "neuronHotkey_3",
+                "neuronUid_3",
+                "1",
+                10,
+                "1",
+                1,
+                "1",
+            ),
+            (
+                "unique_event_id_2",
+                "neuronHotkey_2",
+                "neuronUid_2",
+                "1",
+                10,
+                "1",
+                1,
+                "1",
+            ),
+            (
+                unique_event_id,
+                "neuronHotkey_1",
+                "neuronUid_1",
+                "0.5",
+                10,
+                "1",
+                1,
+                "1",
+            ),
+        ]
+
+        await db_operations.upsert_predictions(predictions)
+
+        result = await db_operations.get_predictions_by_unique_event_id(
+            unique_event_id=unique_event_id
+        )
+
+        assert len(result) == 2
+        assert result[0].unique_event_id == "unique_event_id_1"
+        assert result[0].minerUid == "neuronUid_1"
+        assert result[0].predictedOutcome == "0.5"
+
+        assert result[1].unique_event_id == "unique_event_id_1"
+        assert result[1].minerUid == "neuronUid_3"
+        assert result[1].predictedOutcome == "1"
+
+    async def test_get_predictions_by_event_id_no_predictions(
+        self, db_operations: DatabaseOperations
+    ):
+        unique_event_id = "unique_event_id_1"
+
+        result = await db_operations.get_predictions_by_unique_event_id(
+            unique_event_id=unique_event_id
+        )
+
+        assert len(result) == 0
 
     async def test_get_predictions_to_export(
         self, db_client: DatabaseClient, db_operations: DatabaseOperations
@@ -1415,7 +1527,7 @@ class TestDbOperations:
         assert all_predictions[0][0] == expected_event_id
         assert all_predictions[1][0] == "unique_event_id_1"
 
-        result = await db_operations.get_predictions_for_scoring(event_id=expected_event_id)
+        result = await db_operations.get_predictions_for_scoring(unique_event_id=expected_event_id)
 
         assert len(result) == 1
         assert result[0].unique_event_id == expected_event_id
@@ -1597,3 +1709,258 @@ class TestDbOperations:
         assert result[0][1] == 1
         assert result[1][0] == "unique_event2"
         assert result[1][1] == 0
+
+    @pytest.mark.parametrize(
+        "scores, expected_tuples",
+        [
+            (
+                [
+                    ScoresModel(
+                        event_id="evt1",
+                        miner_uid=1,
+                        miner_hotkey="hk1",
+                        prediction=0.75,
+                        event_score=0.85,
+                        spec_version=1,
+                    ),
+                    ScoresModel(
+                        event_id="evt2",
+                        miner_uid=2,
+                        miner_hotkey="hk2",
+                        prediction=0.65,
+                        event_score=0.80,
+                        spec_version=1,
+                    ),
+                ],
+                [
+                    ("evt1", 1, "hk1", 0.75, 0.85, 1),
+                    ("evt2", 2, "hk2", 0.65, 0.80, 1),
+                ],
+            ),
+        ],
+    )
+    async def test_insert_peer_scores(
+        self,
+        db_operations: DatabaseOperations,
+        db_client: DatabaseClient,
+        scores: list[ScoresModel],
+        expected_tuples: list[tuple],
+    ):
+        expected_timestamp = datetime.now()
+        await db_operations.insert_peer_scores(scores)
+
+        result = await db_client.many(
+            """
+                SELECT
+                    event_id,
+                    miner_uid,
+                    miner_hotkey,
+                    prediction,
+                    event_score,
+                    spec_version
+                FROM scores
+                ORDER BY event_id
+            """
+        )
+
+        for i, row in enumerate(result):
+            assert row == expected_tuples[i]
+
+        result = await db_client.many("""SELECT created_at, processed, exported FROM scores""")
+        for row in result:
+            actual_timestamp = datetime.fromisoformat(row[0])
+            assert actual_timestamp > expected_timestamp - timedelta(seconds=5)
+            assert actual_timestamp < expected_timestamp + timedelta(seconds=5)
+            assert row[1] == 0
+            assert row[2] == 0
+
+    async def test_get_events_for_peer_scoring(
+        self,
+        db_operations: DatabaseOperations,
+        db_client: DatabaseClient,
+    ):
+        expected_event_id = "event1"
+        unexpected_event_id = "event2"
+
+        current_time = datetime.now(timezone.utc)
+
+        events = [
+            EventsModel(
+                unique_event_id="unique1",
+                event_id=expected_event_id,
+                market_type="truncated_market1",
+                event_type="market1",
+                description="desc1",
+                outcome="1",
+                status=EventStatus.SETTLED,
+                metadata='{"key": "value"}',
+                resolved_at=current_time.isoformat(),
+            ),
+            EventsModel(
+                unique_event_id="unique2",
+                event_id=unexpected_event_id,
+                market_type="truncated_market2",
+                event_type="market2",
+                description="desc2",
+                outcome="0",
+                status=EventStatus.SETTLED,
+                metadata='{"key": "value"}',
+                resolved_at=current_time.isoformat(),
+            ),
+        ]
+
+        scores = [
+            ScoresModel(
+                event_id=unexpected_event_id,
+                miner_uid=1,
+                miner_hotkey="hk1",
+                prediction=0.75,
+                event_score=0.85,
+                spec_version=1,
+            ),
+        ]
+
+        await db_operations.upsert_pydantic_events(events)
+        await db_operations.insert_peer_scores(scores)
+
+        scored_events = await db_client.many("SELECT event_id FROM scores")
+
+        assert len(scored_events) == 1
+        assert scored_events[0][0] == unexpected_event_id
+
+        result = await db_operations.get_events_for_peer_scoring()
+
+        assert len(result) == 1
+        assert result[0].event_id == expected_event_id
+        assert result[0].status == EventStatus.SETTLED
+
+    async def test_get_events_for_metagraph_scoring(
+        self,
+        db_operations: DatabaseOperations,
+        db_client: DatabaseClient,
+    ):
+        valid_event_id = "metagraph_event"
+        processed_event_id = "processed_event"
+
+        now = datetime.now(timezone.utc)
+        ten_seconds_ago = now - timedelta(seconds=10)
+
+        # The query should pick the minimum row id, not min created
+        scores = [
+            ScoresModel(
+                event_id=processed_event_id,
+                miner_uid=3,
+                miner_hotkey="hk3",
+                prediction=0.75,
+                event_score=0.80,
+                spec_version=1,
+            ),
+            ScoresModel(
+                event_id=valid_event_id,
+                miner_uid=1,
+                miner_hotkey="hk1",
+                prediction=0.85,
+                event_score=0.90,
+                spec_version=1,
+            ),
+            ScoresModel(
+                event_id=valid_event_id,
+                miner_uid=2,
+                miner_hotkey="hk2",
+                prediction=0.80,
+                event_score=0.88,
+                spec_version=1,
+            ),
+        ]
+
+        await db_operations.insert_peer_scores(scores)
+
+        # set the timestamps and processed status
+        await db_client.update(
+            "UPDATE scores SET created_at = ?, processed = ? WHERE event_id = ?",
+            [now.isoformat(), False, valid_event_id],
+        )
+        await db_client.update(
+            "UPDATE scores SET created_at = ?, processed = ? WHERE event_id = ?",
+            [now.isoformat(), True, processed_event_id],
+        )
+        # for rowid 2 put timestamp to 10 seconds ago
+        await db_client.update(
+            "UPDATE scores SET created_at = ? WHERE rowid = 3",
+            [ten_seconds_ago.isoformat()],
+        )
+
+        # confirm right setup
+        raw_scores = await db_client.many(
+            "SELECT event_id, rowid, created_at, processed FROM scores"
+        )
+        assert len(raw_scores) == 3
+        assert raw_scores[1][0] == valid_event_id
+        assert raw_scores[1][3] == 0
+        assert raw_scores[2][0] == valid_event_id
+        assert raw_scores[2][3] == 0
+        assert raw_scores[2][2] == ten_seconds_ago.isoformat()
+        assert raw_scores[0][0] == processed_event_id
+        assert raw_scores[0][3] == 1
+
+        result = await db_operations.get_events_for_metagraph_scoring(max_events=1000)
+
+        assert len(result) == 1
+        assert result[0]["event_id"] == valid_event_id
+        assert result[0]["min_row_id"] == 2
+
+    async def test_set_metagraph_peer_scores(
+        self,
+        db_operations: DatabaseOperations,
+        db_client: DatabaseClient,
+    ):
+        # Only basic test here, more detailed tests are in the task tests.
+        previous_score = ScoresModel(
+            event_id="other_event",
+            miner_uid=10,
+            miner_hotkey="hk10",
+            prediction=0.7,
+            event_score=0.75,
+            spec_version=1,
+        )
+        current_score = ScoresModel(
+            event_id="test_event",
+            miner_uid=20,
+            miner_hotkey="hk20",
+            prediction=0.9,
+            event_score=0.95,
+            spec_version=1,
+        )
+        await db_operations.insert_peer_scores([previous_score, current_score])
+
+        # confirm right setup
+        raw_scores = await db_client.many("SELECT event_id FROM scores")
+        assert len(raw_scores) == 2
+        assert raw_scores[0][0] == "other_event"
+        assert raw_scores[1][0] == "test_event"
+
+        updated = await db_operations.set_metagraph_peer_scores(event_id="test_event", n_events=5)
+        assert updated == []
+
+        # Verify that only the current event row was updated - test_event is the second row.
+        actual_rows = await db_client.many(
+            "SELECT event_id, processed, metagraph_score, other_data FROM scores ORDER BY event_id",
+            use_row_factory=True,
+        )
+        assert len(actual_rows) == 2
+        assert actual_rows[0]["event_id"] == "other_event"
+        assert actual_rows[0]["processed"] == 0
+        assert actual_rows[0]["metagraph_score"] is None
+        assert actual_rows[0]["other_data"] is None
+
+        assert actual_rows[1]["event_id"] == "test_event"
+        assert actual_rows[1]["processed"] == 1
+        assert actual_rows[1]["metagraph_score"] == 1.0
+        assert actual_rows[1]["other_data"] is not None
+
+        other_data = json.loads(actual_rows[1]["other_data"])
+        assert other_data["sum_peer_score"] == 0.95
+        assert other_data["count_peer_score"] == 6
+        assert other_data["true_count_peer_score"] == 1
+        assert other_data["avg_peer_score"] == pytest.approx(0.1583333, abs=1e-6)
+        assert other_data["sqmax_avg_peer_score"] == pytest.approx(0.0250694, abs=1e-6)

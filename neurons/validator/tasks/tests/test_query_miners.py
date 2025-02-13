@@ -36,12 +36,15 @@ class TestQueryMiners:
 
     @pytest.fixture
     def db_operations(self, db_client: DatabaseClient):
-        return DatabaseOperations(db_client=db_client)
+        logger = MagicMock(spec=InfiniteGamesLogger)
+
+        return DatabaseOperations(db_client=db_client, logger=logger)
 
     @pytest.fixture
     def query_miners_task(self, db_operations: DatabaseOperations):
         dendrite = MagicMock(spec=DendriteMixin)
         metagraph = MagicMock(spec=MetagraphMixin)
+        metagraph.sync = MagicMock()
         logger = MagicMock(spec=InfiniteGamesLogger)
 
         return QueryMiners(

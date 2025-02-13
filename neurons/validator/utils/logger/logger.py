@@ -1,10 +1,14 @@
 import logging
 
-from neurons.validator.utils.logger.context import start_session, start_trace
+from neurons.validator.utils.logger.context import add_context, start_session, start_trace
 from neurons.validator.utils.logger.formatters import JSONFormatter
 
 
 class InfiniteGamesLogger(logging.Logger):
+    @property
+    def add_context(self):
+        return add_context
+
     @property
     def start_session(self):
         return start_session
@@ -39,6 +43,7 @@ def create_logger(
     # Initialize the logger with the specified name and level
     logger = logging.getLogger(name)
     logger.setLevel(level)
+    logger.propagate = False
 
     # Add a console handler with JSON formatter
     json_handler = logging.StreamHandler()
@@ -50,5 +55,32 @@ def create_logger(
     return logger
 
 
+def set_bittensor_logger():
+    bt_logger = logging.getLogger("bittensor")
+    bt_logger.propagate = False
+
+    # Add a console handler with JSON formatter
+    json_handler = logging.StreamHandler()
+    json_handler.setFormatter(JSONFormatter())
+
+    bt_logger.handlers.clear()
+    bt_logger.addHandler(json_handler)
+
+    return bt_logger
+
+
+def set_uvicorn_logger():
+    uvicorn_logger = logging.getLogger("uvicorn")
+
+    # Add a console handler with JSON formatter
+    json_handler = logging.StreamHandler()
+    json_handler.setFormatter(JSONFormatter())
+
+    uvicorn_logger.handlers.clear()
+    uvicorn_logger.addHandler(json_handler)
+
+    return uvicorn_logger
+
+
 logger = create_logger("validator")
-db_logger = create_logger("db")
+api_logger = create_logger("api")

@@ -86,14 +86,6 @@ class DeleteEvents(AbstractTask):
 
                 if len(db_deleted_event) > 0:
                     self.logger.debug("Event deleted", extra={"event_id": event_id})
-                else:
-                    self.logger.warning(
-                        "Event not deleted",
-                        extra={
-                            "event_id": event_id,
-                            "details": "Event not found in DB",
-                        },
-                    )
 
             if len(deleted_events) < self.page_size:
                 # Break if no more events

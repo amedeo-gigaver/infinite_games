@@ -25,7 +25,4 @@ COPY requirements_dev.txt /workspace/requirements_dev.txt
 
 # Install Python dependencies
 RUN pip install --upgrade pip \
-    && pip install --no-cache-dir -r /workspace/requirements.txt \
     && pip install --no-cache-dir -r /workspace/requirements_dev.txt
-
-WORKDIR /workspace/infinite_games

@@ -9,6 +9,14 @@ AGGREGATION_INTERVAL_LENGTH_MINUTES = 60 * 4
 BLOCK_DURATION = 12  # 12 seconds block duration from bittensor
 
 
+def to_utc(input_dt: datetime) -> datetime:
+    return (
+        input_dt.astimezone(timezone.utc)
+        if input_dt.tzinfo
+        else input_dt.replace(tzinfo=timezone.utc)
+    )
+
+
 def minutes_since_epoch(dt: datetime) -> int:
     """Convert a given datetime to the 'minutes since the reference date'."""
     return int((dt - SCORING_REFERENCE_DATE).total_seconds()) // 60
