@@ -1,27 +1,19 @@
-import os
-import random
+import asyncio
 import time
 import typing
-from datetime import datetime
+from datetime import datetime, timezone
 
 import bittensor as bt
 
 from neurons.miner.base.miner import BaseMinerNeuron
-from neurons.miner.events.azuro import AzuroProviderIntegration
-from neurons.miner.events.polymarket import PolymarketProviderIntegration
-from neurons.miner.utils.miner_cache import (
-    MarketType,
-    MinerCache,
-    MinerCacheObject,
-    MinerCacheStatus,
-)
+from neurons.miner.models.event import MinerEvent, MinerEventStatus
+from neurons.miner.utils.storage import MinerStorage
+from neurons.miner.utils.task_executor import TaskExecutor
 from neurons.protocol import EventPredictionSynapse
+from neurons.validator.utils.logger.logger import InfiniteGamesLogger
 
 VAL_MIN_STAKE = 10000
 DEV_MINER_UID = 93
-
-if os.getenv("OPENAI_KEY"):
-    from neurons.miner.llm.forecasting import Forecaster
 
 
 class Miner(BaseMinerNeuron):
@@ -35,80 +27,77 @@ class Miner(BaseMinerNeuron):
 
     prev_emission = None
 
-    def __init__(self, config=None):
+    def __init__(self, logger: InfiniteGamesLogger, config=None, assign_forecaster=None):
         super(Miner, self).__init__(config=config)
-        self.providers_set = False
-        self.azuro = None
-        self.polymarket = None
-        self.cache = MinerCache()
-        self.cache.initialize_cache()
-        self.llm = Forecaster() if os.getenv("OPENAI_KEY") else None
         self.is_testnet = self.metagraph.network == "test"
-        bt.logging.info(
-            "Miner {} initialized on network: {}: testnet {}".format(
-                self.uid, self.metagraph.network, self.is_testnet
-            )
-        )
+        self.task_executor = TaskExecutor(logger=logger)
+        self.storage = MinerStorage(logger=logger)
+        self.assign_forecaster = assign_forecaster
+        self.logger = logger
 
-    async def initialize_providers(self):
-        self.azuro = await AzuroProviderIntegration()._ainit()
-        self.polymarket = await PolymarketProviderIntegration()._ainit()
+    async def initialize(self):
+        try:
+            await self.storage.load(
+                condition=lambda event: event.cutoff > datetime.now(timezone.utc)
+            )
+            storage_task = asyncio.create_task(self.storage.save())
+            executor_task = asyncio.create_task(self.task_executor.execute())
+            self.storage_task, self.task_executor_task = storage_task, executor_task
+            self.logger.info(
+                "Miner {} initialized on network: {}: testnet {}".format(
+                    self.uid, self.metagraph.network, self.is_testnet
+                )
+            )
+        except Exception:
+            bt.logging.error("Failed to initialize miner", exc_info=True)
+            raise
 
     async def forward(self, synapse: EventPredictionSynapse) -> EventPredictionSynapse:
         """
         Processes the incoming synapse and attaches the response to the synapse.
         """
         start_time = time.time()
-        if not self.providers_set:
-            self.providers_set = True
-            await self.initialize_providers()
 
-        today = datetime.now()
-        bt.logging.info("[{}] Incoming Events {}".format(today, len(synapse.events.items())))
-
-        for cid, market in synapse.events.items():
+        current_time = datetime.now(timezone.utc)
+        self.logger.info(
+            "[{}] Incoming Events {}, from {}".format(
+                current_time, len(synapse.events.items()), synapse.dendrite.hotkey
+            )
+        )
+        count = 0
+        for event_id, market in synapse.events.items():
             try:
-                cached_market: typing.Optional[MinerCacheObject] = await self.cache.get(cid)
-                if cached_market is not None:
-                    if cached_market.status == MinerCacheStatus.COMPLETED:
-                        # Check IF it is time for a re-calculation of the probability.
-                        if cached_market.event.retries > 0 and cached_market.event.next_try <= int(
-                            today.timestamp()
-                        ):
-                            # Set the stored object in a rerun state.
-                            cached_market.set_for_rerun()
+                event: MinerEvent | None = await self.storage.get(event_id)
+                if event is None:
+                    self.logger.info(f"Event {event_id} is a new event")
+                    event = MinerEvent.model_validate(market)
 
-                            # After this re-run, set the next.
-                            (
-                                cached_market.event.retries,
-                                cached_market.event.next_try,
-                            ) = await self._calculate_next_try(cached_market)
-
-                            await self.cache.add(cid, self._generate_prediction, cached_market)
-                        else:
-                            market["probability"] = cached_market.event.probability
-                            bt.logging.info(
-                                "Assign cache {} prob to {} event {}".format(
-                                    cached_market.event.probability,
-                                    cached_market.event.market_type.name,
-                                    cached_market.event.event_id,
-                                )
-                            )
+                    if event.cutoff > datetime.now(timezone.utc):
+                        await self.storage.set(event_id, event)
+                    else:
+                        continue
                 else:
-                    new_market = MinerCacheObject.init_from_market(market)
-                    (
-                        new_market.event.retries,
-                        new_market.event.next_try,
-                    ) = await self._calculate_next_try(new_market)
-                    await self.cache.add(cid, self._generate_prediction, new_market)
+                    self.logger.debug(f"Event {event_id} is already in storage")
+            except Exception:
+                self.logger.error(f"Failed to get/create event {event_id}", exc_info=True)
+            else:
+                status = event.get_status()
+                if status == MinerEventStatus.UNRESOLVED:
+                    forecaster = await self.assign_forecaster(event)
+                    await self.task_executor.add_task(forecaster)
+                    event.set_status(MinerEventStatus.PENDING)
+                    self.logger.info(f"Event {event_id} is pending resolution")
+                elif status == MinerEventStatus.RESOLVED:
+                    probability = event.get_probability()
+                    market["probability"] = probability
+                    market["miner_answered"] = probability is not None
+                    count += probability is not None
+                    self.logger.info(f"Event {event_id} is resolved with probability {probability}")
 
-                market["miner_answered"] = True
-            except Exception as e:
-                bt.logging.error(
-                    "Failed to process event {} {}".format(cid, repr(e)), exc_info=True
-                )
-
-        bt.logging.info(f"Miner answered in {time.time() - start_time:.2f} seconds")
+        self.logger.info(
+            f"Miner answered on validator {synapse.dendrite.hotkey} in {time.time() - start_time:.2f} seconds "
+            f"for {count}/{len(synapse.events.items())} events"
+        )
         return synapse
 
     async def blacklist(self, synapse: EventPredictionSynapse) -> typing.Tuple[bool, str]:
@@ -203,62 +192,3 @@ class Miner(BaseMinerNeuron):
         bt.logging.debug(f"Prioritizing {synapse.dendrite.hotkey} with value: ", priority)
 
         return priority
-
-    async def _generate_prediction(self, market: MinerCacheObject) -> None:
-        if self.is_testnet and self.uid != DEV_MINER_UID:
-            # in testnet, we just assign a random probability; do not make real API calls
-            # but keep real calls for the dev miner for testing purposes
-            market.event.probability = random.random()
-            return
-        try:
-            llm_prediction = None
-            # Polymarket
-            if market.event.market_type == MarketType.POLYMARKET and self.polymarket is not None:
-                x = await self.polymarket.get_event_by_id(market.event.event_id)
-                market.event.probability = x["tokens"][0]["price"]
-
-            # Azuro
-            elif market.event.market_type == MarketType.AZURO and self.azuro is not None:
-                x = await self.azuro.get_event_by_id(market.event.event_id)
-                market.event.probability = 1.0 / float(x["outcome"]["currentOdds"])
-
-            else:
-                # LLM
-                llm_prediction = (
-                    (await self.llm.get_prediction(market=market, models_setup_option=0))
-                    if self.llm
-                    else None
-                )
-
-                if llm_prediction is not None:
-                    market.event.probability = llm_prediction
-                else:
-                    market.event.probability = 0
-
-            bt.logging.info(
-                "({}) Calculate {} prob to {} event {}, retries left: {}".format(
-                    "No LLM" if llm_prediction is None else "LLM",
-                    market.event.probability,
-                    market.event.market_type.name,
-                    market.event.event_id,
-                    market.event.retries,
-                )
-            )
-        except Exception as e:
-            bt.logging.error("Failed to assign, probability, {}".format(repr(e)), exc_info=True)
-
-    async def _calculate_next_try(self, market: MinerCacheObject) -> (int, int):
-        """
-        This function calculates the next point in time that you want to run a probability recalculation for
-        your event. It also calculates the number of (remaining) retries that should be done in this event.
-
-        This implementation only assigns a recalculation at the cutoff point of every event.
-
-        Args:
-            market (MinerCacheObject): The object that contains all the information for the event.
-
-        Returns:
-            (int, int): The number of retries left, the timestamp of next probability calculation
-
-        """
-        return market.event.retries - 1, market.event.cutoff

@@ -1,7 +1,9 @@
 # -- DO NOT TOUCH BELOW - ENV SET --
 # flake8: noqa: E402
+import asyncio
 import os
 import sys
+import typing
 
 # Force torch - must be set before importing bittensor
 os.environ["USE_TORCH"] = "1"
@@ -16,11 +18,36 @@ import time
 
 from bittensor import logging
 
+from neurons.miner.forecasters.base import BaseForecaster, DummyForecaster
+from neurons.miner.forecasters.llm_forecaster import LLMForecaster
 from neurons.miner.main import Miner
+from neurons.miner.models.event import MinerEvent
+from neurons.validator.utils.logger.logger import InfiniteGamesLogger, miner_logger
+
+
+def get_forecaster(logger: InfiniteGamesLogger):
+    async def assign_forecaster(event: MinerEvent) -> typing.Type[BaseForecaster]:
+        # Change to `LLMForecaster` to use the LLM forecaster
+        return DummyForecaster(
+            event,
+            logger=logger,
+            extremize=False,
+        )
+
+    return assign_forecaster
+
 
 if __name__ == "__main__":
     start_time = time.time()
-    with Miner() as miner:
-        while True:
-            logging.debug(f"Miner running for {time.time() - start_time:.1f} seconds")
-            time.sleep(5)
+
+    async def run_miner() -> None:
+        miner_logger.start_session()
+
+        miner = Miner(logger=miner_logger, assign_forecaster=get_forecaster(miner_logger))
+        await miner.initialize()
+        with miner as miner:
+            while True:
+                miner_logger.debug(f"Miner running for {time.time() - start_time:.1f} seconds")
+                await asyncio.sleep(5)
+
+    asyncio.run(run_miner())

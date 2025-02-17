@@ -83,4 +83,5 @@ def set_uvicorn_logger():
 
 
 logger = create_logger("validator")
+miner_logger = create_logger("miner")
 api_logger = create_logger("api")

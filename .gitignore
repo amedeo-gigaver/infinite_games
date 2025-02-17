@@ -180,3 +180,6 @@ venv-testnet
 
 # validator state
 state.pt
+
+# miner storage
+miner-events.json

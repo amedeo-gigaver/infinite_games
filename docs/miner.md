@@ -1,63 +1,46 @@
-
 # Miner
 
 You will be receiving data in the form defined in `neurons/protocol.py` and will only need to complete the `probability` entry.
 
-The current scoring mechanism is described [here](https://hackmd.io/@nielsma/S1sB8xO_C).
+You will be receiving requests from validators every 3-5 minute. You do not have to recalculate your prediction every time. Our baseline miner is implementing a caching system that allows for a recalculation schedule. This is particularly important if you use a base model like GPT4 that might be expensive.
 
-You will be receiving requests from validators every minute. You do not have to recalculate your prediction every time. Our baseline miners are implementing a caching system that allows for a recalculation schedule. This is particularly important if you use a base model like GPT4 that might be expensive.
+## General
+
+Before registering your miner on the main network you can register it on testnet.
+Our testnet netuid is 155. You will also need faucet TAO. You can ask for them [here](https://discord.com/channels/799672011265015819/1190048018184011867).
+
+To register on mainnet you will need real TAO. You can get TAO by swapping them against USDC on an exchange like [MEXC](https://www.mexc.com/). Other exchanges supporting TAO are listed [here](https://taostats.io/). We give steps below on creating your own wallet from [btcli](https://docs.bittensor.com/btcli). The registration cost fluctuates depending on the current demand to register on the network but it's minimum price is 0.7 TAO. After you register there is an immunity period during which you cannot be excluded, if you are the lowest miner at the end of it you are deregistered. 
+
+Here are entries in the Bittensor documentation for [miners](https://docs.bittensor.com/miners/) and [coldkeys](https://docs.bittensor.com/getting-started/wallets). 
+
+## Key insights into the scoring system
+
+- You have to predict all events, you get the worst score if you don't sent a prediction for a given time interval (current each interval lasts 4h) on a given event
+- You are mostly rewarded for your early predictions
+- In the new peer score system if you are a new miner we give you a score of $0$ on all the intervals for which you could not submit a prediction but where the associated question is taken into account in your score (in the legacy system we assume you sent 0.5)
 
 ## Baseline Miner
 
-We are constantly working on improving the baseline miners, especially with regards to new categories of synthetic events being added to the subnet.
+We integrate an LLM pipeline based on the [forecasting-tools](https://github.com/CodexVeritas/forecasting-tools/) repository. Please refer to the *Getting Started* section below for setup instructions.
 
-We integrate the LLM prompting [pipeline](https://github.com/dannyallover/llm_forecasting.git) with news retrieval developed by the authors of the forecasting LLM paper quoted in the readme. In the current form it only uses [Google News](https://news.google.com/home?hl=en-US&gl=US&ceid=US:en) for news retrieval while the original model from the article used 4 other different sources (Newscatcher, Newsdata.io, Aylien, NewsAPI.org).
-This pipeline can work with different base models.
+# Miner strategy
 
-**version 1**
-GPT4 as base model.
+A reference in the literature providing insights on building a forecasting LLM is the article ["Approaching Human Level Forecasting with Language Models"](https://arxiv.org/html/2402.18563v1?s=35) ([1]). The authors fine-tune an LLM to generate predictions on binary events (including the ones listed on Polymarket) which nears the performance of human forecasters when submitting a forecast for each prediction, and which beats human forecasters in a setting where the LLM can choose to give a prediction or not based on its confidence.
 
-steps:
-- add an OpenAI key (OPENAI_KEY) to your local environment
-
-**version 2**
-GPT-3.5 and GPT4 Mini as base models.
-
-steps:
-- add an OpenAI key to your local environment
-- add the parameter ***models_setup_option=1*** to the ***get_prediction*** function in `neurons/miner/main.py`
-
-```bash
-llm_prediction = (await self.llm.get_prediction(market=market, models_setup_option=1))
-```
-
-**version 3**
-
-Gemini as base model
-
-steps:
-- add a Google Gemini key (GOOGLE_AI_KEY) to your local environment
-- add the parameter ***models_setup_option=2*** to the ***get_prediction*** function in `neurons/miner/main.py`
-
-```bash
-llm_prediction = (await self.llm.get_prediction(market=market, models_setup_option=2))
-```
-
-**version 4**
-GPT-3.5 (used for reasoning) and Gemini as base models
-
-steps:
-- add an OpenAI key and a Google Gemini key (GOOGLE_AI_KEY) to your local environment
-- add the parameter ***models_setup_option=3*** to the ***get_prediction*** function in `neurons/miner/main.py.py`
-
-```bash
-llm_prediction = (await self.llm.get_prediction(market=market, models_setup_option=3))
-```
-
-You can also set up your own configurations.
+The authors released a version of the code they used to build the LLM they describe in the paper. You can find it [here](https://github.com/dannyallover/llm_forecasting.git). 
 
 
-## Sample data for generated events from ACLED
+# System requirements
+
+The computational requirements for a miner will depend significantly on the frequency at which they need to send predictions to be competitive since the base model we consider consists of a set of LLM sub-modules that each need to perform computations. Miners will also need to eventually continually provide new data to their models.
+
+A significant cost in the case of the repo referenced above is the cost of using e.g the OpenAI API as well as the cost of retrieving news data. Every time a prediction is produced, a base model is used to generate various prompts. A miner could circumvent that by using a local model or by using the output of the [subnet 18](https://github.com/corcel-api/cortex.t.git).
+News retrieval is often done through news provider like https://www.newscatcherapi.com/. They are most often behind a paywall.
+
+
+# Background information on event types
+
+## ACLED
 
 We join [here](docs/ACLED-data/protest-data-3days.json) and [here](docs/ACLED-data/Protests-events-7-days.json) two dataset of events that stretches over 6 months (from January 2024 to June 2024) which represents the type of events that will be sent to miners from [ACLED](https://acleddata.com/) data.
 
@@ -71,19 +54,6 @@ This first set of events will have the following structure:
 
 Miners will have to retrieve protest data relevant to each of the countries listed above in order to improve their predictions.
 
-# Miner strategy
-
-A reference providing a **baseline miner** strategy is the article ["Approaching Human Level Forecasting with Language Models"](https://arxiv.org/html/2402.18563v1?s=35) ([1]). The authors fine-tune an LLM to generate predictions on binary events (including the ones listed on Polymarket) which nears the performance of human forecasters when submitting a forecast for each prediction, and which beats human forecasters in a setting where the LLM can choose to give a prediction or not based on its confidence.
-
-The authors released a version of the code they used to build the LLM they describe in the paper. You can find it [here](https://github.com/dannyallover/llm_forecasting.git).
-
-
-# System requirements
-
-The computational requirements for a miner will depend significantly on the frequency at which they need to send predictions to be competitive since the base model we consider consists of a set of LLM sub-modules that each need to perform computations. Miners will also need to eventually continually provide new data to their models.
-
-A significant cost in the case of the repo referenced above is the cost of using e.g the OpenAI API as well as the cost of retrieving news data. Every time a prediction is produced, a base model is used to generate various prompts. A miner could circumvent that by using a local model or by using the output of the [subnet 18](https://github.com/corcel-api/cortex.t.git).
-News retrieval other than Google News is done through news provider like https://www.newscatcherapi.com/. They are most often behind a paywall.
 
 
 # Getting Started
@@ -127,9 +97,7 @@ The venv should be active whenever the neurons are run.
 
 ## 2. Create Wallets
 
-This step creates local coldkey and hotkey pairs for your miner.
-
-The miner will be registered to the subnet specified. This ensures that the miner can run the respective miner scripts.
+This step creates local coldkey and hotkey pairs for your miner. Both of these items can be shared (for example you have to share you coldkey to get faucet tokens and these will appear on [Taostats](https://taostats.io/)). Do **not** share your mnemonic.
 
 Create a coldkey and hotkey for your miner wallet.
 
@@ -144,7 +112,7 @@ Faucet is disabled on the testnet. Hence, if you don't have sufficient faucet to
 
 ## 3. Register keys
 
-This step registers your subnet miner keys to the subnet.
+This step registers your subnet miner keys to the subnet. This ensures that the miner can run the respective miner scripts.
 
 ```bash
 btcli subnet register --wallet.name miner --wallet.hotkey default
@@ -253,4 +221,35 @@ The following commands will be useful for the management of your miner:
 ## 5. Stopping your miner
 
 To stop your miner, press CTRL + C in the terminal where the miner is running.
+
+## 6. Using the Built-in LLM forecaster
+
+The repository includes a pre-built LLM (Language Model) forecaster at [`neurons/miner/forecasters/llm_forecaster.py`](../neurons/miner/forecasters/llm_forecaster.py) that you can use for making predictions. To use it:
+
+1. Get the required API keys:
+   - Perplexity API key
+   - OpenAI API key
+
+2. Set your API keys as environment variables:
+```bash
+export PERPLEXITY_API_KEY=<your_perplexity_api_key>
+export OPENAI_API_KEY=<your_openai_api_key>
+```
+
+3. Open [`neurons/miner.py#L31`](../neurons/miner.py#L31) and locate the `assign_forecaster` function
+4. Replace the placeholder forecaster with `LLMForecaster`
+5. Start your miner - it will now use LLM models to forecast events
+
+## 7. Creating Your Own forecaster
+
+You can create your own custom forecaster to implement different prediction strategies:
+
+1. Create a new forecaster class that inherits from the base forecaster ([`neurons/miner/forecasters/base.py`](../neurons/miner/forecasters/base.py))
+2. Implement the `_run` method in your forecaster
+   - This method must return a prediction value between 0 and 1
+   - You can access event information through the `MinerEvent` class ([`neurons/miner/models/event.py`](../neurons/miner/models/event.py))
+
+3. Update the `assign_forecaster` function in [`neurons/miner.py`](../neurons/miner.py) to use your forecaster
+
+The `assign_forecaster` function lets you use different forecasters for different types of events. You can examine the event information and choose the most appropriate forecaster for each case.
 
