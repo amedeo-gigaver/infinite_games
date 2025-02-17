@@ -21,54 +21,11 @@ Here are entries in the Bittensor documentation for [miners](https://docs.bitten
 
 ## Baseline Miner
 
-We integrate the LLM prompting [pipeline](https://github.com/dannyallover/llm_forecasting.git) with news retrieval developed by the authors of the forecasting LLM paper quoted in the readme. In the current form it only uses [Google News](https://news.google.com/home?hl=en-US&gl=US&ceid=US:en) for news retrieval while the original model from the article used 4 other different sources (Newscatcher, Newsdata.io, Aylien, NewsAPI.org).
-This pipeline can work with different base models.
-
-**version 1**
-GPT4 as base model.
-
-steps:
-- add an OpenAI key (OPENAI_KEY) to your local environment
-
-**version 2**
-GPT-3.5 and GPT4 Mini as base models.
-
-steps:
-- add an OpenAI key to your local environment
-- add the parameter ***models_setup_option=1*** to the ***get_prediction*** function in `neurons/miner/main.py`
-
-```bash
-llm_prediction = (await self.llm.get_prediction(market=market, models_setup_option=1))
-```
-
-**version 3**
-
-Gemini as base model
-
-steps:
-- add a Google Gemini key (GOOGLE_AI_KEY) to your local environment
-- add the parameter ***models_setup_option=2*** to the ***get_prediction*** function in `neurons/miner/main.py`
-
-```bash
-llm_prediction = (await self.llm.get_prediction(market=market, models_setup_option=2))
-```
-
-**version 4**
-GPT-3.5 (used for reasoning) and Gemini as base models
-
-steps:
-- add an OpenAI key and a Google Gemini key (GOOGLE_AI_KEY) to your local environment
-- add the parameter ***models_setup_option=3*** to the ***get_prediction*** function in `neurons/miner/main.py.py`
-
-```bash
-llm_prediction = (await self.llm.get_prediction(market=market, models_setup_option=3))
-```
-
-You can also set up your own configurations.
+We integrate an LLM pipeline based on the [forecasting-tools](https://github.com/CodexVeritas/forecasting-tools/) repository.  
 
 # Miner strategy
 
-A reference providing a **baseline miner** strategy is the article ["Approaching Human Level Forecasting with Language Models"](https://arxiv.org/html/2402.18563v1?s=35) ([1]). The authors fine-tune an LLM to generate predictions on binary events (including the ones listed on Polymarket) which nears the performance of human forecasters when submitting a forecast for each prediction, and which beats human forecasters in a setting where the LLM can choose to give a prediction or not based on its confidence.
+A reference in the literature providing insights on building a forecasting LLM is the article ["Approaching Human Level Forecasting with Language Models"](https://arxiv.org/html/2402.18563v1?s=35) ([1]). The authors fine-tune an LLM to generate predictions on binary events (including the ones listed on Polymarket) which nears the performance of human forecasters when submitting a forecast for each prediction, and which beats human forecasters in a setting where the LLM can choose to give a prediction or not based on its confidence.
 
 The authors released a version of the code they used to build the LLM they describe in the paper. You can find it [here](https://github.com/dannyallover/llm_forecasting.git). 
 
