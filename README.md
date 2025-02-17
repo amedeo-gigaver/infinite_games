@@ -5,7 +5,7 @@
 # **Infinite Games** 
 
 
-[Discord](https://discord.gg/BWdj7SGQ) • [Dashboard](https://app.hex.tech/1644b22a-abe5-4113-9d5f-3ad05e4a8de7/app/5f1e0e62-6072-4440-9646-6d2b60cd1674/latest) •
+[Discord](https://discord.gg/qKPeYPc3) • [Dashboard](https://app.hex.tech/1644b22a-abe5-4113-9d5f-3ad05e4a8de7/app/5f1e0e62-6072-4440-9646-6d2b60cd1674/latest) •
 [Website](https://www.infinitegam.es/) • [Twitter](https://twitter.com/Playinfgames) •  [Network](https://taostats.io/) 
 
 ---
@@ -41,8 +41,6 @@ Miners submit their predictions to validators. Each prediction has to be done ea
 
 Making predictions is a hard task that requires cross-domain knowledge and intuition. It is often limited in explanatory reasoning and domain-specific (the expert in predicting election results will differ from the one predicting the progress in rocket-engine technology) ([1]). At the same time it is fundamental to human society, from geopolitics to economics. 
 
-<!-- The COVID-19 measures for example were based on epidemiological forecasts. Science is another area where prediction is crucial ([2]) to determine new designs or to predict the outcome of experiments (executing one experiment is costly). Such predictions rely on the knowledge of thousands papers and on multidisciplinary and multidimensional analysis (*can a study replicate ? should one use a molecular or behavioral approach?*). -->
-
 LLMs approach or surpass human forecasting abilities. They near on average the crowd prediction on prediction market events ([1]), and surpass humans in predicting neuroscience results ([2]). They are also shown to be calibrated with their predictions i.e confident when right. Through their generalization capabilities and unbounded information processing, LLMs have the potential to automate the prediction process or complement humans. 
 
 
@@ -54,12 +52,12 @@ The first applications built on top of our subnet could be related to prediction
 
 In the long term, a validator could provide paid economic forecasts or more generally the output of any forward-looking task addressed to an LLM ([2]). A customer might then provide a series of paid sub-queries related to the information they aim at retrieving.
 
-<!-- It could also be used by scientists to design their experiment and frame their ideas. For example, the value of a paper often resides in the way the results are presented and cross-analysed. One way resulting in poor conclusions while the other giving good results. An LLM might help detect the adequate framework. -->
-
 
 ## Miners 
 
 Miners compete by sending to the validators for each binary event $E$ their estimation of the probability $p$ that $E$ is realized. For example, $E$ could be *o3 is released to the public by January 15th 2025*.
+
+The prediction $p$ should be a **float number between 0.0 and 1.0**; e.g. 0.75 = 75% probability. Any prediction outside of these bounds will be clipped to the interval $(0,1)$.
 
 
 ### Miner strategy 
@@ -71,41 +69,58 @@ According to the article, the performance of forecasting LLMs depends significan
 
 ## Validators
 
-Validators record the miners' predictions and score them once the events settle. At each event settlement, a score is added to the moving average of the miner's score. This simple model ensures that all validators score the miners at roughly the same time. We implement a **cutoff** for the submission time of a prediction. The cutoff is set at 24 hours before the resolution date for most events.
+Validators record the miners' predictions and score them once the events settle. At each event settlement, a score is added to the moving average of the miner's score. We implement a **cutoff** for the submission time of a prediction. The cutoff is set at 24 hours before the resolution date for most events.
 
-## Scoring rule
+## Scoring Rule
 
-Denote by $S(p_i, o_i)$ the Brier score of a prediction $p_i$ on the binary event $E_i$ and where $o_i$ is $1$ if $E_i$ is realized and $0$ otherwise. We have that $S(p_i, 1)= 1- (1-p_i)^2$ if $o_i$ is $1$ and $S(p_i,0)=1-p_i^2$ if $o_i$ is $0$. The Brier score is strictly proper i.e it strictly incentivizes miners to report their true prediction. 
+### Brier Score (Legacy)
 
-The validator stores **the time series of the miner's predictions** and computes the Brier score of each element of the time series. It hence obtains a new time series of Brier scores. A number $n$ of intervals is set between the issues date and the resolution date. The validator then computes a **weighted average of the Brier scores**, where the weight is exponentially decreasing with time, in interval $k$ it has value $exp(-\frac{n}{k} +1)$ where $k$ starts at $n$ and decreases to $1$.
+For a binary event $E_q$, a miner $i$ submits a prediction $p_i$ representing the probability that the event will occur. Let the outcome $o_q$ be defined as:
+- $o_q = 1$ if the event is realized,
+- $o_q = 0$ otherwise.
 
-The final score is a linear combination of the weighted average and of a linear component that depends on how good is the miner compared to other miners.
+The Brier score $S(p_i, o_q)$ for the prediction is given by:
+- **If $o_q = 1$:**  
+  
+  $$S(p_i, 1) = 1 - (1 - p_i)^2$$
+  
+- **If $o_q = 0$:**  
+  $$S(p_i, 0) = 1 - p_i^2.$$
 
-This is described in details [here](https://hackmd.io/@nielsma/S1sB8xO_C). We give miners a score of $0$ on the events for which they did not submit a prediction.
+This strictly proper scoring rule incentivizes miners to report their true beliefs.
+
+#### Time Series of Predictions
+
+For each event, the forecast period between the issue date and the resolution date is divided into $n$ submission intervals. During each interval, miners must submit a prediction. The validator records these predictions as a **time series**. If a miner fails to submit a prediction in any interval, an "empty" prediction is registered, which is assigned the worst possible score according to the Brier rule.
+
+Once the event resolves, the validator computes the Brier score for each prediction in the time series, producing a corresponding series of scores. These scores are then aggregated into a **weighted average**, where later (more recent) predictions are weighted more heavily. Specifically, for submission interval $k$ (with $k = 0, 1, \dots, n-1$), the weight is given by:
+
+$$w_k = \exp\!\left(-\frac{n}{n-k} + 1\right)$$.
+
+A detailed explanation of this process is available [here](https://hackmd.io/@nielsma/S1sB8xO_C).
 
 
-<!--
-### model 3
-We implement a **sequentially shared quadratic scoring rule**. This allows us crucially to aggregate information as well as to score $0$ miners that do not bring new information to the market.
-The scoring rule functions by scoring each miner relatively to the previous one. The score of the miner $j$ is then $S_j = S(p_j, o_i) - S(p_{j-1}, o_i)$ where $p_{j-1}$ is the submission of the previous miner. Importantly this payoff can be negative, therefore in practice when aggregating the scores of a miner we add a $\max(-,0)$ operation. 
+### Peer Scoring
 
-The aggregated score of a miner that a validator sends to the blockchain is the following:
+In the updated system, the **peer scoring** mechanism replaces the legacy Brier score method. For each binary event, a miner $i$ submits a prediction $p_i$ representing their belief that the event will occur.
 
-$$\frac{1}{N} \sum_j S_j$$
+For miner \(i\), the peer score on a given event that resolves positively ($o_q=1$) is defined as:
 
-where $N$ is the number of events that the validator registered as settled during the tempo.
+$$S(p_i, 1) = \frac{1}{n}\sum_{j \neq i} \Bigl(\log(p_i) - \log(p_j)\Bigr)
+= \log(p_i) - \frac{1}{n}\sum_{j \neq i}\log(p_j)$$.
 
-A simpler version of this model is, instead of paying the miner for their delta to the previous prediction, pay them for their delta to the Polymarket probability at the submission time i.e $S(p_j, o_i) - S(\text{price on polymarket at t}, o_i)$ where $p_j$ is submitted at $t$.
--->
+This calculation is performed for every submission interval, and the resulting peer scores are stored as a time series. Exacty as above, in case of no prediction being submitted a miner gets the worst possible score under the peer scoring rule. The same exponential weighting scheme is applied to compute a weighted average peer score for each miner, with the weight for interval $k$ (where $k = 0, 1, \dots, n-1$) defined as:
 
-<!--
-## Incentive compability
+$$w_k = \exp\!\left(-\frac{n}{n-k} + 1\right)$$.
 
-See [here](docs/mechanism.md) for a discussion of our mechanism. -->
+For each event, the weighted average peer score is then added to a moving average $M_i$ calculated over the last $N$ events — where $N$ is proportional to the number of events generated and resolved during an immunity period.
+
+Finally, the validator applies an extremising function to $M_i$:
+$$F(M_i) = \max(M_i, 0)^2$$
+and normalizes the resulting scores across all miners.
+
 
 ## Roadmap
-
-
 - [x] Scoring with exponentially decreasing weights until settlement date and linear differentiation mechanism 
 - [x] Synthetic event generation with central resolution using ACLED data 
 - [x] Scoring with exponential differentiation mechanism 
@@ -113,25 +128,20 @@ See [here](docs/mechanism.md) for a discussion of our mechanism. -->
 - [x] Synthetic event generation with UMA resolution - human verifiers resolve our events through the OOv2 
 - [x] Synthetic event generation from news data using an LLM 
 
-- [ ] Validator v2 - modular and much higher throughput 
+- [x] Validator v2 - modular and much higher throughput 
 - [ ] Scoring v2 (batches, peer score)
 - [ ] Exposing the silicon crowd predictions 
 - [ ] Decentralisation of event generation and validator dynamic desirability (inspired from SN13)
 
-- [ ] Trustless event resolution using UMA - leveraging the data asserter framework
-- [ ] Advanced aggregation mechanism based on sequential scoring
+- [ ] Decentralisation of event generation and validator dynamic desirability (inspired from SN13)
+- [ ] Trustless event resolution
 - [ ] Commit-reveal on the miners' predictions
 - [ ] Scoring a reasoning component
 - [ ] Data generation for iterative fine-tuning of prediction focused LLMs
+- [ ] Reasoning component
+- [ ] Data generation for iterative fine-tuning of forecasting LLMs
 
 
-<!-- We first aim at adjusting the scoring rule by updating to a variation of the *model 2* described above. We will likely implement several other updates in order to make the mechanism more robust. One of them could be a commit-reveal step for the predictions submitted by miners. Some updates may be due to experimental data.
-
-We would also possibly like to make the prediction framework more LLM specific and create mechanisms that explicitely generate data for the fine-tuning of prediction focused LLMs.
-
-We plan to extend the set of predicted events to other prediction markets and event providers (Manifold, Metacalculus, Metacalculus). Our main goal is to obtain a continuous feed of organic events by using e.g WSJ headlines or Reuters' API. -->
-
-<!-- In the limit, miners could update the weights of an entire LLM.-->
 
 ## Running a miner or validator
 
