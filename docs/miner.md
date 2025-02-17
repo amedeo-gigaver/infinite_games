@@ -21,7 +21,7 @@ Here are entries in the Bittensor documentation for [miners](https://docs.bitten
 
 ## Baseline Miner
 
-We integrate an LLM pipeline based on the [forecasting-tools](https://github.com/CodexVeritas/forecasting-tools/) repository.  
+We integrate an LLM pipeline based on the [forecasting-tools](https://github.com/CodexVeritas/forecasting-tools/) repository. Please refer to the *Getting Started* section below for setup instructions.
 
 # Miner strategy
 
