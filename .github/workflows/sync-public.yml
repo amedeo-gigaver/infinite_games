@@ -8,36 +8,36 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout Repository
-      uses: actions/checkout@v3
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
-    - name: Configure Git User
-      run: |
-        git config --global user.email "github-actions@github.com"
-        git config --global user.name "GitHub Actions"
+      - name: Configure Git User
+        run: |
+          git config --global user.email "github-actions@github.com"
+          git config --global user.name "GitHub Actions"
 
-    - name: Run the sync script
-      env:
-        PUBLIC_REPO_TOKEN: ${{ secrets.PUBLIC_REPO_TOKEN }}
-      run: |
-        mkdir sync
-        cd sync
-        bash ../.github/scripts/sync-public.sh
+      - name: Run the sync script
+        env:
+          PUBLIC_REPO_TOKEN: ${{ secrets.PUBLIC_REPO_TOKEN }}
+        run: |
+          mkdir sync
+          cd sync
+          bash ../.github/scripts/sync-public.sh
 
-    - name: Send success message to Discord
-      if: success()
-      run: |
-        WEBHOOK_URL="${{ secrets.DISCORD_DEPLOY }}"
-        MESSAGE="Validator: Public repo sync branch prepared"
-        curl -H "Content-Type: application/json" \
-        -d "{\"content\": \"$MESSAGE\"}" \
-        $WEBHOOK_URL
+      - name: Send success message to Discord
+        if: success()
+        run: |
+          WEBHOOK_URL="${{ secrets.DISCORD_DEPLOY }}"
+          MESSAGE="Validator: Public repo sync branch prepared"
+          curl -H "Content-Type: application/json" \
+          -d "{\"content\": \"$MESSAGE\"}" \
+          $WEBHOOK_URL
 
-    - name: Send failure message to Discord
-      if: failure()
-      run: |
-        WEBHOOK_URL="${{ secrets.DISCORD_DEPLOY }}"
-        MESSAGE="Validator: Failed to prepare public repo sync branch"
-        curl -H "Content-Type: application/json" \
-        -d "{\"content\": \"$MESSAGE\"}" \
-        $WEBHOOK_URL
+      - name: Send failure message to Discord
+        if: failure()
+        run: |
+          WEBHOOK_URL="${{ secrets.DISCORD_DEPLOY }}"
+          MESSAGE="Validator: Failed to prepare public repo sync branch"
+          curl -H "Content-Type: application/json" \
+          -d "{\"content\": \"$MESSAGE\"}" \
+          $WEBHOOK_URL

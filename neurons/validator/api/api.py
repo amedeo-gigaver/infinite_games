@@ -22,7 +22,7 @@ class API:
     db_operations: DatabaseOperations
 
     def __init__(
-        self, host: str, port: int, db_operations: DatabaseOperations, api_access_key: str | None
+        self, host: str, port: int, db_operations: DatabaseOperations, api_access_keys: str | None
     ):
         if not isinstance(host, str):
             raise ValueError("host must be a string")
@@ -33,15 +33,15 @@ class API:
         if not isinstance(db_operations, DatabaseOperations):
             raise ValueError("db_operations must be an instance of DatabaseOperations")
 
-        if api_access_key is not None and not isinstance(api_access_key, str):
-            raise ValueError("api_access_key must be a string or None")
+        if api_access_keys is not None and not isinstance(api_access_keys, str):
+            raise ValueError("api_access_keys must be a string or None")
 
         self.host = host
         self.port = port
         self.fast_api = None
         self.server = None
         self.db_operations = db_operations
-        self.api_access_key = api_access_key
+        self.api_access_keys = api_access_keys
         self.api_key_header = "X-API-Key"
 
     def _get_db_operations(self):
@@ -72,18 +72,21 @@ class API:
 
         fast_api.add_middleware(
             APIKeyMiddleware,
-            allowed_api_key=self.api_access_key,
+            allowed_api_keys=self.api_access_keys,
             api_key_header=self.api_key_header,
         )
 
-        fast_api.add_middleware(LoggingAndErrorHandlingMiddleware)
+        fast_api.add_middleware(
+            LoggingAndErrorHandlingMiddleware,
+            api_key_header=self.api_key_header,
+        )
 
         fast_api.include_router(root_router, prefix="/api")
 
         return fast_api
 
     async def start(self):
-        if not self.api_access_key:
+        if not self.api_access_keys:
             return
 
         if self.fast_api is not None:

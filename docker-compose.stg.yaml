@@ -1,15 +1,20 @@
 networks:
-  stage_network:
-    name: stage_network
+  validator_stage_network:
+    name: validator_stage_network
+
+  miner_stage_network:
+    name: miner_stage_network
 
 services:
   if_validator_stage:
     container_name: if_validator_stage
 
-    image: gigacodehub/validator:stage-latest
+    image: $AWS_ECR_REGISTRY/infinite_games:neuron-stage-latest
+
+    pull_policy: always
 
     networks:
-      - stage_network
+      - validator_stage_network
 
     ports:
       - "8002:8000"
@@ -22,7 +27,7 @@ services:
 
     environment:
       - INLINE_LOGS=1
-      - API_ACCESS_KEY=$API_ACCESS_KEY
+      - API_ACCESS_KEYS=$API_ACCESS_KEYS
 
     command: >
       bash -c "python neurons/validator.py --netuid 155 --subtensor.network test --wallet.name testkey --wallet.hotkey hkey2 --logging.debug"
@@ -32,3 +37,241 @@ services:
       options:
         max-size: "50m"
         max-file: "3"
+
+  if_miner_stage_1: &base_miner
+    container_name: if_miner_stage_1
+
+    image: $AWS_ECR_REGISTRY/infinite_games:neuron-stage-latest
+
+    pull_policy: always
+
+    networks:
+      - miner_stage_network
+
+    ports:
+      - "10001:10001"
+
+    volumes:
+      - ./.bittensor:/root/.bittensor
+
+    restart: unless-stopped
+
+    environment:
+      - INLINE_LOGS=1
+
+    command: >
+      bash -c "python neurons/miner.py --netuid 155 --subtensor.network test --wallet.name tckey --wallet.hotkey thkey1 --logging.debug --axon.port 10001"
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+  if_miner_stage_2:
+    <<: *base_miner
+
+    container_name: if_miner_stage_2
+
+    command: >
+      bash -c "python neurons/miner.py --netuid 155 --subtensor.network test --wallet.name tckey --wallet.hotkey thkey2 --logging.debug --axon.port 10002"
+
+    ports:
+      - "10002:10002"
+
+  if_miner_stage_3:
+    <<: *base_miner
+
+    container_name: if_miner_stage_3
+
+    command: >
+      bash -c "python neurons/miner.py --netuid 155 --subtensor.network test --wallet.name tckey --wallet.hotkey thkey3 --logging.debug --axon.port 10003"
+
+    ports:
+      - "10003:10003"
+
+  if_miner_stage_4:
+    <<: *base_miner
+
+    container_name: if_miner_stage_4
+
+    command: >
+      bash -c "python neurons/miner.py --netuid 155 --subtensor.network test --wallet.name tckey --wallet.hotkey thkey4  --logging.debug --axon.port 10004"
+
+    ports:
+      - "10004:10004"
+
+  if_miner_stage_5:
+    <<: *base_miner
+
+    container_name: if_miner_stage_5
+
+    command: >
+      bash -c "python neurons/miner.py --netuid 155 --subtensor.network test --wallet.name tckey --wallet.hotkey thkey5 --logging.debug --axon.port 10005"
+
+    ports:
+      - "10005:10005"
+
+  if_miner_stage_6:
+    <<: *base_miner
+
+    container_name: if_miner_stage_6
+
+    command: >
+      bash -c "python neurons/miner.py --netuid 155 --subtensor.network test --wallet.name tckey --wallet.hotkey thkey6 --logging.debug --axon.port 10006"
+
+    ports:
+      - "10006:10006"
+
+  if_miner_stage_7:
+    <<: *base_miner
+
+    container_name: if_miner_stage_7
+
+    command: >
+      bash -c "python neurons/miner.py --netuid 155 --subtensor.network test --wallet.name tckey --wallet.hotkey thkey7 --logging.debug --axon.port 10007"
+
+    ports:
+      - "10007:10007"
+
+  if_miner_stage_8:
+    <<: *base_miner
+
+    container_name: if_miner_stage_8
+
+    command: >
+      bash -c "python neurons/miner.py --netuid 155 --subtensor.network test --wallet.name tckey --wallet.hotkey thkey8 --logging.debug --axon.port 10008"
+
+    ports:
+      - "10008:10008"
+
+  if_miner_stage_9:
+    <<: *base_miner
+
+    container_name: if_miner_stage_9
+
+    command: >
+      bash -c "python neurons/miner.py --netuid 155 --subtensor.network test --wallet.name tckey --wallet.hotkey thkey9 --logging.debug --axon.port 10009"
+
+    ports:
+      - "10009:10009"
+
+  if_miner_stage_10:
+    <<: *base_miner
+
+    container_name: if_miner_stage_10
+
+    command: >
+      bash -c "python neurons/miner.py --netuid 155 --subtensor.network test --wallet.name tckey --wallet.hotkey thkey10 --logging.debug --axon.port 10010"
+
+    ports:
+      - "10010:10010"
+
+  if_miner_stage_11:
+    <<: *base_miner
+
+    container_name: if_miner_stage_11
+
+    command: >
+      bash -c "python neurons/miner.py --netuid 155 --subtensor.network test  --wallet.name tckey --wallet.hotkey thkey11 --logging.debug --axon.port 10011"
+
+    ports:
+      - "10011:10011"
+
+  if_miner_stage_12:
+    <<: *base_miner
+
+    container_name: if_miner_stage_12
+
+    command: >
+      bash -c "python neurons/miner.py --netuid 155 --subtensor.network test --wallet.name tckey --wallet.hotkey thkey12 --logging.debug --axon.port 10012"
+
+    ports:
+      - "10012:10012"
+
+  if_miner_stage_13:
+    <<: *base_miner
+
+    container_name: if_miner_stage_13
+
+    command: >
+      bash -c "python neurons/miner.py --netuid 155 --subtensor.network test --wallet.name tckey --wallet.hotkey thkey13 --logging.debug --axon.port 10013"
+
+    ports:
+      - "10013:10013"
+
+  if_miner_stage_14:
+    <<: *base_miner
+
+    container_name: if_miner_stage_14
+
+    command: >
+      bash -c "python neurons/miner.py --netuid 155 --subtensor.network test --wallet.name tckey --wallet.hotkey thkey14 --logging.debug --axon.port 10014"
+
+    ports:
+      - "10014:10014"
+
+  if_miner_stage_15:
+    <<: *base_miner
+
+    container_name: if_miner_stage_15
+
+    command: >
+      bash -c "python neurons/miner.py --netuid 155 --subtensor.network test --wallet.name tckey --wallet.hotkey thkey15 --logging.debug --axon.port 10015"
+
+    ports:
+      - "10015:10015"
+
+  if_miner_stage_16:
+    <<: *base_miner
+
+    container_name: if_miner_stage_16
+
+    command: >
+      bash -c "python neurons/miner.py --netuid 155 --subtensor.network test --wallet.name tckey --wallet.hotkey thkey16 --logging.debug --axon.port 10016"
+
+    ports:
+      - "10016:10016"
+
+  if_miner_stage_17:
+    <<: *base_miner
+
+    container_name: if_miner_stage_17
+
+    command: >
+      bash -c "python neurons/miner.py --netuid 155 --subtensor.network test --wallet.name tckey --wallet.hotkey thkey17 --logging.debug --axon.port 10017"
+
+    ports:
+      - "10017:10017"
+
+  if_miner_stage_18:
+    <<: *base_miner
+
+    container_name: if_miner_stage_18
+
+    command: >
+      bash -c "python neurons/miner.py --netuid 155 --subtensor.network test --wallet.name tckey --wallet.hotkey thkey18 --logging.debug --axon.port 10018"
+
+    ports:
+      - "10018:10018"
+
+  if_miner_stage_19:
+    <<: *base_miner
+
+    container_name: if_miner_stage_19
+
+    command: >
+      bash -c "python neurons/miner.py --netuid 155 --subtensor.network test --wallet.name tckey --wallet.hotkey thkey19 --logging.debug --axon.port 10019"
+
+    ports:
+      - "10019:10019"
+
+  if_miner_stage_20:
+    <<: *base_miner
+
+    container_name: if_miner_stage_20
+
+    command: >
+      bash -c "python neurons/miner.py --netuid 155 --subtensor.network test --wallet.name tckey --wallet.hotkey thkey20 --logging.debug --axon.port 10020"
+
+    ports:
+      - "10020:10020"

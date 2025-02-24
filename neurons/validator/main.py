@@ -13,11 +13,13 @@ from neurons.validator.scheduler.tasks_scheduler import TasksScheduler
 from neurons.validator.tasks.db_cleaner import DbCleaner
 from neurons.validator.tasks.delete_events import DeleteEvents
 from neurons.validator.tasks.export_predictions import ExportPredictions
+from neurons.validator.tasks.export_scores import ExportScores
+from neurons.validator.tasks.metagraph_scoring import MetagraphScoring
 from neurons.validator.tasks.peer_scoring import PeerScoring
 from neurons.validator.tasks.pull_events import PullEvents
 from neurons.validator.tasks.query_miners import QueryMiners
 from neurons.validator.tasks.resolve_events import ResolveEvents
-from neurons.validator.tasks.score_predictions import ScorePredictions
+from neurons.validator.tasks.set_weights import SetWeights
 from neurons.validator.utils.config import get_config
 from neurons.validator.utils.env import ENVIRONMENT_VARIABLES, assert_requirements
 from neurons.validator.utils.logger.logger import logger, set_bittensor_logger
@@ -55,7 +57,7 @@ async def main():
         host="0.0.0.0",
         port=8000,
         db_operations=db_operations,
-        api_access_key=ENVIRONMENT_VARIABLES.API_ACCESS_KEY,
+        api_access_keys=ENVIRONMENT_VARIABLES.API_ACCESS_KEYS,
     )
 
     # Migrate db
@@ -100,23 +102,50 @@ async def main():
         logger=logger,
     )
 
-    # TODO: add the logger to the ScorePredictions object
-    score_predictions_task = ScorePredictions(
-        interval_seconds=300.0,
-        db_operations=db_operations,
-        api_client=api_client,
-        metagraph=bt_metagraph,
-        config=config,
-        subtensor=bt_subtensor,
-        wallet=bt_wallet,
-    )
+    # TODO: remove
+    # score_predictions_task = ScorePredictions(
+    #     interval_seconds=300.0,
+    #     db_operations=db_operations,
+    #     api_client=api_client,
+    #     metagraph=bt_metagraph,
+    #     config=config,
+    #     subtensor=bt_subtensor,
+    #     wallet=bt_wallet,
+    # )
 
     peer_scoring_task = PeerScoring(
-        interval_seconds=463.0,
+        interval_seconds=307.0,
         db_operations=db_operations,
         metagraph=bt_metagraph,
         logger=logger,
         page_size=100,
+    )
+
+    metagraph_scoring_task = MetagraphScoring(
+        interval_seconds=347.0,
+        db_operations=db_operations,
+        page_size=1000,
+        logger=logger,
+    )
+
+    export_scores_task = ExportScores(
+        interval_seconds=373.0,
+        page_size=500,
+        db_operations=db_operations,
+        api_client=api_client,
+        logger=logger,
+        validator_uid=validator_uid,
+        validator_hotkey=validator_hotkey,
+    )
+
+    set_weights_task = SetWeights(
+        interval_seconds=379.0,
+        db_operations=db_operations,
+        logger=logger,
+        metagraph=bt_metagraph,
+        netuid=bt_netuid,
+        subtensor=bt_subtensor,
+        wallet=bt_wallet,
     )
 
     db_cleaner__task = DbCleaner(
@@ -131,8 +160,11 @@ async def main():
     scheduler.add(task=delete_events_task)
     scheduler.add(task=query_miners_task)
     scheduler.add(task=export_predictions_task)
-    scheduler.add(task=score_predictions_task)
+    # scheduler.add(task=score_predictions_task) #  TODO: remove
     scheduler.add(task=peer_scoring_task)
+    scheduler.add(task=metagraph_scoring_task)
+    scheduler.add(task=export_scores_task)
+    scheduler.add(task=set_weights_task)
     scheduler.add(task=db_cleaner__task)
 
     # Start API

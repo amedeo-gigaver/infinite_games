@@ -2,7 +2,6 @@ import copy
 import math
 import tempfile
 from datetime import datetime, timezone
-from functools import partial
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import numpy as np
@@ -15,7 +14,7 @@ from pandas.testing import assert_frame_equal
 
 from neurons.validator.db.client import DatabaseClient
 from neurons.validator.db.operations import DatabaseOperations
-from neurons.validator.models.event import EventsModel
+from neurons.validator.models.event import EventsModel, EventStatus
 from neurons.validator.models.miner import MinersModel
 from neurons.validator.models.prediction import PredictionsModel
 from neurons.validator.tasks.peer_scoring import CLIP_EPS, PeerScoring, PSNames
@@ -662,7 +661,9 @@ class TestPeerScoring:
 
         pd.testing.assert_frame_equal(result_df_sorted, expected_df_sorted)
 
-    def test_peer_score_event_no_intervals(self, peer_scoring_task: PeerScoring):
+    async def test_peer_score_event_no_intervals(
+        self, peer_scoring_task: PeerScoring, db_operations, db_client
+    ):
         event = EventsModel(
             unique_event_id="evt_no_intervals",
             event_id="e1",
@@ -670,24 +671,32 @@ class TestPeerScoring:
             event_type="dummy",
             description="dummy event",
             metadata="{}",
-            status=1,
+            status=EventStatus.SETTLED,
             outcome="1",
             cutoff=datetime(2025, 1, 1, 8, 0, tzinfo=timezone.utc),  # before registered_date
             registered_date=datetime(2025, 1, 1, 9, 0, tzinfo=timezone.utc),
         )
+        await db_operations.upsert_pydantic_events([event])
         predictions = []
 
         unit = peer_scoring_task
-        result = unit.peer_score_event(event, predictions)
+        result = await unit.peer_score_event(event, predictions)
 
         assert result.empty
         assert PSNames.rema_prediction in result.columns
         assert unit.errors_count == 1
         assert unit.logger.error.call_count == 2
         assert "n_intervals computed to be <= 0" == unit.logger.error.call_args_list[0].args[0]
-        assert "No intervals to score." == unit.logger.error.call_args_list[1].args[0]
+        assert (
+            "No intervals to score - event discarded."
+            == unit.logger.error.call_args_list[1].args[0]
+        )
 
-    def test_peer_score_event_no_miners(self, peer_scoring_task: PeerScoring):
+        updated_events = await db_client.many("""SELECT * FROM events""", use_row_factory=True)
+        assert len(updated_events) == 1
+        assert updated_events[0]["status"] == str(EventStatus.DISCARDED.value)
+
+    async def test_peer_score_event_no_miners(self, peer_scoring_task: PeerScoring):
         event = EventsModel(
             unique_event_id="evt_no_miners",
             event_id="e2",
@@ -714,14 +723,14 @@ class TestPeerScoring:
                 PSNames.miner_registered_minutes: [event_cutoff_start_minutes + 1],
             }
         )
-        result = unit.peer_score_event(event, predictions)
+        result = await unit.peer_score_event(event, predictions)
 
         assert result.empty
         assert PSNames.rema_prediction in result.columns
         assert unit.logger.error.call_count >= 1
         assert unit.logger.error.call_args_list[-1].args[0] == "No miners to score."
 
-    def test_peer_score_event_no_predictions(self, peer_scoring_task: PeerScoring):
+    async def test_peer_score_event_no_predictions(self, peer_scoring_task: PeerScoring):
         event = EventsModel(
             unique_event_id="evt_no_predictions",
             event_id="e3",
@@ -751,7 +760,7 @@ class TestPeerScoring:
         # Patch prepare_predictions_df to return an empty DataFrame.
         unit.prepare_predictions_df = lambda predictions, miners: pd.DataFrame()
 
-        result = unit.peer_score_event(event, predictions)
+        result = await unit.peer_score_event(event, predictions)
         assert result.empty
         assert PSNames.rema_prediction in result.columns
         # Expect an error message indicating no predictions.
@@ -759,7 +768,7 @@ class TestPeerScoring:
         assert unit.logger.error.call_args_list[-1].args[0] == "No predictions to score."
 
     # Test the normal scenario where all required data is present.
-    def test_peer_score_event_normal(self, peer_scoring_task: PeerScoring):
+    async def test_peer_score_event_normal(self, peer_scoring_task: PeerScoring):
         event = EventsModel(
             unique_event_id="evt_normal",
             event_id="e4",
@@ -844,7 +853,7 @@ class TestPeerScoring:
             }
         )
 
-        result = unit.peer_score_event(event, predictions)
+        result = await unit.peer_score_event(event, predictions)
 
         assert not result.empty
         for col in [
@@ -1057,16 +1066,9 @@ class TestPeerScoring:
         await db_client.update(f"UPDATE events SET registered_date = '{fixed_timestamp}'")
 
         # check correct events are inserted
-        events_for_scoring = await db_ops.get_events_for_peer_scoring(
-            since_datetime=fixed_timestamp
-        )
+        events_for_scoring = await db_ops.get_events_for_scoring()
         assert len(events_for_scoring) == 2
         assert events_for_scoring[0].event_id == expected_event_id
-
-        patched_get_events = partial(
-            db_ops.get_events_for_peer_scoring, since_datetime=fixed_timestamp
-        )
-        unit.db_operations.get_events_for_peer_scoring = patched_get_events
 
         # no predictions, 2 events
         await unit.run()
@@ -1083,16 +1085,26 @@ class TestPeerScoring:
         )
         assert unit.logger.debug.call_args_list[3].kwargs["extra"]["errors_count_in_logs"] == 2
 
-        assert unit.logger.warning.call_count == 2
+        assert unit.logger.warning.call_count == 0
+        assert unit.logger.error.call_count == 2
         assert (
-            unit.logger.warning.call_args_list[0].args[0]
-            == "There are no predictions for a settled event."
+            unit.logger.error.call_args_list[0].args[0]
+            == "There are no predictions for a settled event - discarding."
         )
+        updated_events = await db_client.many("""SELECT * FROM events""", use_row_factory=True)
+        assert len(updated_events) == 3
+        assert updated_events[0]["status"] == str(EventStatus.DISCARDED.value)
+        assert updated_events[1]["status"] == str(EventStatus.DISCARDED.value)
+        assert updated_events[2]["status"] == str(EventStatus.PENDING.value)
 
         # reset unit
         unit.errors_count = 0
         unit.logger.debug.reset_mock()
         unit.logger.warning.reset_mock()
+        await db_client.update(
+            "UPDATE events SET status = ? WHERE status = ? ",
+            parameters=[EventStatus.SETTLED, EventStatus.DISCARDED],
+        )
 
         # insert predictions
         predictions = [
@@ -1149,14 +1161,18 @@ class TestPeerScoring:
             await unit.run()
 
         assert unit.logger.debug.call_args_list[3].kwargs["extra"]["errors_count_in_logs"] == 2
-        assert unit.logger.error.call_count == 4
-        assert unit.logger.error.call_args_list[0].args[0] == "No predictions to score."
+        assert unit.logger.error.call_count == 6
+        assert (
+            unit.logger.error.call_args_list[0].args[0]
+            == "There are no predictions for a settled event - discarding."
+        )
+        assert unit.logger.error.call_args_list[2].args[0] == "No predictions to score."
         assert unit.logger.error.call_args_list[0].kwargs["extra"]["event_id"] == expected_event_id
         assert (
-            unit.logger.error.call_args_list[1].args[0]
+            unit.logger.error.call_args_list[3].args[0]
             == "Peer scores could not be calculated for an event."
         )
-        assert unit.logger.error.call_args_list[1].kwargs["extra"]["event_id"] == expected_event_id
+        assert unit.logger.error.call_args_list[3].kwargs["extra"]["event_id"] == expected_event_id
 
         # reset unit
         unit.errors_count = 0
@@ -1206,3 +1222,7 @@ class TestPeerScoring:
 
         assert_frame_equal(df_expected_ev_1, df_actual_ev_1, rtol=1e-5, atol=1e-8)
         assert_frame_equal(df_expected_ev_2, df_actual_ev_2, rtol=1e-5, atol=1e-8)
+
+        # check events are marked as processed
+        events_for_scoring = await db_ops.get_events_for_scoring()
+        assert len(events_for_scoring) == 0
