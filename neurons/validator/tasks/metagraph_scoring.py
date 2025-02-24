@@ -59,6 +59,27 @@ class MetagraphScoring(AbstractTask):
                     extra={"event_id": event["event_id"]},
                 )
 
-                await self.db_operations.set_metagraph_peer_scores(
-                    event["event_id"], n_events=MOVING_AVERAGE_EVENTS
-                )
+                try:
+                    res = await self.db_operations.set_metagraph_peer_scores(
+                        event["event_id"], n_events=MOVING_AVERAGE_EVENTS
+                    )
+                    if res == []:
+                        self.logger.debug(
+                            "Metagraph scores calculated successfully.",
+                            extra={"event_id": event["event_id"]},
+                        )
+                    else:
+                        raise Exception("Error calculating metagraph scores.")
+                except Exception:
+                    self.errors_count += 1
+                    self.logger.exception(
+                        "Error calculating metagraph scores.",
+                        extra={"event_id": event["event_id"]},
+                    )
+
+        self.logger.debug(
+            "Metagraph scoring task completed.",
+            extra={"errors_count": self.errors_count},
+        )
+
+        self.errors_count = 0

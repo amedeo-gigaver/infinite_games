@@ -1,3 +1,7 @@
+# TODO: remove
+############################
+# This file is deprecated. #
+############################
 import logging
 import shutil
 import tempfile

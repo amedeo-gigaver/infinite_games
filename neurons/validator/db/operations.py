@@ -10,7 +10,7 @@ from neurons.validator.models.prediction import (
     PredictionExportedStatus,
     PredictionsModel,
 )
-from neurons.validator.models.score import ScoresModel
+from neurons.validator.models.score import SCORE_FIELDS, ScoresModel
 from neurons.validator.utils.logger.logger import InfiniteGamesLogger
 
 SQL_FOLDER = Path(Path(__file__).parent, "sql")
@@ -370,7 +370,7 @@ class DatabaseOperations:
             parameters=event_tuples,
         )
 
-    async def get_events_for_scoring(self) -> list[EventsModel]:
+    async def get_events_for_scoring(self, max_events=1000) -> list[EventsModel]:
         """
         Returns all events that were recently resolved and need to be scored
         """
@@ -383,8 +383,10 @@ class DatabaseOperations:
                 WHERE status = ?
                     AND outcome IS NOT NULL
                     AND processed = false
+                ORDER BY resolved_at ASC
+                LIMIT ?
             """,
-            parameters=[EventStatus.SETTLED],
+            parameters=[EventStatus.SETTLED, max_events],
             use_row_factory=True,
         )
 
@@ -394,39 +396,27 @@ class DatabaseOperations:
                 event = EventsModel(**dict(row))
                 events.append(event)
             except Exception:
-                self.logger.exception("Error parsing event", extra={"row": row[0]})
+                self.logger.exception("Error parsing event", extra={"row": row})
 
         return events
 
-    async def get_predictions_by_unique_event_id(
-        self, unique_event_id: str
+    async def get_predictions_for_event(
+        self, unique_event_id: str, interval_start_minutes: int
     ) -> list[PredictionsModel]:
         rows = await self.__db_client.many(
             f"""
-                WITH ranked_predictions AS (
-                    SELECT
-                        *,
-                        ROW_NUMBER() OVER (
-                            PARTITION BY
-                                minerUid,
-                                minerHotkey
-                            ORDER BY interval_start_minutes DESC
-                        ) AS row_num
-                    FROM
-                        predictions
-                    WHERE
-                        unique_event_id = ?
-                )
                 SELECT
                     {', '.join(PREDICTION_FIELDS)}
                 FROM
-                    ranked_predictions
+                    predictions
                 WHERE
-                    row_num = 1
+                    unique_event_id = ?
+                    AND interval_start_minutes = ?
                 ORDER BY
-                    minerUid ASC
+                    CAST(minerUid AS INTEGER) ASC,
+                    minerHotkey ASC
             """,
-            parameters=(unique_event_id,),
+            parameters=[unique_event_id, interval_start_minutes],
             use_row_factory=True,
         )
 
@@ -437,7 +427,7 @@ class DatabaseOperations:
                 prediction = PredictionsModel(**dict(row))
                 predictions.append(prediction)
             except Exception:
-                self.logger.exception("Error parsing prediction", extra={"row": row[0]})
+                self.logger.exception("Error parsing prediction", extra={"row": row})
 
         return predictions
 
@@ -459,7 +449,7 @@ class DatabaseOperations:
                 prediction = PredictionsModel(**dict(row))
                 predictions.append(prediction)
             except Exception:
-                self.logger.exception("Error parsing prediction", extra={"row": row[0]})
+                self.logger.exception("Error parsing prediction", extra={"row": row})
 
         return predictions
 
@@ -489,7 +479,7 @@ class DatabaseOperations:
                 miner = MinersModel(**dict(row))
                 miners.append(miner)
             except Exception:
-                self.logger.exception("Error parsing miner", extra={"row": row[0]})
+                self.logger.exception("Error parsing miner", extra={"row": row})
 
         return miners
 
@@ -511,6 +501,17 @@ class DatabaseOperations:
                 WHERE unique_event_id = ?
             """,
             parameters=(unique_event_id,),
+        )
+
+    async def mark_event_as_discarded(self, unique_event_id: str) -> None:
+        """For resolved events which cannot be scored"""
+        return await self.__db_client.update(
+            """
+                UPDATE events
+                SET status = ?
+                WHERE unique_event_id = ?
+            """,
+            parameters=[EventStatus.DISCARDED, unique_event_id],
         )
 
     async def insert_peer_scores(self, scores: list[ScoresModel]) -> None:
@@ -547,6 +548,7 @@ class DatabaseOperations:
             parameters=score_tuples,
         )
 
+    # TODO: remove
     async def get_events_for_peer_scoring(
         self, since_datetime=None, max_events: int = 1000
     ) -> list[EventsModel]:
@@ -582,7 +584,7 @@ class DatabaseOperations:
                 event = EventsModel(**dict(row))
                 events.append(event)
             except Exception:
-                self.logger.exception("Error parsing event", extra={"row": row[0]})
+                self.logger.exception("Error parsing event", extra={"row": row})
 
         return events
 
@@ -615,7 +617,7 @@ class DatabaseOperations:
                 event = dict(row)
                 events.append(event)
             except Exception:
-                self.logger.exception("Error parsing event", extra={"row": row[0]})
+                self.logger.exception("Error parsing event", extra={"row": row})
         return events
 
     async def set_metagraph_peer_scores(self, event_id: str, n_events: int) -> list:
@@ -629,3 +631,121 @@ class DatabaseOperations:
         )
 
         return updated
+
+    async def get_peer_scored_events_for_export(self, max_events: int = 1000) -> list[EventsModel]:
+        """
+        Get peer scored events that have not been exported
+        """
+        ev_event_fields = ["ev." + field for field in EVENTS_FIELDS]
+        rows = await self.__db_client.many(
+            f"""
+                WITH events_to_export AS (
+                    SELECT
+                        event_id,
+                        MIN(ROWID) AS min_row_id
+                    FROM scores
+                    WHERE processed = 1
+                        AND exported = 0
+                    GROUP BY event_id
+                    ORDER BY min_row_id ASC
+                    LIMIT ?
+                )
+                SELECT
+                    {', '.join(ev_event_fields)}
+                FROM events ev
+                JOIN events_to_export ete ON ev.event_id = ete.event_id
+                ORDER BY ete.min_row_id ASC
+            """,
+            use_row_factory=True,
+            parameters=[
+                max_events,
+            ],
+        )
+
+        events = []
+        for row in rows:
+            try:
+                event = EventsModel(**dict(row))
+                events.append(event)
+            except Exception:
+                self.logger.exception("Error parsing event", extra={"row": row})
+
+        return events
+
+    async def get_peer_scores_for_export(self, event_id: str) -> list:
+        """
+        Get peer scores for a given event
+        Processed has to be true, to guarantee that metagraph score is set
+        """
+        rows = await self.__db_client.many(
+            f"""
+                SELECT
+                    {', '.join(SCORE_FIELDS)}
+                FROM scores
+                WHERE event_id = ?
+                    AND processed = 1
+            """,
+            parameters=[event_id],
+            use_row_factory=True,
+        )
+
+        scores = []
+        for row in rows:
+            try:
+                score = ScoresModel(**dict(row))
+                scores.append(score)
+            except Exception:
+                self.logger.exception("Error parsing score", extra={"row": row})
+
+        return scores
+
+    async def mark_peer_scores_as_exported(self, event_id: str) -> list:
+        """
+        Mark peer scores from event_id as exported
+        """
+        return await self.__db_client.update(
+            """
+                UPDATE scores
+                SET exported = 1
+                WHERE event_id = ?
+            """,
+            parameters=(event_id,),
+        )
+
+    async def get_last_metagraph_scores(self) -> list:
+        """
+        Returns the last known metagraph_score for each miner_uid, miner_hotkey;
+        We cannot simply take from the last event - could be an old event scored now, so
+        if the miner registered after the event cutoff, we will have no metagraph_score
+        """
+        rows = await self.__db_client.many(
+            f"""
+                WITH grouped AS (
+                    SELECT miner_uid AS g_miner_uid,
+                        miner_hotkey AS g_miner_hotkey,
+                        MAX(ROWID) AS max_rowid
+                    FROM scores
+                    WHERE processed = 1
+                        AND created_at > datetime(CURRENT_TIMESTAMP, '-10 day')
+                    GROUP BY miner_uid, miner_hotkey
+                )
+                SELECT
+                    {', '.join(SCORE_FIELDS)}
+                FROM scores s
+                JOIN grouped
+                    ON s.miner_uid = grouped.g_miner_uid
+                    AND s.miner_hotkey = grouped.g_miner_hotkey
+                    AND s.ROWID = grouped.max_rowid
+            """,
+            use_row_factory=True,
+        )
+
+        scores = []
+        for row in rows:
+            try:
+                score = ScoresModel(**dict(row))
+                scores.append(score)
+            except Exception:
+                self.logger.exception("Error parsing score", extra={"row": row})
+
+        return scores

@@ -1,5 +1,10 @@
 # Release Notes
 
+## [1.3.9] - 2025-02-19
+- **Bittensor Upgrade**: Upgraded to Bittensor version 9.0.1
+- **Scoring**: Updated the scoring methodology by replacing the Brier scoring approach with Peer scoring.
+- **Database**: Change database auto vacuum to incremental and add migration to vacuum & reclaim empty space
+
 ## [1.3.8] - 2025-02-11
 - **Bittensor Upgrade**: Upgraded to Bittensor version 9.0.0
 - **Scoring**: Peer Scores are computed and stored in a dedicated table while continuing to use Brier scoring.

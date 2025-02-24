@@ -6,73 +6,46 @@ on:
       - develop
 
 jobs:
-  build-push-validator:
+  build-push-image:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v2
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v2
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_PASSWORD }}
+          aws-access-key-id: ${{ secrets.AWS_ECR_PUBLIC_KEY }}
+          aws-secret-access-key: ${{ secrets.AWS_ECR_PRIVATE_KEY }}
+          aws-region: ${{ secrets.AWS_ECR_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
 
       - name: Get Git Commit Short Hash
         id: git-info
         run: |
-          echo "commit_hash=$(git rev-parse --short HEAD)"
-          echo "commit_hash=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+          echo "COMMIT_HASH=$(git rev-parse --short HEAD)"
+          echo "COMMIT_HASH=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
 
-      - name: Build and push validator image
-        uses: docker/build-push-action@v4
-        with:
-          context: .
-          push: true
-          tags: gigacodehub/validator:test-latest
-          build-args: |
-            GIT_COMMIT_HASH=${{ env.commit_hash }}
-
-  build-push-miner:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v2
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v2
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_PASSWORD }}
-
-      - name: Build and push miner image
-        uses: docker/build-push-action@v4
-        with:
-          context: .
-          push: true
-          tags: gigacodehub/miner:test-latest
+      - name: Build and push Docker image to Amazon ECR
+        env:
+          REGISTRY: ${{ secrets.AWS_ECR_REGISTRY }}
+          IMAGE_TAG: neuron-dev-latest
+        run: |
+          docker build --build-arg GIT_COMMIT_HASH=${{ env.COMMIT_HASH }} -t $REGISTRY/infinite_games:$IMAGE_TAG .
+          docker push $REGISTRY/infinite_games:$IMAGE_TAG
 
   deploy_validator:
-    needs: [build-push-validator]
+    needs: [build-push-image]
+
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Install dependencies
         run: sudo apt-get update && sudo apt-get install -y python3-pip
@@ -89,74 +62,56 @@ jobs:
           ssh-agent -a $SSH_AUTH_SOCK > /dev/null
           ssh-add - <<< "${{ secrets.SSH_STAGE_PRIVATE_KEY }}"
           ssh -o StrictHostKeyChecking=no root@${{ secrets.SERVER_STAGE_VALI_IP }} -p ${{ secrets.SERVER_PORT }} << 'EOF'
-          docker-compose -f docker-compose.dev.yaml down
+          export AWS_ECR_REGISTRY=${{ secrets.AWS_ECR_REGISTRY }}
+          docker-compose -f docker-compose.dev.yaml down --rmi all
           EOF
           scp -P ${{ secrets.SERVER_PORT }} docker-compose.dev.yaml root@${{ secrets.SERVER_STAGE_VALI_IP }}:/root/docker-compose.dev.yaml
           ssh -o StrictHostKeyChecking=no root@${{ secrets.SERVER_STAGE_VALI_IP }} -p ${{ secrets.SERVER_PORT }} << EOF
-          docker rmi gigacodehub/validator:test-latest
-          export API_ACCESS_KEY=${{ secrets.API_ACCESS_KEY_DEV }}
-          docker-compose -f docker-compose.dev.yaml up -d
+          export AWS_ACCESS_KEY_ID=${{ secrets.AWS_ECR_PUBLIC_KEY }}
+          export AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_ECR_PRIVATE_KEY }}
+          export AWS_DEFAULT_REGION=${{ secrets.AWS_ECR_REGION }}
+          aws ecr get-login-password --region ${{ secrets.AWS_ECR_REGION }} | docker login --username AWS --password-stdin ${{ secrets.AWS_ECR_REGISTRY }}
+          export AWS_ECR_REGISTRY=${{ secrets.AWS_ECR_REGISTRY }}
+          export API_ACCESS_KEYS=${{ secrets.API_ACCESS_KEYS_DEV }}
+          docker-compose -f docker-compose.dev.yaml up -d if_validator_develop
           EOF
 
   deploy_miner:
-    timeout-minutes: 30
-    needs: [build-push-miner]
+    needs: [build-push-image]
+
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Install dependencies
         run: sudo apt-get update && sudo apt-get install -y python3-pip openssh-client
 
-      - name: Setup SSH
-        run: |
-          mkdir -p ~/.ssh
-          chmod 700 ~/.ssh
-          touch ~/.ssh/known_hosts
-          chmod 644 ~/.ssh/known_hosts
+      - name: Create .ssh directory
+        run: mkdir -p ~/.ssh
 
       - name: Deploy to server
         env:
           SSH_AUTH_SOCK: /tmp/ssh_agent.sock
         run: |
-          cat > ~/.ssh/config << EOF
-          Host deploy_host
-            HostName ${{ secrets.SERVER_STAGE_MINER_IP }}
-            Port ${{ secrets.SERVER_PORT }}
-            User root
-            StrictHostKeyChecking no
-            UserKnownHostsFile ~/.ssh/known_hosts
-            ServerAliveInterval 60
-            ServerAliveCountMax 10
-            ConnectTimeout 180
-            TCPKeepAlive yes
-          EOF
-          chmod 600 ~/.ssh/config
-
           ssh-keyscan -p ${{ secrets.SERVER_PORT }} ${{ secrets.SERVER_STAGE_MINER_IP }} >> ~/.ssh/known_hosts
           ssh-keyscan github.com >> ~/.ssh/known_hosts
           ssh-agent -a $SSH_AUTH_SOCK > /dev/null
           ssh-add - <<< "${{ secrets.SSH_PRIVATE_KEY }}"
-
-          MAX_RETRIES=3
-          RETRY_COUNT=0
-          until ssh deploy_host << 'EOF'
-            docker-compose -f docker-compose.develop-miner.yml down || true
-            docker rmi gigacodehub/miner:test-latest || true
-            docker pull gigacodehub/miner:test-latest
-            docker-compose -f docker-compose.develop-miner.yml up -d
-            docker ps | grep miner
+          ssh -o StrictHostKeyChecking=no root@${{ secrets.SERVER_STAGE_MINER_IP }} -p ${{ secrets.SERVER_PORT }} << 'EOF'
+          export AWS_ECR_REGISTRY=${{ secrets.AWS_ECR_REGISTRY }}
+          docker-compose -f docker-compose.dev.yaml down --rmi all
           EOF
-          do
-            RETRY_COUNT=$((RETRY_COUNT+1))
-            if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
-              echo "Failed after $MAX_RETRIES attempts"
-              exit 1
-            fi
-            echo "Connection lost. Retry attempt $RETRY_COUNT of $MAX_RETRIES..."
-            sleep 30
-          done
+          scp -P ${{ secrets.SERVER_PORT }} docker-compose.dev.yaml root@${{ secrets.SERVER_STAGE_MINER_IP }}:/root/docker-compose.dev.yaml
+          ssh -o StrictHostKeyChecking=no root@${{ secrets.SERVER_STAGE_MINER_IP }} -p ${{ secrets.SERVER_PORT }} << EOF
+          export AWS_ACCESS_KEY_ID=${{ secrets.AWS_ECR_PUBLIC_KEY }}
+          export AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_ECR_PRIVATE_KEY }}
+          export AWS_DEFAULT_REGION=${{ secrets.AWS_ECR_REGION }}
+          aws ecr get-login-password --region ${{ secrets.AWS_ECR_REGION }} | docker login --username AWS --password-stdin ${{ secrets.AWS_ECR_REGISTRY }}
+          export AWS_ECR_REGISTRY=${{ secrets.AWS_ECR_REGISTRY }}
+          docker-compose -f docker-compose.dev.yaml up -d if_miner_develop
+          EOF
 
       - name: Send success message to Discord
         if: success()

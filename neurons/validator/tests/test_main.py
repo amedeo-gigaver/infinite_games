@@ -28,8 +28,11 @@ class TestValidatorMain:
             patch("neurons.validator.main.TasksScheduler") as MockTasksScheduler,
             patch("neurons.validator.main.logger", spec=True) as mock_logger,
             patch("neurons.validator.main.ExportPredictions", spec=True),
-            patch("neurons.validator.main.ScorePredictions", spec=True),
+            # patch("neurons.validator.main.ScorePredictions", spec=True), # TODO: remove
             patch("neurons.validator.main.PeerScoring", spec=True),
+            patch("neurons.validator.main.MetagraphScoring", spec=True),
+            patch("neurons.validator.main.ExportScores", spec=True),
+            patch("neurons.validator.main.SetWeights", spec=True),
             patch(
                 "neurons.validator.main.API",
                 spec=True,
@@ -84,7 +87,7 @@ class TestValidatorMain:
             mock_scheduler.start.assert_awaited_once()
 
             # Verify tasks
-            assert mock_scheduler.add.call_count == 8
+            assert mock_scheduler.add.call_count == 10
 
             # Verify logging
             mock_logger.info.assert_called_with(

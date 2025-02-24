@@ -12,6 +12,7 @@
     "btlogging",
     "coldkey",
     "dataframe",
+    "dateutil",
     "delenv",
     "dropna",
     "executemany",
@@ -22,6 +23,7 @@
     "giveup",
     "ifgames",
     "iloc",
+    "isoparse",
     "isort",
     "iterrows",
     "itertuples",
@@ -39,9 +41,12 @@
     "rtol",
     "sqlalchemy",
     "subtensor",
+    "timespec",
     "uids",
     "unixepoch",
     "vali"
   ],
-  "python.languageServer": "Pylance"
+  "python.languageServer": "Pylance",
+  "python.testing.unittestEnabled": false,
+  "python.testing.pytestEnabled": true
 }

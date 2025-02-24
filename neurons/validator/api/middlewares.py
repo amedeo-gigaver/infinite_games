@@ -24,16 +24,19 @@ class DbOperationsMiddleware(BaseHTTPMiddleware):
 
 
 class APIKeyMiddleware(BaseHTTPMiddleware):
-    def __init__(self, app: FastAPI, allowed_api_key: str, api_key_header: str):
+    allowed_api_keys: set
+    api_key_header: str
+
+    def __init__(self, app: FastAPI, allowed_api_keys: set, api_key_header: str):
         super().__init__(app)
 
-        if isinstance(allowed_api_key, str) is False:
-            raise ValueError("allowed_api_key must be a string")
+        if isinstance(allowed_api_keys, str) is False:
+            raise ValueError("allowed_api_keys must be a str")
 
         if isinstance(api_key_header, str) is False:
             raise ValueError("api_key_header must be a string")
 
-        self.allowed_api_key = allowed_api_key
+        self.allowed_api_keys = set(allowed_api_keys.split(","))
         self.api_key_header = api_key_header
 
     async def dispatch(self, request: Request, call_next: typing.Callable):
@@ -48,21 +51,34 @@ class APIKeyMiddleware(BaseHTTPMiddleware):
             return JSONResponse(content={"detail": "Unauthorized"}, status_code=401)
 
         # Validate API key
-        if api_key != self.allowed_api_key:
+        if api_key not in self.allowed_api_keys:
             return JSONResponse(content={"detail": "Unauthorized"}, status_code=403)
 
         return await call_next(request)
 
 
 class LoggingAndErrorHandlingMiddleware(BaseHTTPMiddleware):
+    api_key_header: str
+
+    def __init__(self, app: FastAPI, api_key_header: str):
+        super().__init__(app)
+
+        if isinstance(api_key_header, str) is False:
+            raise ValueError("api_key_header must be a string")
+
+        self.api_key_header = api_key_header
+
     async def dispatch(self, request: Request, call_next: typing.Callable):
         start_time = time.time()
 
         context = {
             "trace_id": str(uuid.uuid4()),
-            "request_method": request.method,
-            "request_url": request.url.path,
-            "request_ip": request.client.host,
+            "request": {
+                "method": request.method,
+                "url": request.url.path,
+                "client_ip": request.client.host,
+                "client_key": f"{request.headers.get(self.api_key_header, '')[:4]}*",
+            },
         }
 
         api_logger.add_context(context)

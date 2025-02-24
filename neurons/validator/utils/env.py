@@ -7,13 +7,13 @@ from pydantic import BaseModel
 
 
 class EnvironmentVariables(BaseModel):
-    API_ACCESS_KEY: str
+    API_ACCESS_KEYS: str
     INLINE_LOGS: bool
     GIT_COMMIT_HASH: str
 
 
 ENVIRONMENT_VARIABLES = EnvironmentVariables(
-    API_ACCESS_KEY=os.getenv("API_ACCESS_KEY", ""),
+    API_ACCESS_KEYS=os.getenv("API_ACCESS_KEYS", ""),
     INLINE_LOGS=os.getenv("INLINE_LOGS", "false").lower()
     in [
         "true",

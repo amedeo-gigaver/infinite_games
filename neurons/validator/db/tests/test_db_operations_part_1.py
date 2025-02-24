@@ -7,6 +7,7 @@ import pytest
 
 from neurons.validator.db.client import DatabaseClient
 from neurons.validator.db.operations import DatabaseOperations
+from neurons.validator.db.tests.test_utils import TestDbOperationsBase
 from neurons.validator.models.event import EventsModel, EventStatus
 from neurons.validator.models.miner import MinersModel
 from neurons.validator.models.prediction import PredictionExportedStatus
@@ -14,7 +15,7 @@ from neurons.validator.models.score import ScoresModel
 from neurons.validator.utils.logger.logger import InfiniteGamesLogger
 
 
-class TestDbOperations:
+class TestDbOperationsPart1(TestDbOperationsBase):
     @pytest.fixture(scope="function")
     async def db_client(self):
         temp_db = tempfile.NamedTemporaryFile(delete=False)
@@ -875,16 +876,17 @@ class TestDbOperations:
         assert len(result) == 1
         assert result[0][0] == event_to_predict_id
 
-    async def test_get_predictions_by_event_id(self, db_operations: DatabaseOperations):
+    async def test_get_predictions_for_event(self, db_operations: DatabaseOperations):
         unique_event_id = "unique_event_id_1"
+        current_interval = 10
 
         predictions = [
             (
                 unique_event_id,
-                "neuronHotkey_3",
-                "neuronUid_3",
+                "neuronHotkey_99",
+                "99",
                 "1",
-                10,
+                current_interval,
                 "1",
                 1,
                 "1",
@@ -892,19 +894,39 @@ class TestDbOperations:
             (
                 "unique_event_id_2",
                 "neuronHotkey_2",
-                "neuronUid_2",
+                "2",
                 "1",
-                10,
+                current_interval,
                 "1",
                 1,
                 "1",
             ),
             (
                 unique_event_id,
-                "neuronHotkey_1",
-                "neuronUid_1",
+                "neuronHotkey_248",
+                "248",
                 "0.5",
-                10,
+                current_interval,
+                "1",
+                1,
+                "1",
+            ),
+            (
+                unique_event_id,
+                "neuronHotkey_0",
+                "0",
+                "0.5",
+                current_interval,
+                "1",
+                1,
+                "1",
+            ),
+            (
+                unique_event_id,
+                "neuronHotkey_0",
+                "0",
+                "0.5",
+                current_interval - 1,
                 "1",
                 1,
                 "1",
@@ -913,26 +935,29 @@ class TestDbOperations:
 
         await db_operations.upsert_predictions(predictions)
 
-        result = await db_operations.get_predictions_by_unique_event_id(
-            unique_event_id=unique_event_id
+        result = await db_operations.get_predictions_for_event(
+            unique_event_id=unique_event_id, interval_start_minutes=current_interval
         )
 
-        assert len(result) == 2
+        assert len(result) == 3
         assert result[0].unique_event_id == "unique_event_id_1"
-        assert result[0].minerUid == "neuronUid_1"
+        assert result[0].minerUid == "0"
         assert result[0].predictedOutcome == "0.5"
 
         assert result[1].unique_event_id == "unique_event_id_1"
-        assert result[1].minerUid == "neuronUid_3"
+        assert result[1].minerUid == "99"
         assert result[1].predictedOutcome == "1"
 
-    async def test_get_predictions_by_event_id_no_predictions(
-        self, db_operations: DatabaseOperations
-    ):
-        unique_event_id = "unique_event_id_1"
+        assert result[2].unique_event_id == "unique_event_id_1"
+        assert result[2].minerUid == "248"
+        assert result[2].predictedOutcome == "0.5"
 
-        result = await db_operations.get_predictions_by_unique_event_id(
-            unique_event_id=unique_event_id
+    async def test_get_predictions_for_event_predictions(self, db_operations: DatabaseOperations):
+        unique_event_id = "unique_event_id_1"
+        interval_start_minutes = 999
+
+        result = await db_operations.get_predictions_for_event(
+            unique_event_id=unique_event_id, interval_start_minutes=interval_start_minutes
         )
 
         assert len(result) == 0
@@ -1774,6 +1799,7 @@ class TestDbOperations:
             assert row[1] == 0
             assert row[2] == 0
 
+    # TODO: remove
     async def test_get_events_for_peer_scoring(
         self,
         db_operations: DatabaseOperations,

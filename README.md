@@ -95,7 +95,7 @@ For each event, the forecast period between the issue date and the resolution da
 
 Once the event resolves, the validator computes the Brier score for each prediction in the time series, producing a corresponding series of scores. These scores are then aggregated into a **weighted average**, where later (more recent) predictions are weighted more heavily. Specifically, for submission interval $k$ (with $k = 0, 1, \dots, n-1$), the weight is given by:
 
-$$w_k = \exp\!\left(-\frac{n}{n-k} + 1\right)$$.
+$$w_k = \exp\\left(-\frac{n}{n-k} + 1\right)$$.
 
 A detailed explanation of this process is available [here](https://hackmd.io/@nielsma/S1sB8xO_C).
 
@@ -111,7 +111,7 @@ $$S(p_i, 1) = \frac{1}{n}\sum_{j \neq i} \Bigl(\log(p_i) - \log(p_j)\Bigr)
 
 This calculation is performed for every submission interval, and the resulting peer scores are stored as a time series. Exacty as above, in case of no prediction being submitted a miner gets the worst possible score under the peer scoring rule. The same exponential weighting scheme is applied to compute a weighted average peer score for each miner, with the weight for interval $k$ (where $k = 0, 1, \dots, n-1$) defined as:
 
-$$w_k = \exp\!\left(-\frac{n}{n-k} + 1\right)$$.
+$$w_k = \exp\\left(-\frac{n}{n-k} + 1\right)$$.
 
 For each event, the weighted average peer score is then added to a moving average $M_i$ calculated over the last $N$ events — where $N$ is proportional to the number of events generated and resolved during an immunity period.
 

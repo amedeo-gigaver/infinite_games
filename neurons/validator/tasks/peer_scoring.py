@@ -1,7 +1,3 @@
-###############################
-# WORK IN PROGRESS - INACTIVE #
-###############################
-
 import copy
 import math
 from dataclasses import dataclass
@@ -409,7 +405,7 @@ class PeerScoring(AbstractTask):
             ]
         ]
 
-    def peer_score_event(
+    async def peer_score_event(
         self, event: EventsModel, predictions: list[PredictionsModel]
     ) -> pd.DataFrame:
         # outcome is text in DB :|
@@ -429,7 +425,10 @@ class PeerScoring(AbstractTask):
             event_cutoff_start_minutes=event_cutoff_start_minutes,
         )
         if intervals.empty:
-            return self.return_empty_scores_df("No intervals to score.", event.event_id)
+            await self.db_operations.mark_event_as_discarded(unique_event_id=event.unique_event_id)
+            return self.return_empty_scores_df(
+                "No intervals to score - event discarded.", event.event_id
+            )
 
         # do not score miners which registered after the effective cutoff - 1 interval
         miners = self.miners_last_reg[
@@ -492,11 +491,6 @@ class PeerScoring(AbstractTask):
 
         await self.db_operations.insert_peer_scores(scores)
 
-    async def mark_event_as_processed(self, event_id: str):
-        # mark event as processed in events table
-        # it will be marked as exported after the scores are exported to backend
-        pass
-
     async def run(self):
         self.metagraph_lite_sync()
 
@@ -504,9 +498,10 @@ class PeerScoring(AbstractTask):
         if not miners_synced:
             return
 
-        # TODO: use get_events_for_scoring after Brier Scoring is disabled
+        # TODO: remove
+        # events_to_score = await self.db_operations.get_events_for_peer_scoring(
         # TODO: do not score more than page_size=100 events at a time.
-        events_to_score = await self.db_operations.get_events_for_peer_scoring(
+        events_to_score = await self.db_operations.get_events_for_scoring(
             # max_events=self.page_size
         )
         if not events_to_score:
@@ -530,16 +525,21 @@ class PeerScoring(AbstractTask):
                     },
                 )
 
-                predictions = await self.db_operations.get_predictions_for_scoring(unique_event_id)
+                predictions = await self.db_operations.get_predictions_for_scoring(
+                    unique_event_id=unique_event_id
+                )
                 if not predictions:
                     self.errors_count += 1
-                    self.logger.warning(
-                        "There are no predictions for a settled event.",
+                    self.logger.error(
+                        "There are no predictions for a settled event - discarding.",
                         extra={"event_id": event_id},
+                    )
+                    await self.db_operations.mark_event_as_discarded(
+                        unique_event_id=unique_event_id
                     )
                     continue
 
-                scores_df = self.peer_score_event(event, predictions)
+                scores_df = await self.peer_score_event(event, predictions)
                 if scores_df.empty:
                     self.logger.error(
                         "Peer scores could not be calculated for an event.",
@@ -557,7 +557,7 @@ class PeerScoring(AbstractTask):
                     )
 
                 await self.export_peer_scores_to_db(scores_df, event_id)
-                await self.mark_event_as_processed(unique_event_id)
+                await self.db_operations.mark_event_as_processed(unique_event_id=unique_event_id)
 
         self.logger.debug(
             "Peer Scoring run finished. Resetting errors count.",

@@ -11,7 +11,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Install dependencies
         run: sudo apt-get update && sudo apt-get install -y python3-pip
@@ -35,7 +35,7 @@ jobs:
           pm2 delete validator
           cp validator.db /root/validator-db/validator1.db
           export INLINE_LOGS=1
-          export API_ACCESS_KEY=${{ secrets.API_ACCESS_KEY_PROD }}
+          export API_ACCESS_KEYS=${{ secrets.API_ACCESS_KEYS_PROD }}
           pm2 start neurons/validator.py --name validator --interpreter python3 -- --netuid 6 --subtensor.network finney --wallet.name ifkey --wallet.hotkey ifhkey --logging.debug
           EOF
       - name: Send success message to Discord

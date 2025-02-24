@@ -27,6 +27,8 @@ class MinerEventResult(BaseModel):
     validator_uid: int
     metadata: typing.Dict[str, typing.Any]
     spec_version: typing.Optional[str] = "0.0.0"
+    registered_date: typing.Optional[datetime.datetime]
+    scored_at: typing.Optional[datetime.datetime]
 
     model_config = ConfigDict(from_attributes=True)
 

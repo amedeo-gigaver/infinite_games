@@ -1,3 +1,7 @@
+# TODO: remove
+############################
+# This file is deprecated. #
+############################
 import copy
 import json
 import math
