@@ -1,5 +1,10 @@
 # Release Notes
 
+## [1.4.0] - 2025-03-07
+- **Bittensor Upgrade**: Upgraded to Bittensor version 9.0.4
+- **Database**: Added periodic vacuum task
+- **API**: Added community predictions route
+
 ## [1.3.9] - 2025-02-19
 - **Bittensor Upgrade**: Upgraded to Bittensor version 9.0.1
 - **Scoring**: Updated the scoring methodology by replacing the Brier scoring approach with Peer scoring.

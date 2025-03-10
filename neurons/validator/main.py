@@ -11,6 +11,7 @@ from neurons.validator.db.operations import DatabaseOperations
 from neurons.validator.if_games.client import IfGamesClient
 from neurons.validator.scheduler.tasks_scheduler import TasksScheduler
 from neurons.validator.tasks.db_cleaner import DbCleaner
+from neurons.validator.tasks.db_vacuum import DbVacuum
 from neurons.validator.tasks.delete_events import DeleteEvents
 from neurons.validator.tasks.export_predictions import ExportPredictions
 from neurons.validator.tasks.export_scores import ExportScores
@@ -148,8 +149,15 @@ async def main():
         wallet=bt_wallet,
     )
 
-    db_cleaner__task = DbCleaner(
+    db_cleaner_task = DbCleaner(
         interval_seconds=53.0, db_operations=db_operations, batch_size=4000, logger=logger
+    )
+
+    vacuum_task = DbVacuum(
+        interval_seconds=300.0,
+        db_operations=db_operations,
+        logger=logger,
+        pages=500,
     )
 
     # Add tasks to scheduler
@@ -165,7 +173,8 @@ async def main():
     scheduler.add(task=metagraph_scoring_task)
     scheduler.add(task=export_scores_task)
     scheduler.add(task=set_weights_task)
-    scheduler.add(task=db_cleaner__task)
+    scheduler.add(task=db_cleaner_task)
+    scheduler.add(task=vacuum_task)
 
     # Start API
     api_task = asyncio.create_task(api.start())

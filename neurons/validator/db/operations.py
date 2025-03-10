@@ -215,11 +215,11 @@ class DatabaseOperations:
                     local_updated_at = CURRENT_TIMESTAMP
                 WHERE
                     event_id = ?
-                    AND status <> ?
+                    AND status = ?
                 RETURNING
                     event_id
             """,
-            [EventStatus.SETTLED, outcome, resolved_at, event_id, EventStatus.SETTLED],
+            [EventStatus.SETTLED, outcome, resolved_at, event_id, EventStatus.PENDING],
         )
 
     async def upsert_events(self, events: list[list[any]]) -> None:
@@ -749,3 +749,36 @@ class DatabaseOperations:
                 self.logger.exception("Error parsing score", extra={"row": row})
 
         return scores
+
+    async def vacuum_database(self, pages: int):
+        await self.__db_client.script(f"PRAGMA incremental_vacuum({pages})")
+
+    async def get_wa_prediction_event(
+        self, unique_event_id: str, interval_start_minutes: int
+    ) -> float | None:
+        """
+        Retrieve the weighted average of the latest predictions for a given event
+        """
+        raw_sql = Path(SQL_FOLDER, "latest_predictions_event.sql").read_text()
+        row = await self.__db_client.one(
+            raw_sql,
+            parameters={
+                "unique_event_id": unique_event_id,
+                "interval_start_minutes": interval_start_minutes,
+            },
+        )
+
+        if row[0] is None:
+            self.logger.warning(
+                "No predictions found for the event",
+                extra={
+                    "unique_event_id": unique_event_id,
+                    "interval_start_minutes": interval_start_minutes,
+                },
+            )
+
+            return row[0]
+
+        weighted_average_prediction = float(row[0])
+
+        return weighted_average_prediction

@@ -24,6 +24,28 @@ async def get_event(event_id: str, request: ApiRequest):
 
 
 @router.get(
+    "/{event_id}/community_prediction",
+)
+async def get_community_prediction(event_id: str, request: ApiRequest):
+    db_operations: DatabaseOperations = request.state.db_operations
+
+    unique_event_id = f"ifgames-{event_id}"
+
+    event = await db_operations.get_event(unique_event_id=unique_event_id)
+
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+
+    current_interval = get_interval_start_minutes()
+
+    community_prediction = await db_operations.get_wa_prediction_event(
+        unique_event_id=unique_event_id, interval_start_minutes=current_interval
+    )
+
+    return {"event_id": event_id, "community_prediction": community_prediction}
+
+
+@router.get(
     "/{event_id}/predictions",
 )
 async def get_predictions(event_id: str, request: ApiRequest):

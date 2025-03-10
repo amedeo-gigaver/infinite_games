@@ -140,7 +140,9 @@ class TestExportScores:
         assert len(results) == 1
         result = results[0]
         assert result["event_id"] == event.event_id
-        assert result["provider_type"] == json.loads(event.metadata)["market_type"]
+        # should not be the real market type - should be ifgames
+        assert result["provider_type"] != json.loads(event.metadata)["market_type"]
+        assert result["provider_type"] == event.market_type
         assert result["title"] == event.description[:50]
         assert result["description"] == event.description
         assert result["category"] == "event"
