@@ -12,6 +12,7 @@ class DeleteEvents(AbstractTask):
     db_operations: DatabaseOperations
     page_size: int
     logger: InfiniteGamesLogger
+    last_deleted_at: str | None
 
     def __init__(
         self,
@@ -45,6 +46,7 @@ class DeleteEvents(AbstractTask):
         self.api_client = api_client
         self.page_size = page_size
         self.logger = logger
+        self.last_deleted_at = None
 
     @property
     def name(self):
@@ -55,15 +57,21 @@ class DeleteEvents(AbstractTask):
         return self.interval
 
     async def run(self):
-        # Read oldest pending event from db
-        deleted_since = await self.db_operations.get_events_pending_first_created_at()
+        # Read oldest pending event from self or db
+        if self.last_deleted_at:
+            deleted_since = self.last_deleted_at
+        else:
+            deleted_since = await self.db_operations.get_events_pending_first_created_at()
+
+            if deleted_since:
+                deleted_since = (
+                    datetime.fromisoformat(deleted_since).isoformat().replace("+00:00", "Z")
+                )
 
         if deleted_since is None:
             self.logger.debug("No events to delete")
 
             return
-
-        deleted_since = datetime.fromisoformat(deleted_since).isoformat().replace("+00:00", "Z")
 
         offset = 0
 
@@ -79,6 +87,7 @@ class DeleteEvents(AbstractTask):
 
             for event in deleted_events:
                 event_id = event["event_id"]
+                self.last_deleted_at = event["deleted_at"]
 
                 db_deleted_event = await self.db_operations.delete_event(
                     event_id=event_id,

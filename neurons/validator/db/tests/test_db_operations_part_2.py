@@ -377,3 +377,72 @@ class TestDbOperationsPart2(TestDbOperationsBase):
         assert updated[0]["status"] == str(EventStatus.DISCARDED.value)
         assert updated[1]["unique_event_id"] == non_discarded_unique_event_id
         assert updated[1]["status"] == str(EventStatus.SETTLED.value)
+
+    async def test_vacuum_database(self, db_operations):
+        result = await db_operations.vacuum_database(500)
+
+        assert result is None
+
+    async def test_get_wa_prediction_event(self, db_operations, db_client):
+        unique_event_id = "unique_event_id"
+
+        wa_prediction = await db_operations.get_wa_prediction_event(unique_event_id, 1)
+
+        # No predictions yet
+        assert wa_prediction is None
+
+        scores = [
+            ScoresModel(
+                event_id="event_id",
+                miner_uid=i,
+                miner_hotkey=f"hk{i}",
+                prediction=0.5,
+                event_score=0.5,
+                spec_version=1,
+            )
+            for i in range(50)
+        ]
+        await db_operations.insert_peer_scores(scores)
+
+        await db_client.update(
+            "UPDATE scores SET processed = 1, metagraph_score = miner_uid * 0.01",
+        )
+
+        # insert predictions like 0.0, 0.01, 0.02, 0.03, ..., 0.99 for calculations
+        predictions = [
+            (
+                unique_event_id,
+                f"hk{i}",
+                i,
+                "1",
+                10,
+                i * 0.01,
+                1,
+                i * 0.01,
+            )
+            for i in range(100)
+        ]
+        await db_operations.upsert_predictions(predictions=predictions)
+        # validate inserted predictions
+        inserted_predictions = await db_client.many(
+            "SELECT * FROM predictions", use_row_factory=True
+        )
+        assert [int(p["minerUid"]) for p in inserted_predictions] == list(range(100))
+        assert [p["interval_agg_prediction"] for p in inserted_predictions] == [
+            i * 0.01 for i in range(100)
+        ]
+
+        # No prediction for interval
+        wa_prediction = await db_operations.get_wa_prediction_event(unique_event_id, 11)
+
+        assert wa_prediction is None
+
+        wa_prediction = await db_operations.get_wa_prediction_event(
+            unique_event_id=unique_event_id,
+            interval_start_minutes=10,
+        )
+        # top 10 miners should be 40-49 with metagraph scores 0.4-0.49
+        # their prediction should be 0.40-0.49
+        assert wa_prediction == sum([(i * 0.01) ** 2 for i in range(40, 50)]) / sum(
+            [i * 0.01 for i in range(40, 50)]
+        )

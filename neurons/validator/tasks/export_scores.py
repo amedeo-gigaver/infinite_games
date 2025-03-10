@@ -56,8 +56,6 @@ class ExportScores(AbstractTask):
     def prepare_scores_payload(self, event: EventsModel, scores: list[ScoresModel]) -> list[dict]:
         results = []
         failures = 0
-        # event.metadata guaranteed non null by the pydantic EventsModel
-        event_market_type = json.loads(event.metadata).get("market_type", event.market_type)
         metadata = json.loads(event.metadata)
         for score in scores:
             try:
@@ -69,7 +67,7 @@ class ExportScores(AbstractTask):
                 backend_spec_version = str(max(score.spec_version, 1039))
                 result = MinerEventResult(
                     event_id=score.event_id,  # awful: backend reconstructs unique_event_id
-                    provider_type=event_market_type,
+                    provider_type=event.market_type,  # leave as it was in the original code
                     title=event.description[:50],  # as in the original code
                     description=event.description,
                     category="event",  # as in the original code

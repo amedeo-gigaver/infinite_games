@@ -1168,6 +1168,7 @@ class TestDbOperationsPart1(TestDbOperationsBase):
         event_id = "event1"
         outcome = 1
         resolved_at = "2000-12-31T14:30:00+00:00"
+        prev_resolved_at = "2000-12-30T14:30:00+00:00"
 
         events = [
             (
@@ -1185,9 +1186,43 @@ class TestDbOperationsPart1(TestDbOperationsBase):
                 "2000-12-30T14:30:00+00:00",
                 "2000-12-31T14:30:00+00:00",
             ),
+            (
+                "unique2",
+                "event2",
+                "truncated_market1",
+                "market_1",
+                "desc1",
+                "2024-12-02",
+                "2024-12-03",
+                None,
+                EventStatus.DISCARDED,
+                '{"key": "value"}',
+                "2000-12-02T14:30:00+00:00",
+                "2000-12-30T14:30:00+00:00",
+                "2000-12-31T14:30:00+00:00",
+            ),
+            (
+                "unique3",
+                "event3",
+                "truncated_market1",
+                "market_1",
+                "desc1",
+                "2024-12-02",
+                "2024-12-03",
+                None,
+                EventStatus.SETTLED,
+                '{"key": "value"}',
+                "2000-12-02T14:30:00+00:00",
+                "2000-12-30T14:30:00+00:00",
+                "2000-12-31T14:30:00+00:00",
+            ),
         ]
 
         await db_operations.upsert_events(events)
+        await db_client.update(
+            "UPDATE events SET resolved_at = ? WHERE event_id = ?",
+            [prev_resolved_at, "event3"],
+        )
 
         await db_operations.resolve_event(
             event_id=event_id,
@@ -1197,15 +1232,22 @@ class TestDbOperationsPart1(TestDbOperationsBase):
 
         result = await db_client.many(
             """
-                SELECT event_id, status, outcome, resolved_at, local_updated_at FROM events
+                SELECT event_id, status, outcome, resolved_at, local_updated_at
+                FROM events
+                ORDER BY event_id
             """
         )
 
-        assert len(result) == 1
+        assert len(result) == 3
         assert result[0][0] == event_id
         assert result[0][1] == str(EventStatus.SETTLED.value)
         assert result[0][2] == str(outcome)
         assert result[0][3] == resolved_at
+        # the other two events were not resolved now
+        assert result[1][1] == str(EventStatus.DISCARDED.value)
+        assert result[1][3] is None
+        assert result[2][1] == str(EventStatus.SETTLED.value)
+        assert result[2][3] == prev_resolved_at
         assert isinstance(result[0][4], str)
 
     async def test_resolve_event_not_resolving_again(

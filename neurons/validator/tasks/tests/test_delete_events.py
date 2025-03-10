@@ -204,7 +204,7 @@ class TestDeleteEventsTask:
             "items": [
                 {
                     "event_id": events[1][1],
-                    "deleted_at": "2024-09-10T20:43:02Z",
+                    "deleted_at": "2024-09-05T20:43:02Z",
                 }
             ],
         }
@@ -218,7 +218,7 @@ class TestDeleteEventsTask:
         with aioresponses() as mocked:
             first_request_deleted_since = "1900-12-02T14:30:00Z"
 
-            second_request_deleted_since = "1950-12-02T14:30:00Z"
+            second_request_deleted_since = "2024-09-11T20:43:02Z"
 
             mocked.get(
                 f"/api/v2/events/deleted?deleted_since={first_request_deleted_since}&offset=0&limit=1",
@@ -265,6 +265,9 @@ class TestDeleteEventsTask:
             assert response[0][0] == events[0][1]
             assert response[1][0] == events[1][1]
 
+            # Assert last deleted at is correctly set
+            assert delete_events_task.last_deleted_at == "2024-09-11T20:43:02Z"
+
             # Act run again
             await delete_events_task.run()
 
@@ -278,3 +281,6 @@ class TestDeleteEventsTask:
             # Event 2 is deleted, event 1 is left
             assert len(response) == 1
             assert response[0][0] == events[0][1]
+
+            # Assert last deleted at is correctly set
+            assert delete_events_task.last_deleted_at == "2024-09-05T20:43:02Z"
