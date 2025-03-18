@@ -6,6 +6,7 @@ from neurons.validator.models.backend_models import MinerEventResult, MinerEvent
 from neurons.validator.models.event import EventsModel
 from neurons.validator.models.score import ScoresModel
 from neurons.validator.scheduler.task import AbstractTask
+from neurons.validator.tasks.pull_events import TITLE_SEPARATOR
 from neurons.validator.utils.logger.logger import InfiniteGamesLogger
 
 
@@ -68,7 +69,7 @@ class ExportScores(AbstractTask):
                 result = MinerEventResult(
                     event_id=score.event_id,  # awful: backend reconstructs unique_event_id
                     provider_type=event.market_type,  # leave as it was in the original code
-                    title=event.description[:50],  # as in the original code
+                    title=event.description.split(TITLE_SEPARATOR)[0][:500],  # max 500 chars title
                     description=event.description,
                     category="event",  # as in the original code
                     start_date=event.starts.isoformat() if event.starts else None,

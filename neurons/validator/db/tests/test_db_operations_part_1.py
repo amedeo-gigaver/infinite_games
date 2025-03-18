@@ -1841,67 +1841,6 @@ class TestDbOperationsPart1(TestDbOperationsBase):
             assert row[1] == 0
             assert row[2] == 0
 
-    # TODO: remove
-    async def test_get_events_for_peer_scoring(
-        self,
-        db_operations: DatabaseOperations,
-        db_client: DatabaseClient,
-    ):
-        expected_event_id = "event1"
-        unexpected_event_id = "event2"
-
-        current_time = datetime.now(timezone.utc)
-
-        events = [
-            EventsModel(
-                unique_event_id="unique1",
-                event_id=expected_event_id,
-                market_type="truncated_market1",
-                event_type="market1",
-                description="desc1",
-                outcome="1",
-                status=EventStatus.SETTLED,
-                metadata='{"key": "value"}',
-                resolved_at=current_time.isoformat(),
-            ),
-            EventsModel(
-                unique_event_id="unique2",
-                event_id=unexpected_event_id,
-                market_type="truncated_market2",
-                event_type="market2",
-                description="desc2",
-                outcome="0",
-                status=EventStatus.SETTLED,
-                metadata='{"key": "value"}',
-                resolved_at=current_time.isoformat(),
-            ),
-        ]
-
-        scores = [
-            ScoresModel(
-                event_id=unexpected_event_id,
-                miner_uid=1,
-                miner_hotkey="hk1",
-                prediction=0.75,
-                event_score=0.85,
-                spec_version=1,
-            ),
-        ]
-
-        await db_operations.upsert_pydantic_events(events)
-        await db_operations.insert_peer_scores(scores)
-
-        scored_events = await db_client.many("SELECT event_id FROM scores")
-
-        assert len(scored_events) == 1
-        assert scored_events[0][0] == unexpected_event_id
-
-        result = await db_operations.get_events_for_peer_scoring()
-
-        assert len(result) == 1
-        assert result[0].event_id == expected_event_id
-        assert result[0].status == EventStatus.SETTLED
-
     async def test_get_events_for_metagraph_scoring(
         self,
         db_operations: DatabaseOperations,

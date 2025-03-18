@@ -15,6 +15,7 @@ from neurons.validator.models.backend_models import MinerEventResult, MinerEvent
 from neurons.validator.models.event import EventsModel, EventStatus
 from neurons.validator.models.score import ScoresModel
 from neurons.validator.tasks.export_scores import ExportScores
+from neurons.validator.tasks.pull_events import TITLE_SEPARATOR
 from neurons.validator.utils.logger.logger import InfiniteGamesLogger
 
 
@@ -59,7 +60,8 @@ class TestExportScores:
             market_type="test_market",
             event_type="test_type",
             registered_date=datetime(2025, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
-            description="""This is a test event description that is longer than fifty characters.""",
+            description="""This is a test event description that is longer than 500 characters."""
+            * 10,
             starts=datetime(2025, 1, 2, 1, 0, 0, tzinfo=timezone.utc),
             resolve_date=datetime(2025, 1, 2, 2, 0, 0, tzinfo=timezone.utc),
             outcome="1",
@@ -143,7 +145,7 @@ class TestExportScores:
         # should not be the real market type - should be ifgames
         assert result["provider_type"] != json.loads(event.metadata)["market_type"]
         assert result["provider_type"] == event.market_type
-        assert result["title"] == event.description[:50]
+        assert result["title"] == event.description[:500]
         assert result["description"] == event.description
         assert result["category"] == "event"
         assert isoparse(result["start_date"]) == isoparse(event.starts.isoformat())
@@ -181,6 +183,23 @@ class TestExportScores:
         assert result["end_date"] is None
         assert result["resolve_date"] is None
         assert result["spec_version"] == "1040"
+
+        # check title-description split
+        event.description = event.description.replace("500 characters.", TITLE_SEPARATOR)
+        payload = export_scores_task.prepare_scores_payload(event, [score])
+        assert json.loads(json.dumps(payload)) == payload
+        assert payload is not None
+        result = payload["results"][0]
+        assert result["title"] == event.description.split(TITLE_SEPARATOR)[0][:500]
+        assert result["title"] == "This is a test event description that is longer than "
+        assert result["description"] == event.description
+        event.description = TITLE_SEPARATOR
+        payload = export_scores_task.prepare_scores_payload(event, [score])
+        assert json.loads(json.dumps(payload)) == payload
+        assert payload is not None
+        result = payload["results"][0]
+        assert result["title"] == ""
+        assert result["description"] == TITLE_SEPARATOR
 
     def test_prepare_scores_payload_failure(
         self, export_scores_task: ExportScores, sample_event: EventsModel

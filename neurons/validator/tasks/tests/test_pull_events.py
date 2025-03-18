@@ -12,7 +12,7 @@ from neurons.validator.db.client import DatabaseClient
 from neurons.validator.db.operations import DatabaseOperations
 from neurons.validator.if_games.client import IfGamesClient
 from neurons.validator.models.event import EventStatus
-from neurons.validator.tasks.pull_events import PullEvents
+from neurons.validator.tasks.pull_events import TITLE_SEPARATOR, PullEvents
 from neurons.validator.utils.logger.logger import InfiniteGamesLogger
 
 
@@ -72,7 +72,7 @@ class TestPullEventsTask:
         # Arrange
         event = {
             "event_id": "123",
-            "title": "Test Event",
+            "title": "Test Event?",
             "description": "This is a test.",
             "start_date": 1700000000,
             "end_date": 1700003600,
@@ -97,7 +97,9 @@ class TestPullEventsTask:
         assert parsed_event.event_id == "123"  # event_id
         assert parsed_event.market_type == "ifgames"  # truncated market_type
         assert parsed_event.event_type == "type1"
-        assert parsed_event.description == "Test EventThis is a test."  # description
+        assert (
+            parsed_event.description == "Test Event?" + TITLE_SEPARATOR + "This is a test."
+        )  # description
         assert parsed_event.starts == datetime.fromtimestamp(
             event["start_date"], tz=timezone.utc
         )  # starts
