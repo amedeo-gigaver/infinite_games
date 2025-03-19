@@ -103,17 +103,6 @@ async def main():
         logger=logger,
     )
 
-    # TODO: remove
-    # score_predictions_task = ScorePredictions(
-    #     interval_seconds=300.0,
-    #     db_operations=db_operations,
-    #     api_client=api_client,
-    #     metagraph=bt_metagraph,
-    #     config=config,
-    #     subtensor=bt_subtensor,
-    #     wallet=bt_wallet,
-    # )
-
     peer_scoring_task = PeerScoring(
         interval_seconds=307.0,
         db_operations=db_operations,
@@ -168,7 +157,6 @@ async def main():
     scheduler.add(task=delete_events_task)
     scheduler.add(task=query_miners_task)
     scheduler.add(task=export_predictions_task)
-    # scheduler.add(task=score_predictions_task) #  TODO: remove
     scheduler.add(task=peer_scoring_task)
     scheduler.add(task=metagraph_scoring_task)
     scheduler.add(task=export_scores_task)

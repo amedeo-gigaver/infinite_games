@@ -1,5 +1,10 @@
 # Release Notes
 
+## [1.4.1] - 2025-03-17
+- **Bittensor Upgrade**: Upgraded to Bittensor version 9.1.0
+- **Database**: Cleaned up old records in the events table
+- **API**: Exposed the OpenAPI schema
+
 ## [1.4.0] - 2025-03-07
 - **Bittensor Upgrade**: Upgraded to Bittensor version 9.0.4
 - **Database**: Added periodic vacuum task

@@ -1,4 +1,3 @@
-from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Iterable
 
@@ -547,46 +546,6 @@ class DatabaseOperations:
             sql=sql,
             parameters=score_tuples,
         )
-
-    # TODO: remove
-    async def get_events_for_peer_scoring(
-        self, since_datetime=None, max_events: int = 1000
-    ) -> list[EventsModel]:
-        """
-        Temporary method to get events for Peer Scoring
-        Returns all events that were recently resolved and need to be scored
-        """
-        if since_datetime is None:
-            since_datetime = datetime.now(timezone.utc) - timedelta(days=3)
-            since_datetime = since_datetime.isoformat()
-
-        rows = await self.__db_client.many(
-            f"""
-                SELECT
-                    {', '.join(EVENTS_FIELDS)}
-                FROM events
-                WHERE status = ?
-                    AND outcome IS NOT NULL
-                    AND resolved_at > ?
-                    AND event_id NOT IN (
-                        SELECT event_id FROM scores
-                    )
-                ORDER BY resolved_at ASC
-                LIMIT ?
-            """,
-            parameters=[EventStatus.SETTLED, since_datetime, max_events],
-            use_row_factory=True,
-        )
-
-        events = []
-        for row in rows:
-            try:
-                event = EventsModel(**dict(row))
-                events.append(event)
-            except Exception:
-                self.logger.exception("Error parsing event", extra={"row": row})
-
-        return events
 
     async def get_events_for_metagraph_scoring(self, max_events: int = 1000) -> list[dict]:
         """

@@ -50,12 +50,36 @@ class API:
     def _get_rate_limiter_key(self, request: Request):
         return request.headers.get(self.api_key_header, "fallback-key")
 
+    def _override_openapi(self, app: FastAPI):
+        app.openapi_schema = app.openapi()
+
+        app.openapi_schema["components"]["securitySchemes"] = {
+            "APIKeyHeader": {
+                "type": "apiKey",
+                "in": "header",
+                "name": "X-API-Key",
+            }
+        }
+
+        # Remove health endpoint
+        app.openapi_schema["paths"].pop("/api/health", None)
+
+        for path, path_value in app.openapi_schema["paths"].items():
+            for method in path_value:
+                path_value[method]["security"] = [{"APIKeyHeader": []}]
+
     def create_api(self):
         # Create FastAPI
-        fast_api = FastAPI(dependencies=[Depends(self._get_db_operations)])
-
+        fast_api = FastAPI(
+            title="SN6 Validator API",
+            version="0.1.0",
+            dependencies=[Depends(self._get_db_operations)],
+            redoc_url=None,
+            docs_url=None,
+            openapi_url="/api/openapi.json",
+        )
         # Rate limiter
-        limiter = Limiter(key_func=self._get_rate_limiter_key, application_limits=["1/1seconds"])
+        limiter = Limiter(key_func=self._get_rate_limiter_key, application_limits=["4/1seconds"])
         fast_api.state.limiter = limiter
 
         fast_api.add_middleware(DbOperationsMiddleware, db_operations=self.db_operations)
@@ -82,6 +106,8 @@ class API:
         )
 
         fast_api.include_router(root_router, prefix="/api")
+
+        self._override_openapi(app=fast_api)
 
         return fast_api
 

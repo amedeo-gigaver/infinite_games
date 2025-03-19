@@ -7,6 +7,8 @@ from neurons.validator.if_games.client import IfGamesClient
 from neurons.validator.models.event import EventsModel, EventStatus
 from neurons.validator.scheduler.task import AbstractTask
 
+TITLE_SEPARATOR = " ==Further Information==: "
+
 
 class PullEvents(AbstractTask):
     interval: float
@@ -96,7 +98,7 @@ class PullEvents(AbstractTask):
             event_id=event["event_id"],
             market_type=truncated_market_type,
             event_type=event_type,
-            description=event.get("title", "") + event.get("description", ""),
+            description=event.get("title", "") + TITLE_SEPARATOR + event.get("description", ""),
             starts=start_date,
             resolve_date=None,
             outcome=event["answer"],

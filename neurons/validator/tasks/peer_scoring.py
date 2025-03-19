@@ -498,8 +498,6 @@ class PeerScoring(AbstractTask):
         if not miners_synced:
             return
 
-        # TODO: remove
-        # events_to_score = await self.db_operations.get_events_for_peer_scoring(
         # TODO: do not score more than page_size=100 events at a time.
         events_to_score = await self.db_operations.get_events_for_scoring(
             # max_events=self.page_size

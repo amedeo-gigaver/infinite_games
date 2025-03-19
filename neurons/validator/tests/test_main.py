@@ -28,7 +28,6 @@ class TestValidatorMain:
             patch("neurons.validator.main.TasksScheduler") as MockTasksScheduler,
             patch("neurons.validator.main.logger", spec=True) as mock_logger,
             patch("neurons.validator.main.ExportPredictions", spec=True),
-            # patch("neurons.validator.main.ScorePredictions", spec=True), # TODO: remove
             patch("neurons.validator.main.PeerScoring", spec=True),
             patch("neurons.validator.main.MetagraphScoring", spec=True),
             patch("neurons.validator.main.ExportScores", spec=True),

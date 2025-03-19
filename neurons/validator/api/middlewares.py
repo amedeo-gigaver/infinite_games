@@ -41,10 +41,9 @@ class APIKeyMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next: typing.Callable):
         # Skip API key check for specific paths if needed
-        if request.url.path in ["/api/health"]:
+        if request.url.path in ("/api/health"):
             return await call_next(request)
 
-        # Get API key from header
         api_key = request.headers.get(self.api_key_header)
 
         if not api_key:
