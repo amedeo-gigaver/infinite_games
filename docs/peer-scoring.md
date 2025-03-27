@@ -13,10 +13,10 @@ Let $S(p_{m,q,t},o_q)$ be the score of a given prediction if the question resolv
 
 ## Peer Score
 
-For a given question $q$ at time step $t$, each miner's peer score measures how their prediction compares to those of all the other miners. With $n$ miners in total, in case the question resolves positively the peer score for miner $m$ is computed as:
+For a given question $q$ at time step $t$, each miner's peer score measures how their prediction compares to those of all the other miners. With $n$ miners in total, in case the question resolves to $o_E$ the peer score for miner $m$ is computed as:
 
-$$S(p_{m,q,t}, 1) = \frac{1}{n} \sum_{j \neq m} \Bigl( \log(p_{m,q,t}) - \log(p_{j,q,t}) \Bigr)
-= \log(p_{m,q,t}) - \frac{1}{n}\sum_{j \neq m} \log(p_{j,q,t})$$.
+$$S(p_{m,q,t}, o_E) = \frac{1}{n} \sum_{j \neq m} \Bigl( \log(|o_E - p_{m,q,t}|) - \log(|o_E - p_{j,q,t}|) \Bigr)
+= \log(|o_E - p_{m,q,t}|) - \frac{1}{n}\sum_{j \neq m} \log(|o_E - p_{j,q,t}|)$$.
 
 In other words, this score reflects the difference between the logarithm of miner $m$'s prediction and the average logarithm of the predictions from all other miners.
 
@@ -30,7 +30,7 @@ $$S(0_{m,q,t}, 1) = \log(0.01) - \frac{1}{n}\sum_{j \neq m} \log(p_{j,q,t})$$.
 
 ## Weights
 
-We associate a weight $w_{q, t}$ to each depending on the time of the submission $t \in T_q$. 
+We associate a weight $w_{q, t}$ to each prediction depending on the time of the submission $t \in T_q$. 
 
 
 We choose exponentially decreasing weights along the intuition that predicting gets exponentially harder as one goes back in time. Denote $T_q = [A_q, B_q ]$.

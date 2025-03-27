@@ -1,5 +1,8 @@
 # Release Notes
 
+## [1.4.2] - 2025-03-25
+- **Scoring**: Increased moving average from 100 to 150 events score for setting the weights
+
 ## [1.4.1] - 2025-03-17
 - **Bittensor Upgrade**: Upgraded to Bittensor version 9.1.0
 - **Database**: Cleaned up old records in the events table
