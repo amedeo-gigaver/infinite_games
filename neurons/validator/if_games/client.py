@@ -34,13 +34,16 @@ class IfGamesClient:
             raise TypeError("bt_wallet must be an instance of Wallet.")
 
         self.__logger = logger
-        self.__base_url = "https://ifgames.win" if env == "prod" else "https://stage.ifgames.win"
+        self.__base_url = "https://ifgames.win" if env == "prod" else "https://stg.ifgames.win"
         self.__timeout = aiohttp.ClientTimeout(total=90)  # In seconds
+
+        self.__bt_wallet = bt_wallet
+
         self.__headers = {
             "Validator-Version": __version__,
             "Validator-Hash": commit_short_hash,
+            "Validator-Public-Key": bt_wallet.hotkey.public_key.hex(),
         }
-        self.__bt_wallet = bt_wallet
 
     def create_session(self, other_headers: dict = None) -> aiohttp.ClientSession:
         headers = self.__headers.copy()

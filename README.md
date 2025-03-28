@@ -97,7 +97,7 @@ Once the event resolves, the validator computes the Brier score for each predict
 
 $$w_k = \exp\\left(-\frac{n}{n-k} + 1\right)$$.
 
-A detailed explanation of this process is available [here](https://hackmd.io/@nielsma/S1sB8xO_C).
+A detailed explanation of this process is available [here](docs/peer-scoring.md).
 
 
 ### Peer Scoring
@@ -129,8 +129,8 @@ and normalizes the resulting scores across all miners.
 - [x] Synthetic event generation from news data using an LLM 
 
 - [x] Validator v2 - modular and much higher throughput 
-- [ ] Scoring v2 (batches, peer score)
-- [ ] Exposing the silicon crowd predictions 
+- [x] Scoring v2 (batches, peer score)
+- [x] Exposing the silicon crowd predictions 
 - [ ] Decentralisation of event generation and validator dynamic desirability (inspired from SN13)
 
 - [ ] Decentralisation of event generation and validator dynamic desirability (inspired from SN13)

@@ -9,9 +9,10 @@ You will be receiving requests from validators every 3-5 minute. You do not have
 Before registering your miner on the main network you can register it on testnet.
 Our testnet netuid is 155. You will also need faucet TAO. You can ask for them [here](https://discord.com/channels/799672011265015819/1190048018184011867).
 
-To register on mainnet you will need real TAO. You can get TAO by swapping them against USDC on an exchange like [MEXC](https://www.mexc.com/). Other exchanges supporting TAO are listed [here](https://taostats.io/). We give steps below on creating your own wallet from [btcli](https://docs.bittensor.com/btcli). The registration cost fluctuates depending on the current demand to register on the network but it's minimum price is 0.7 TAO. After you register there is an immunity period during which you cannot be excluded, if you are the lowest miner at the end of it you are deregistered. 
+To register on mainnet you will need real TAO. Our mainnet uid is 6. You can get TAO by swapping them against USDC on an exchange like [MEXC](https://www.mexc.com/). Other exchanges supporting TAO are listed [here](https://taostats.io/). We give steps below on creating your own wallet from [btcli](https://docs.bittensor.com/btcli). The registration cost fluctuates depending on the current demand to register on the network. After you register there is an immunity period during which you cannot be excluded, if you are the lowest miner at the end of it you are deregistered. 
 
 Here are entries in the Bittensor documentation for [miners](https://docs.bittensor.com/miners/) and [coldkeys](https://docs.bittensor.com/getting-started/wallets). 
+
 
 ## Key insights into the scoring system
 
@@ -21,50 +22,7 @@ Here are entries in the Bittensor documentation for [miners](https://docs.bitten
 
 ## Baseline Miner
 
-We integrate the LLM prompting [pipeline](https://github.com/dannyallover/llm_forecasting.git) with news retrieval developed by the authors of the forecasting LLM paper quoted in the readme. In the current form it only uses [Google News](https://news.google.com/home?hl=en-US&gl=US&ceid=US:en) for news retrieval while the original model from the article used 4 other different sources (Newscatcher, Newsdata.io, Aylien, NewsAPI.org).
-This pipeline can work with different base models.
-
-**version 1**
-GPT4 as base model.
-
-steps:
-- add an OpenAI key (OPENAI_KEY) to your local environment
-
-**version 2**
-GPT-3.5 and GPT4 Mini as base models.
-
-steps:
-- add an OpenAI key to your local environment
-- add the parameter ***models_setup_option=1*** to the ***get_prediction*** function in `neurons/miner/main.py`
-
-```bash
-llm_prediction = (await self.llm.get_prediction(market=market, models_setup_option=1))
-```
-
-**version 3**
-
-Gemini as base model
-
-steps:
-- add a Google Gemini key (GOOGLE_AI_KEY) to your local environment
-- add the parameter ***models_setup_option=2*** to the ***get_prediction*** function in `neurons/miner/main.py`
-
-```bash
-llm_prediction = (await self.llm.get_prediction(market=market, models_setup_option=2))
-```
-
-**version 4**
-GPT-3.5 (used for reasoning) and Gemini as base models
-
-steps:
-- add an OpenAI key and a Google Gemini key (GOOGLE_AI_KEY) to your local environment
-- add the parameter ***models_setup_option=3*** to the ***get_prediction*** function in `neurons/miner/main.py.py`
-
-```bash
-llm_prediction = (await self.llm.get_prediction(market=market, models_setup_option=3))
-```
-
-You can also set up your own configurations.
+We integrate an LLM pipeline based on the [forecasting-tools](https://github.com/CodexVeritas/forecasting-tools/) repository. Please refer to the last part of the *Getting Started* section below for setup instructions.
 
 # Miner strategy
 
@@ -102,6 +60,8 @@ Miners will have to retrieve protest data relevant to each of the countries list
 # Getting Started
 
 
+## 1. Setup the environment
+
 
 First clone this repo by running `git clone `. Then to run a miner:
 
@@ -138,6 +98,7 @@ pip install -r requirements.txt
 
 The venv should be active whenever the neurons are run.
 
+
 ## 2. Create Wallets
 
 This step creates local coldkey and hotkey pairs for your miner. Both of these items can be shared (for example you have to share you coldkey to get faucet tokens and these will appear on [Taostats](https://taostats.io/)). Do **not** share your mnemonic.
@@ -171,7 +132,7 @@ Your balance is: # Your wallet balance will be shown
 The cost to register by recycle is τ0.000000001 # Current registration costs
 >> Do you want to continue? [y/n] (n): # Enter y to continue
 >> Enter password to unlock key: # Enter your wallet password
->> Recycle τ0.000000001 to register on subnet:8? [y/n]: # Enter y to register
+>> Recycle τ0.000000001 to register on subnet:6? [y/n]: # Enter y to register
 📡 Checking Balance...
 Balance:
   τ5.000000000 ➡ τ4.999999999
@@ -193,7 +154,7 @@ To check your miner on the testnet add the `--subtensor.network test` flag
 The above command will display the below:
 
 ```bash
-Subnet: TBD # or 155 on testnet
+Subnet: 6 (or 155 on testnet)
 COLDKEY    HOTKEY   UID  ACTIVE  STAKE(τ)     RANK    TRUST  CONSENSUS  INCENTIVE  DIVIDENDS  EMISSION(ρ)   VTRUST  VPERMIT  UPDATED  AXON  HOTKEY_SS58
 miner  default  197    True   0.00000  0.00000  0.00000    0.00000    0.00000    0.00000            0  0.00000                56  none  5GKkQKmDLfsKaumnkD479RBoD5CsbN2yRbMpY88J8YeC5DT4
 1          1        1            τ0.00000  0.00000  0.00000    0.00000    0.00000    0.00000           ρ0  0.00000
@@ -232,7 +193,7 @@ Use the following example command to run the miner:
 
 --wallet.name: Provide the name of your wallet.
 --wallet.hotkey: Enter your wallet's hotkey.
---netuid: Use 155 for testnet.
+--netuid: Use 6 for mainnet and 155 for testnet.
 --subtensor.network: Specify the network you want to use (finney, test, local, etc).
 --logging.debug: Adjust the logging level according to your preference.
 --axon.port: Specify the port number you want to use.
@@ -283,7 +244,7 @@ export OPENAI_API_KEY=<your_openai_api_key>
 4. Replace the placeholder forecaster with `LLMForecaster`
 5. Start your miner - it will now use LLM models to forecast events
 
-## 7. Creating Your Own forecaster
+## 7. Creating Your Own Forecaster
 
 You can create your own custom forecaster to implement different prediction strategies:
 
@@ -291,8 +252,10 @@ You can create your own custom forecaster to implement different prediction stra
 2. Implement the `_run` method in your forecaster
    - This method must return a prediction value between 0 and 1
    - You can access event information through the `MinerEvent` class ([`neurons/miner/models/event.py`](../neurons/miner/models/event.py))
-
 3. Update the `assign_forecaster` function in [`neurons/miner.py`](../neurons/miner.py) to use your forecaster
 
 The `assign_forecaster` function lets you use different forecasters for different types of events. You can examine the event information and choose the most appropriate forecaster for each case.
+
+
+
 

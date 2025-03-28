@@ -3,7 +3,7 @@ from neurons.validator.scheduler.task import AbstractTask
 from neurons.validator.utils.logger.logger import InfiniteGamesLogger
 
 # how many previous events to consider for the moving average
-MOVING_AVERAGE_EVENTS = 99
+MOVING_AVERAGE_EVENTS = 149
 
 
 class MetagraphScoring(AbstractTask):

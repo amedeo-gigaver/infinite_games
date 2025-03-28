@@ -11,43 +11,42 @@ from aioresponses import aioresponses
 from bittensor_wallet import Wallet
 from yarl import URL
 
-from neurons.validator.if_games.client import IfGamesClient
+from neurons.validator.if_games.client import IfGamesClient, IfgamesEnvType
 from neurons.validator.utils.git import commit_short_hash
 from neurons.validator.utils.logger.logger import InfiniteGamesLogger
 from neurons.validator.version import __version__
 
 
+def make_client_test_env(env: IfgamesEnvType = "test"):
+    logger = MagicMock(spec=InfiniteGamesLogger)
+
+    hotkey_mock = MagicMock(
+        sign=MagicMock(side_effect=lambda x: x.encode("utf-8")),
+        ss58_address="ss58_address",
+        public_key=b"public_key",
+    )
+
+    bt_wallet = MagicMock(
+        spec=Wallet, get_hotkey=MagicMock(return_value=hotkey_mock), hotkey=hotkey_mock
+    )
+
+    return IfGamesClient(env=env, logger=logger, bt_wallet=bt_wallet)
+
+
 class TestIfGamesClient:
     @pytest.fixture
     def client_test_env(self):
-        logger = MagicMock(spec=InfiniteGamesLogger)
-
-        hotkey_mock = MagicMock()
-        hotkey_mock.sign = MagicMock(side_effect=lambda x: x.encode("utf-8"))
-        hotkey_mock.ss58_address = "ss58_address"
-
-        bt_wallet = MagicMock(spec=Wallet)
-        bt_wallet.get_hotkey = MagicMock(return_value=hotkey_mock)
-
-        return IfGamesClient(env="test", logger=logger, bt_wallet=bt_wallet)
+        return make_client_test_env(env="test")
 
     @pytest.mark.parametrize(
         "client,expected_base_url",
         [
             (
-                IfGamesClient(
-                    env="test",
-                    logger=MagicMock(spec=InfiniteGamesLogger),
-                    bt_wallet=MagicMock(spec=Wallet),
-                ),
-                "https://stage.ifgames.win",
+                make_client_test_env(env="test"),
+                "https://stg.ifgames.win",
             ),
             (
-                IfGamesClient(
-                    env="prod",
-                    logger=MagicMock(spec=InfiniteGamesLogger),
-                    bt_wallet=MagicMock(spec=Wallet),
-                ),
+                make_client_test_env(env="prod"),
                 "https://ifgames.win",
             ),
         ],
@@ -61,6 +60,7 @@ class TestIfGamesClient:
         # Verify that the default headers were set correctly
         assert session.headers["Validator-Version"] == __version__
         assert session.headers["Validator-Hash"] == commit_short_hash
+        assert session.headers["Validator-Public-Key"] == b"public_key".hex()
 
     async def test_logger_interceptors_success(self, client_test_env: IfGamesClient):
         logger = client_test_env._IfGamesClient__logger
