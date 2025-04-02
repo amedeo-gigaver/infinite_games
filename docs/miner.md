@@ -7,9 +7,9 @@ You will be receiving requests from validators every 3-5 minute. You do not have
 ## General
 
 Before registering your miner on the main network you can register it on testnet.
-Our testnet netuid is 155. You will also need faucet TAO. You can ask for them [here](https://discord.com/channels/799672011265015819/1190048018184011867).
+Our testnet netuid is 155. You will also need faucet TAO. You can ask for them [here](https://discord.com/channels/799672011265015819/1190048018184011867). If you have any difficulties please reach out on our discord channel, we can then send them to you as well [here](https://discord.gg/fdg8uwZt).
 
-To register on mainnet you will need real TAO. Our mainnet uid is 6. You can get TAO by swapping them against USDC on an exchange like [MEXC](https://www.mexc.com/). Other exchanges supporting TAO are listed [here](https://taostats.io/). We give steps below on creating your own wallet from [btcli](https://docs.bittensor.com/btcli). The registration cost fluctuates depending on the current demand to register on the network. After you register there is an immunity period during which you cannot be excluded, if you are the lowest miner at the end of it you are deregistered. 
+To register on mainnet you will need real TAO. Our mainnet uid is 6. You can get TAO by swapping them against USDC on an exchange like [Kraken](https://www.kraken.com/) or [MEXC](https://www.mexc.com/). Other exchanges supporting TAO are listed [here](https://taostats.io/). We give steps below on creating your own wallet from [btcli](https://docs.bittensor.com/btcli). The registration cost fluctuates depending on the current demand to register on the network. After you register there is an immunity period during which you cannot be excluded, if you are the lowest miner at the end of it you are deregistered. 
 
 Here are entries in the Bittensor documentation for [miners](https://docs.bittensor.com/miners/) and [coldkeys](https://docs.bittensor.com/getting-started/wallets). 
 
@@ -17,47 +17,111 @@ Here are entries in the Bittensor documentation for [miners](https://docs.bitten
 ## Key insights into the scoring system
 
 - You have to predict all events, you get the worst score if you don't sent a prediction for a given time interval (current each interval lasts 4h) on a given event
-- You are mostly rewarded for your early predictions
+- You are mostly rewarded for your early predictions (there is an exponentially decaying window, updating over 4h intervals)
 - In the new peer score system if you are a new miner we give you a score of $0$ on all the intervals for which you could not submit a prediction but where the associated question is taken into account in your score (in the legacy system we assume you sent 0.5)
 
 ## Baseline Miner
 
 We integrate an LLM pipeline based on the [forecasting-tools](https://github.com/CodexVeritas/forecasting-tools/) repository. Please refer to the last part of the *Getting Started* section below for setup instructions.
 
-# Miner strategy
+# Relevant Research
 
-A reference providing a **baseline miner** strategy is the article ["Approaching Human Level Forecasting with Language Models"](https://arxiv.org/html/2402.18563v1?s=35) ([1]). The authors fine-tune an LLM to generate predictions on binary events (including the ones listed on Polymarket) which nears the performance of human forecasters when submitting a forecast for each prediction, and which beats human forecasters in a setting where the LLM can choose to give a prediction or not based on its confidence.
+A reference providing a **baseline strategy** for miners is the article ["Approaching Human Level Forecasting with Language Models"](https://arxiv.org/html/2402.18563v1?s=35) ([1]). The authors fine-tune an LLM to generate predictions on binary events (including the ones listed on Polymarket) which nears the performance of human forecasters when submitting a forecast for each prediction, and which beats human forecasters in a setting where the LLM can choose to give a prediction or not based on its confidence.
 
 The authors released a version of the code they used to build the LLM they describe in the paper. You can find it [here](https://github.com/dannyallover/llm_forecasting.git). 
 
 
 # System requirements
 
-The computational requirements for a miner will depend significantly on the frequency at which they need to send predictions to be competitive since the base model we consider consists of a set of LLM sub-modules that each need to perform computations. Miners will also need to eventually continually provide new data to their models.
+The computational requirements for a miner using our [public miner](../neurons/miner/forecasters/llm_forecaster.py) are 50GB of hard drive and 4-8GB of RAM. Any custom implementation should do its own evaluation.
 
-A significant cost in the case of the repo referenced above is the cost of using e.g the OpenAI API as well as the cost of retrieving news data. Every time a prediction is produced, a base model is used to generate various prompts. A miner could circumvent that by using a local model or by using the output of the [subnet 18](https://github.com/corcel-api/cortex.t.git).
-News retrieval is often done through news provider like https://www.newscatcherapi.com/. They are most often behind a paywall.
+A significant cost in the case of the repo referenced above is the cost of using e.g the OpenAI API as well as the cost of retrieving news data. Common news providers are [Perplexity](https://www.perplexity.ai/) and [Ask News](https://asknews.app/en).
+
 
 
 # Background information on event types
 
-## ACLED
+You can get the list of ongoing events using the following [API endpoint](https://ifgames.win/api/v2/events?from_date=1&offset=0&limit=25).
 
-We join [here](docs/ACLED-data/protest-data-3days.json) and [here](docs/ACLED-data/Protests-events-7-days.json) two dataset of events that stretches over 6 months (from January 2024 to June 2024) which represents the type of events that will be sent to miners from [ACLED](https://acleddata.com/) data.
+## LLM
 
-This first set of events will have the following structure:
-"Will the amount of protests in [country] during [3 days window or 1 week window] be above [30 day moving average] ?"
+The events are generated by our internal LLM event generators based triggers coming from [Ask News](https://asknews.app/en) and [Polymarket](https://polymarket.com/). They are focused on geopolitics and politics. 
 
-**Key details**:
-- the countries will initially be EU countries (with non degenerate protest rates) and the US. This is the exact list: ['Germany', 'United Kingdom', 'France', 'Italy', 'Spain', 'Poland', 'Romania', 'Netherlands', 'Belgium', 'Ireland', 'Sweden', 'Czech Republic', 'Greece', 'Portugal', 'Hungary', 'Austria', 'Serbia', 'Bulgaria', 'Denmark', 'United States']
-- the cutoff will be set at the start of the time window
-- events will be generated daily but they will only resolve on Tuesday-Wednesday due to the schedule ACLED follows to update its data.
+Here are examples:
 
-Miners will have to retrieve protest data relevant to each of the countries listed above in order to improve their predictions.
+"Will the US Department of State or the US Department of Defense confirm, via an official announcement, the delivery of a new arms package (i.e., one that has not been previously announced or confirmed) to Ukraine by March 20, 2025 23:59 UTC?"
+
+"Will the Trump administration exclude tariffs on cars by April 2, 2025?"
+
+## Fred
+
+The events are constructed based on the time series of certain economic indicators listed on [Fred](https://fred.stlouisfed.org/). They ask whether a given indicator will be greater than a value obtained through a least squares method.
+
+Here is an example:
+
+Will the value of `5-Year 0.125% Treasury Inflation-Indexed Bond, Due 4/15/2025` be strictly greater than -2.44 % at 2025-03-27 ?
+
+
+
+## Crypto
+
+The events ask about key indicators (max/min price, market cap, trading volume) related to major cryptocurrencies (BTC, ETH, TAO).
+
+Here are examples:
+
+Will the market capitalization of `Bitcoin` (BTC) increase by more than 4.2467% on 2025-03-25? 
+
+Will the 24-hour trading volume of `Ethereum` (ETH) exceed 12603592599.0 USD on 2025-03-25? 
+
+Will the price of `Bittensor` (TAO) reach 283.31 USD at any time on 2025-03-25?
+
+
+## Earnings
+
+Given an earning report is published, we ask whether the opening price the day after the report will be higher than the last closing price.
+
+Here is an example:
+
+Will the earnings announcement for LOCL (Local Bounti Corp) on 2025-03-28 result in an opening stock price on 2025-03-31 that is higher than the closing stock price on 2025-03-28?
+
+
+
+## Polymarket
+
+We stream some subset of the markets listed on Polymarket. Currently these are markets that when received have a midprice between 0.2 and 0.8. Soon these will be mostly the markets that are used to trigger our LLM generated event clusters.
 
 
 
 # Getting Started
+
+You can immediately experiment with a miner on testnet using codespace.
+
+1. Open a codespace on our main branch
+2. (option 1) Follow step 2 to 3, creating a wallet named validator
+2. (option 2) Export the mnemonics of an existing wallet: `export MNEMONIC_COLDKEY={MNEMONIC_COLDKEY}` and `export MNEMONIC_HOTKEY={MNEMONIC_HOTKEY}` and type "regen_test_wallet"
+3. (Optional) Export API keys following step 6.2
+4. Type `miner_testnet` and your miner is running
+
+## 0a. Set up your server
+
+We recommend the following cloud providers:
+
+- [Amazon EC2](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/EC2_GetStarted.html)
+
+- [Microsoft Azure VM](https://azure.microsoft.com/en-us/products/virtual-machines)
+
+- [Google Cloud Compute Engine](https://cloud.google.com/products/compute)
+
+Most importantly your bot should be able to continuously respond to incoming requests from validators. There is a penalty for downtime.
+
+## 0b. Get real TAO
+
+You will need real TAO to register in the subnet after you tried the testnet.
+
+You can create an account on [Kraken](https://www.kraken.com/) if you have not already, and buy [TAO](https://www.kraken.com/en-gb/prices/bittensor). You should then withdraw it to the Bittensor wallet you create on step 2.
+
+You can also create a wallet using this [Chrome extension](https://chromewebstore.google.com/detail/bittensor-wallet/bdgmdoedahdcjmpmifafdhnffjinddgc?hl=en) and withdraw there. You will then have to regenerate your wallet using your mnemonic on step 2. 
+
 
 
 ## 1. Setup the environment
@@ -110,9 +174,31 @@ btcli wallet new_coldkey --wallet.name miner
 btcli wallet new_hotkey --wallet.name miner --wallet.hotkey default
 ```
 
-## 2a. (Optional) Getting faucet tokens
+You can also regenerate an existing wallet using the following:
 
-Faucet is disabled on the testnet. Hence, if you don't have sufficient faucet tokens, ask the Bittensor Discord community for faucet tokens. Go to the help-forum on the Discord and post your request in the "Requests for Testnet TAO" thread.
+```bash
+btcli w regen_coldkey --wallet-path ~/.bittensor/wallets/ \
+    --wallet-name miner --mnemonic "${MNEMONIC_COLDKEY}"
+
+btcli w regen_hotkey --wallet-name miner --wallet-hotkey default \
+    --mnemonic "${MNEMONIC_HOTKEY}"
+```
+
+
+## 2a. Getting faucet tokens
+
+Ask the Bittensor Discord community for faucet tokens [here](https://discord.com/channels/799672011265015819/1190048018184011867). Post your request in the "Requests for Testnet TAO" thread using the following format: 
+
+- Testnet netuid: 155
+- Mainnet netuid : 6
+- Roles: Miner
+- Coldkey : - paste your coldkey here -
+- Do you have your mnemonic phrase for the coldkey written down in a safe place? Yes
+
+If you encounter any issue please reach out to our team on the subnet's Discord channel.
+
+We strongly encourage you to register on testnet first.
+
 
 ## 3. Register keys
 
@@ -161,13 +247,21 @@ miner  default  197    True   0.00000  0.00000  0.00000    0.00000    0.00000   
                                                                                 Wallet balance: τ0.000999999
 ```
 
+## 5. Check that you accepting incoming validator requests
+
+Please make sure your firewall doesn't block the port on which validators query your miner. The port can be specified with the argument --axon.port and by default it is 8091.
+
+After you registered your miner on testnet, check in the logs if you are receiving forecasting events. If you receive forecasting events it means you are listening to the network. If you do not receive events, check the firewall of your provider.
+
 ## Running a Miner
 
 ### Direct Run
 
-Run the following command inside the `infinite_games` directory:
+Run the following command inside the `infinite_games` directory to run your miner on testnet:
 
 `python neurons/miner.py --netuid 155 --subtensor.network test --wallet.name miner --wallet.hotkey default`
+
+Remove the testnet flag and change the netuid to 6 if you are on mainnet.
 
 ### PM2 Installation
 
@@ -255,6 +349,30 @@ You can create your own custom forecaster to implement different prediction stra
 3. Update the `assign_forecaster` function in [`neurons/miner.py`](../neurons/miner.py) to use your forecaster
 
 The `assign_forecaster` function lets you use different forecasters for different types of events. You can examine the event information and choose the most appropriate forecaster for each case.
+
+## 8. Analysing the performance of your miner
+
+Look into the following links for key data on the subnet:
+
+- [analytics.ifgames.win](https://analytics.ifgames.win/) - comprehensive dashboard on event generation resolution, leaderboard and miner specific metrics
+- [performance.ifgames.win](https://performance.ifgames.win/)  - subnet benchmarking
+- [scores.ifgames.win](https://scores.ifgames.win/)  - raw peer scores per miner, prediction distribution, easy access to the scores of all miners for analysis
+
+Before you register your miner on mainnet you can use the data from the following sources in order to measure the accuracy of your miner and compare it to the accuracy of other miners using the leaderboard [here](https://app.hex.tech/1644b22a-abe5-4113-9d5f-3ad05e4a8de7/app/5f1e0e62-6072-4440-9646-6d2b60cd1674/latest?selectedStaticCellId=c7d9e2fa-0766-41c5-98d8-5a3764d0b90a):
+
+- [ifgames.win/api/v2/events?from_date=1&offset=0&limit=250](https://ifgames.win/api/v2/events?from_date=1&offset=0&limit=250) - get the ongoing events 
+
+- [ifgames.win/api/v2/events/resolved?offset=0&resolved_since=1&limit=100](https://ifgames.win/api/v2/events/resolved?offset=0&resolved_since=1&limit=100) - get the resolved events
+
+- you can also use [this](https://app.hex.tech/1644b22a-abe5-4113-9d5f-3ad05e4a8de7/app/5f1e0e62-6072-4440-9646-6d2b60cd1674/latest?selectedStaticCellId=dac3aa16-bc7d-4318-a8cc-47ab4a82d409) section of the main analytics dashboard to get previously broadcasted questions.
+
+*We will release very soon tools for miners to measure their performance before entering the subnet.*
+
+After you registered your miner you can use [this](https://app.hex.tech/1644b22a-abe5-4113-9d5f-3ad05e4a8de7/app/5f1e0e62-6072-4440-9646-6d2b60cd1674/latest?selectedStaticCellId=9f920244-0c9b-4fac-9a53-7b2b0ec1a775) section of the main analytics dashboard to track your performance. 
+
+For a high level view of the network please refer to this [view](https://taostats.io/subnets/6/chart) on Taostats. You can see the current real-time ranking by selecting the *Metagraph* section and the current incentive distribution in the *Distribution* section.
+
+
 
 
 
