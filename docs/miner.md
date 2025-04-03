@@ -9,7 +9,7 @@ You will be receiving requests from validators every 3-5 minute. You do not have
 Before registering your miner on the main network you can register it on testnet.
 Our testnet netuid is 155. You will also need faucet TAO. You can ask for them [here](https://discord.com/channels/799672011265015819/1190048018184011867). If you have any difficulties please reach out on our discord channel, we can then send them to you as well [here](https://discord.gg/fdg8uwZt).
 
-To register on mainnet you will need real TAO. Our mainnet uid is 6. You can get TAO by swapping them against USDC on an exchange like [Kraken](https://www.kraken.com/) or [MEXC](https://www.mexc.com/). Other exchanges supporting TAO are listed [here](https://taostats.io/). We give steps below on creating your own wallet from [btcli](https://docs.bittensor.com/btcli). The registration cost fluctuates depending on the current demand to register on the network. After you register there is an immunity period during which you cannot be excluded, if you are the lowest miner at the end of it you are deregistered. 
+To register on mainnet you will need real TAO. Our mainnet uid is 6. You can get TAO by swapping them against USDC on an exchange like [MEXC](https://www.mexc.com/). Other exchanges supporting TAO are listed [here](https://taostats.io/). We give steps below on creating your own wallet from [btcli](https://docs.bittensor.com/btcli). The registration cost fluctuates depending on the current demand to register on the network. After you register there is an immunity period during which you cannot be excluded, if you are the lowest miner at the end of it you are deregistered. 
 
 Here are entries in the Bittensor documentation for [miners](https://docs.bittensor.com/miners/) and [coldkeys](https://docs.bittensor.com/getting-started/wallets). 
 
@@ -94,15 +94,13 @@ We stream some subset of the markets listed on Polymarket. Currently these are m
 
 # Getting Started
 
-You can immediately experiment with a miner on testnet using codespace.
+First you can immediately experiment with a miner on testnet using codespace.
 
 1. Open a codespace on our main branch
-2. (option 1) Follow step 2 to 3, creating a wallet named validator
-2. (option 2) Export the mnemonics of an existing wallet: `export MNEMONIC_COLDKEY={MNEMONIC_COLDKEY}` and `export MNEMONIC_HOTKEY={MNEMONIC_HOTKEY}` and type "regen_test_wallet"
-3. (Optional) Export API keys following step 6.2
-4. Type `miner_testnet` and your miner is running
+2. Follow step 2 to 3, creating a wallet named validator
+3. Type `miner_testnet` and your miner is running
 
-## 0a. Set up your server
+## 1a. Set up your server
 
 We recommend the following cloud providers:
 
@@ -112,15 +110,7 @@ We recommend the following cloud providers:
 
 - [Google Cloud Compute Engine](https://cloud.google.com/products/compute)
 
-Most importantly your bot should be able to continuously respond to incoming requests from validators. There is a penalty for downtime.
-
-## 0b. Get real TAO
-
-You will need real TAO to register in the subnet after you tried the testnet.
-
-You can create an account on [Kraken](https://www.kraken.com/) if you have not already, and buy [TAO](https://www.kraken.com/en-gb/prices/bittensor). You should then withdraw it to the Bittensor wallet you create on step 2.
-
-You can also create a wallet using this [Chrome extension](https://chromewebstore.google.com/detail/bittensor-wallet/bdgmdoedahdcjmpmifafdhnffjinddgc?hl=en) and withdraw there. You will then have to regenerate your wallet using your mnemonic on step 2. 
+The most important is that your bot should be able to continuously respond to incoming requests from validators. There is a penalty for downtime.
 
 
 
@@ -173,17 +163,6 @@ Create a coldkey and hotkey for your miner wallet.
 btcli wallet new_coldkey --wallet.name miner
 btcli wallet new_hotkey --wallet.name miner --wallet.hotkey default
 ```
-
-You can also regenerate an existing wallet using the following:
-
-```bash
-btcli w regen_coldkey --wallet-path ~/.bittensor/wallets/ \
-    --wallet-name miner --mnemonic "${MNEMONIC_COLDKEY}"
-
-btcli w regen_hotkey --wallet-name miner --wallet-hotkey default \
-    --mnemonic "${MNEMONIC_HOTKEY}"
-```
-
 
 ## 2a. Getting faucet tokens
 
@@ -366,11 +345,12 @@ Before you register your miner on mainnet you can use the data from the followin
 
 - you can also use [this](https://app.hex.tech/1644b22a-abe5-4113-9d5f-3ad05e4a8de7/app/5f1e0e62-6072-4440-9646-6d2b60cd1674/latest?selectedStaticCellId=dac3aa16-bc7d-4318-a8cc-47ab4a82d409) section of the main analytics dashboard to get previously broadcasted questions.
 
-*We will release very soon tools for miners to measure their performance before entering the subnet.*
 
 After you registered your miner you can use [this](https://app.hex.tech/1644b22a-abe5-4113-9d5f-3ad05e4a8de7/app/5f1e0e62-6072-4440-9646-6d2b60cd1674/latest?selectedStaticCellId=9f920244-0c9b-4fac-9a53-7b2b0ec1a775) section of the main analytics dashboard to track your performance. 
 
 For a high level view of the network please refer to this [view](https://taostats.io/subnets/6/chart) on Taostats. You can see the current real-time ranking by selecting the *Metagraph* section and the current incentive distribution in the *Distribution* section.
+
+
 
 
 

@@ -6,7 +6,7 @@ on:
       - develop
 
 jobs:
-  build-push-image:
+  build_push_image:
     runs-on: ubuntu-latest
 
     steps:
@@ -39,7 +39,7 @@ jobs:
           docker push $REGISTRY/infinite_games:$IMAGE_TAG
 
   deploy_validator:
-    needs: [build-push-image]
+    needs: [build_push_image]
 
     runs-on: ubuntu-latest
 
@@ -77,7 +77,7 @@ jobs:
           EOF
 
   deploy_miner:
-    needs: [build-push-image]
+    needs: [build_push_image]
 
     runs-on: ubuntu-latest
 
@@ -110,23 +110,41 @@ jobs:
           export AWS_DEFAULT_REGION=${{ secrets.AWS_ECR_REGION }}
           aws ecr get-login-password --region ${{ secrets.AWS_ECR_REGION }} | docker login --username AWS --password-stdin ${{ secrets.AWS_ECR_REGISTRY }}
           export AWS_ECR_REGISTRY=${{ secrets.AWS_ECR_REGISTRY }}
+          export API_ACCESS_KEYS=not_needed
           docker-compose -f docker-compose.dev.yaml up -d if_miner_develop
           EOF
 
-      - name: Send success message to Discord
-        if: success()
+  discord_alerts:
+    runs-on: ubuntu-latest
+
+    needs: [deploy_validator, deploy_miner]
+
+    if: always()
+
+    steps:
+      - name: Alert validator deployment failure
+        if: needs.deploy_validator.result == 'failure'
         run: |
           WEBHOOK_URL="${{ secrets.DISCORD_DEPLOY }}"
-          MESSAGE="Deploy to validator/miner server DEVELOP complete"
+          MESSAGE="Deploy validator DEVELOP failed"
           curl -H "Content-Type: application/json" \
           -d "{\"content\": \"$MESSAGE\"}" \
           $WEBHOOK_URL
 
-      - name: Send failure message to Discord
-        if: failure()
+      - name: Alert miner deployment failure
+        if: needs.deploy_miner.result == 'failure'
         run: |
           WEBHOOK_URL="${{ secrets.DISCORD_DEPLOY }}"
-          MESSAGE="Deploy to validator/miner server DEVELOP failed"
+          MESSAGE="Deploy miner DEVELOP failed"
+          curl -H "Content-Type: application/json" \
+          -d "{\"content\": \"$MESSAGE\"}" \
+          $WEBHOOK_URL
+
+      - name: Alert deployments completed
+        if: needs.deploy_validator.result == 'success' && needs.deploy_miner.result == 'success'
+        run: |
+          WEBHOOK_URL="${{ secrets.DISCORD_DEPLOY }}"
+          MESSAGE="Deploy validator/miner DEVELOP complete"
           curl -H "Content-Type: application/json" \
           -d "{\"content\": \"$MESSAGE\"}" \
           $WEBHOOK_URL
