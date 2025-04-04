@@ -25,6 +25,8 @@ from neurons.validator.version import __spec_version__ as spec_version
 
 # controls the clipping of predictions [CLIP_EPS, 1 - CLIP_EPS]
 CLIP_EPS = 1e-2
+# controls the distance mean-min answer penalty for miners which are unresponsive
+UPTIME_PENALTY_DISTANCE = 1 / 3
 
 
 # this is just for avoiding typos in column names
@@ -306,19 +308,52 @@ class PeerScoring(AbstractTask):
         else:
             return 1 - np.exp(log_score)
 
-    def peer_score_intervals(
+    def fill_unresponsive_miners(
         self, interval_scores: pd.DataFrame, outcome_round: int
     ) -> pd.DataFrame:
         interval_scores_df = interval_scores.copy()
-        wrong_outcome = 1 - abs(outcome_round - CLIP_EPS)
-        worst_log_score = np.log(CLIP_EPS)  # worst possible log score
+        interval_scores_df[PSNames.interval_agg_prediction] = interval_scores_df[
+            PSNames.interval_agg_prediction
+        ].astype("Float64")
 
-        # for miners with registered_date_minutes < interval_start but no answer -> assume wrong
+        wrong_outcome = 1 - abs(outcome_round - CLIP_EPS)
+        # for miners with registered_date_minutes < interval_start but no answer:
         unresponsive_miners = (
             interval_scores_df[PSNames.miner_registered_minutes]
             < interval_scores_df[PSNames.interval_start]
         ) & (interval_scores_df[PSNames.interval_agg_prediction].isnull())
-        interval_scores_df.loc[unresponsive_miners, PSNames.interval_agg_prediction] = wrong_outcome
+
+        grouped = interval_scores_df.groupby(PSNames.interval_idx)
+        mean_prediction = grouped[PSNames.interval_agg_prediction].transform("mean")
+        # Determine the worst prediction per interval:
+        # - If outcome_round is 1, a lower prediction is worse so we use the minimum.
+        # - If outcome_round is 0, a higher prediction is worse so we use the maximum.
+        if outcome_round == 1:
+            worst_prediction = grouped[PSNames.interval_agg_prediction].transform("min")
+        else:
+            worst_prediction = grouped[PSNames.interval_agg_prediction].transform("max")
+
+        # imputed prediction is the mean plus 1/3 of the difference between worst and mean.
+        imputed_prediction = (
+            mean_prediction + (worst_prediction - mean_prediction) * UPTIME_PENALTY_DISTANCE
+        )
+
+        # In case there are no responsive miners in an interval, fallback to the totally wrong answer.
+        imputed_prediction = imputed_prediction.fillna(wrong_outcome)
+
+        interval_scores_df.loc[
+            unresponsive_miners, PSNames.interval_agg_prediction
+        ] = imputed_prediction[unresponsive_miners]
+
+        return interval_scores_df
+
+    def peer_score_intervals(
+        self, interval_scores: pd.DataFrame, outcome_round: int
+    ) -> pd.DataFrame:
+        worst_log_score = np.log(CLIP_EPS)  # worst possible log score
+
+        # fill unresponsive miners
+        interval_scores_df = self.fill_unresponsive_miners(interval_scores, outcome_round)
 
         # calculate the log score for each interval
         partial_log_score = partial(PeerScoring.log_score, outcome=outcome_round)
@@ -354,7 +389,9 @@ class PeerScoring(AbstractTask):
         )
 
         # fill null log_scores with mean_log_score_others
-        interval_scores_df = interval_scores_df.infer_objects(copy=False)
+        interval_scores_df[PSNames.log_score] = interval_scores_df[PSNames.log_score].astype(
+            "Float64"
+        )
         interval_scores_df[PSNames.log_score] = interval_scores_df[PSNames.log_score].fillna(
             interval_scores_df[PSNames.mean_log_score_others]
         )

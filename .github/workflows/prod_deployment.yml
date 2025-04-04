@@ -38,20 +38,29 @@ jobs:
           export API_ACCESS_KEYS=${{ secrets.API_ACCESS_KEYS_PROD }}
           pm2 start neurons/validator.py --name validator --interpreter python3 -- --netuid 6 --subtensor.network finney --wallet.name ifkey --wallet.hotkey ifhkey --logging.debug
           EOF
-      - name: Send success message to Discord
-        if: success()
+
+  discord_alerts:
+    runs-on: ubuntu-latest
+
+    needs: [deploy]
+
+    if: always()
+
+    steps:
+      - name: Alert failure
+        if: needs.deploy.result == 'failure'
         run: |
           WEBHOOK_URL="${{ secrets.DISCORD_DEPLOY }}"
-          MESSAGE="Deploy to validator/miner server PROD complete"
+          MESSAGE="Deploy validator PROD failed"
           curl -H "Content-Type: application/json" \
           -d "{\"content\": \"$MESSAGE\"}" \
           $WEBHOOK_URL
 
-      - name: Send failure message to Discord
-        if: failure()
+      - name: Alert deployment completed
+        if: needs.deploy.result == 'success'
         run: |
           WEBHOOK_URL="${{ secrets.DISCORD_DEPLOY }}"
-          MESSAGE="Deploy to validator/miner server PROD failed"
+          MESSAGE="Deploy validator PROD complete"
           curl -H "Content-Type: application/json" \
           -d "{\"content\": \"$MESSAGE\"}" \
           $WEBHOOK_URL

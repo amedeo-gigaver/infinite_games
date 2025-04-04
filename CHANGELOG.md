@@ -1,5 +1,9 @@
 # Release Notes
 
+## [1.4.3] - 2025-04-01
+- **Bittensor Upgrade**: Upgraded to Bittensor version 9.2.0
+- **Scoring**: Reduced penalty for unresponsive miners by imputing missing predictions as the value at 1/3 of the distance between the worst prediction and the mean prediction (closer to the worst) instead of using the completely wrong outcome.
+
 ## [1.4.2] - 2025-03-25
 - **Scoring**: Increased moving average from 100 to 150 events score for setting the weights
 

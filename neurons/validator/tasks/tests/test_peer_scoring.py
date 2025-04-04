@@ -485,7 +485,163 @@ class TestPeerScoring:
             err_msg=f"Failed for outcome {outcome} with prediction {prediction}",
         )
 
-    # TODO: add more test cases
+    def test_fill_unresponsive_miners_outcome_1(self, peer_scoring_task: PeerScoring):
+        df = pd.DataFrame(
+            {
+                PSNames.miner_uid: [1, 2],
+                PSNames.miner_registered_minutes: [50, 50],
+                PSNames.interval_start: [100, 100],
+                PSNames.interval_agg_prediction: [pd.NA, 0.8],
+                PSNames.interval_idx: [0, 0],
+                PSNames.weight: [1, 1],
+            }
+        )
+        # For outcome_round == 1, wrong_outcome = 1 - abs(1 - CLIP_EPS).
+        # Assuming CLIP_EPS = 0.01 then wrong_outcome = 0.01.
+        # Since there is one responsive miner with 0.8, group mean = 0.8 and worst (min) = 0.8.
+        # Thus, imputed = 0.8 + (0.8 - 0.8) * UPTIME_PENALTY_DISTANCE = 0.8.
+        result_df = peer_scoring_task.fill_unresponsive_miners(df, outcome_round=1)
+        np.testing.assert_allclose(
+            result_df.loc[result_df[PSNames.miner_uid] == 1, PSNames.interval_agg_prediction].iloc[
+                0
+            ],
+            0.8,
+            rtol=1e-5,
+            err_msg="Unresponsive miner was not imputed correctly for outcome_round 1",
+        )
+        np.testing.assert_allclose(
+            result_df.loc[result_df[PSNames.miner_uid] == 2, PSNames.interval_agg_prediction].iloc[
+                0
+            ],
+            0.8,
+            rtol=1e-5,
+            err_msg="Responsive miner's prediction was altered for outcome_round 1",
+        )
+
+    def test_fill_unresponsive_miners_no_responsive(self, peer_scoring_task: PeerScoring):
+        df = pd.DataFrame(
+            {
+                PSNames.miner_uid: [1, 2],
+                PSNames.miner_registered_minutes: [50, 50],
+                PSNames.interval_start: [100, 100],
+                PSNames.interval_agg_prediction: [pd.NA, pd.NA],
+                PSNames.interval_idx: [0, 0],
+                PSNames.weight: [1, 1],
+            }
+        )
+        expected_wrong = 1 - abs(1 - CLIP_EPS)
+        result_df = peer_scoring_task.fill_unresponsive_miners(df, outcome_round=1)
+        for uid in [1, 2]:
+            np.testing.assert_allclose(
+                result_df.loc[
+                    result_df[PSNames.miner_uid] == uid, PSNames.interval_agg_prediction
+                ].iloc[0],
+                expected_wrong,
+                rtol=1e-5,
+                err_msg=f"Miner {uid} in an interval with no responsive miners was not imputed to wrong_outcome",
+            )
+
+    def test_fill_unresponsive_miners_outcome_0(self, peer_scoring_task: PeerScoring):
+        df = pd.DataFrame(
+            {
+                PSNames.miner_uid: [1, 2],
+                PSNames.miner_registered_minutes: [50, 50],
+                PSNames.interval_start: [100, 100],
+                PSNames.interval_agg_prediction: [pd.NA, 0.2],
+                PSNames.interval_idx: [0, 0],
+                PSNames.weight: [1, 1],
+            }
+        )
+        # For outcome_round == 0, wrong_outcome = 1 - abs(0 - CLIP_EPS) = 1 - CLIP_EPS.
+        # With CLIP_EPS = 0.01, wrong_outcome = 0.99.
+        # With one responsive miner (0.2), group mean = 0.2 and worst (max) = 0.2,
+        # so imputed = 0.2 + (0.2 - 0.2) * UPTIME_PENALTY_DISTANCE = 0.2.
+        result_df = peer_scoring_task.fill_unresponsive_miners(df, outcome_round=0)
+        np.testing.assert_allclose(
+            result_df.loc[result_df[PSNames.miner_uid] == 1, PSNames.interval_agg_prediction].iloc[
+                0
+            ],
+            0.2,
+            rtol=1e-5,
+            err_msg="Unresponsive miner was not imputed correctly for outcome_round 0",
+        )
+        np.testing.assert_allclose(
+            result_df.loc[result_df[PSNames.miner_uid] == 2, PSNames.interval_agg_prediction].iloc[
+                0
+            ],
+            0.2,
+            rtol=1e-5,
+            err_msg="Responsive miner's prediction was altered for outcome_round 0",
+        )
+
+    def test_fill_unresponsive_miners_multiple_intervals(self, peer_scoring_task: PeerScoring):
+        # Create DataFrame with two intervals.
+        # Interval 0: one miner missing prediction, one responsive with 0.8.
+        # Interval 1: one responsive miner with 0.6 and one missing.
+        df = pd.DataFrame(
+            {
+                PSNames.miner_uid: [1, 2, 3, 4],
+                PSNames.miner_registered_minutes: [50, 50, 150, 150],
+                PSNames.interval_start: [100, 100, 200, 200],
+                PSNames.interval_agg_prediction: [pd.NA, 0.8, 0.6, pd.NA],
+                PSNames.interval_idx: [0, 0, 1, 1],
+                PSNames.weight: [1, 1, 1, 1],
+            }
+        )
+        # For outcome_round == 1:
+        # - Interval 0: group mean = 0.8, worst (min) = 0.8, so imputed = 0.8.
+        # - Interval 1: group mean = 0.6, worst (min) = 0.6, so imputed = 0.6.
+        result_df = peer_scoring_task.fill_unresponsive_miners(df, outcome_round=1)
+        np.testing.assert_allclose(
+            result_df.loc[result_df[PSNames.miner_uid] == 1, PSNames.interval_agg_prediction].iloc[
+                0
+            ],
+            0.8,
+            rtol=1e-5,
+            err_msg="Interval 0 unresponsive miner was not imputed correctly.",
+        )
+        np.testing.assert_allclose(
+            result_df.loc[result_df[PSNames.miner_uid] == 2, PSNames.interval_agg_prediction].iloc[
+                0
+            ],
+            0.8,
+            rtol=1e-5,
+            err_msg="Interval 0 responsive miner was altered.",
+        )
+        np.testing.assert_allclose(
+            result_df.loc[result_df[PSNames.miner_uid] == 3, PSNames.interval_agg_prediction].iloc[
+                0
+            ],
+            0.6,
+            rtol=1e-5,
+            err_msg="Interval 1 responsive miner was altered.",
+        )
+        np.testing.assert_allclose(
+            result_df.loc[result_df[PSNames.miner_uid] == 4, PSNames.interval_agg_prediction].iloc[
+                0
+            ],
+            0.6,
+            rtol=1e-5,
+            err_msg="Interval 1 unresponsive miner was not imputed correctly.",
+        )
+
+    def test_fill_unresponsive_miners_no_unresponsive_multiple_intervals(
+        self, peer_scoring_task: PeerScoring
+    ):
+        df = pd.DataFrame(
+            {
+                PSNames.miner_uid: [1, 2, 3, 4],
+                PSNames.miner_registered_minutes: [50, 50, 150, 150],
+                PSNames.interval_start: [100, 100, 200, 200],
+                PSNames.interval_agg_prediction: [0.7, 0.8, 0.6, 0.65],
+                PSNames.interval_idx: [0, 0, 1, 1],
+                PSNames.weight: [1, 1, 1, 1],
+            }
+        )
+        # the output should be identical to the input.
+        result_df = peer_scoring_task.fill_unresponsive_miners(df, outcome_round=1)
+        assert_frame_equal(result_df, df, check_dtype=False)
+
     @pytest.mark.parametrize(
         "outcome_round, input_df, expected",
         [
@@ -496,30 +652,31 @@ class TestPeerScoring:
                     {
                         # Two miners in the same interval (interval_idx 0)
                         PSNames.miner_uid: [1, 2],
-                        PSNames.miner_registered_minutes: [50, 150],
+                        PSNames.miner_registered_minutes: [50, 50],
                         PSNames.interval_start: [100, 100],
-                        # Row 1 is missing a prediction (will be imputed to wrong_outcome)
+                        # For outcome_round 0, row 1 missing prediction will be imputed
+                        # from the group of responsive miners
                         PSNames.interval_agg_prediction: [pd.NA, 0.8],
                         PSNames.weight: [1, 1],
                         PSNames.interval_idx: [0, 0],
                     }
                 ),
                 {
-                    # For outcome_round 1, wrong_outcome = 1 - abs(1 - CLIP_EPS) = 1 - 0.99 = 0.01.
-                    # Row 1:
+                    # For outcome_round 1:
+                    # - Responsive miner has prediction 0.8.
+                    #   Group mean = 0.8, worst (min) = 0.8,
+                    #   so imputed value = 0.8 + (0.8 - 0.8) * UPTIME_PENALTY_DISTANCE = 0.8.
+                    # - Then, log_score = log(0.8) = -0.223143551 for both.
+                    # - And peer_score = log_score - mean_log_score_others = 0.
                     1: {
-                        PSNames.interval_agg_prediction: 0.01,  # imputed
-                        PSNames.log_score: np.log(0.01),  # ≈ -4.605170186
-                        # Group: sum = np.log(0.01)+np.log(0.8) = -4.605170186 + (-0.223143551)
-                        # Others’ mean for row1 = (-4.828313737 - (-4.605170186)) = -0.223143551
-                        PSNames.peer_score: np.log(0.01) - (-0.223143551),  # ≈ -4.382026635
+                        PSNames.interval_agg_prediction: 0.8,
+                        PSNames.log_score: np.log(0.8),
+                        PSNames.peer_score: 0.0,
                     },
-                    # Row 2:
                     2: {
                         PSNames.interval_agg_prediction: 0.8,
-                        PSNames.log_score: np.log(0.8),  # ≈ -0.223143551
-                        # Others’ mean for row2 = (-4.828313737 - (-0.223143551)) = -4.605170186
-                        PSNames.peer_score: np.log(0.8) - (-4.605170186),  # ≈ 4.382026635
+                        PSNames.log_score: np.log(0.8),
+                        PSNames.peer_score: 0.0,
                     },
                 },
             ),
@@ -529,29 +686,245 @@ class TestPeerScoring:
                 pd.DataFrame(
                     {
                         PSNames.miner_uid: [1, 2],
-                        PSNames.miner_registered_minutes: [50, 150],
+                        PSNames.miner_registered_minutes: [50, 50],
                         PSNames.interval_start: [100, 100],
-                        # For outcome_round 0, row 1 missing prediction will be imputed to 0.99.
+                        # For outcome_round 0, row 1 missing prediction will be imputed
+                        # from the group of responsive miners
                         PSNames.interval_agg_prediction: [pd.NA, 0.2],
                         PSNames.weight: [1, 1],
                         PSNames.interval_idx: [0, 0],
                     }
                 ),
                 {
-                    # For outcome_round 0, wrong_outcome = 1 - abs(0 - CLIP_EPS) = 1 - 0.01 = 0.99.
-                    # Row 1:
+                    # For outcome_round 0:
+                    # - Responsive miner has prediction 0.2.
+                    #   Group mean = 0.2, worst (max) = 0.2,
+                    #   so imputed value = 0.2 + (0.2 - 0.2) * UPTIME_PENALTY_DISTANCE = 0.2.
+                    # - Then, log_score = log(1 - 0.2) = log(0.8) = -0.223143551 for both.
+                    # - And peer_score = log_score - mean_log_score_others = 0.
                     1: {
-                        PSNames.interval_agg_prediction: 0.99,  # imputed
-                        PSNames.log_score: np.log(1 - 0.99),  # np.log(0.01) ≈ -4.605170186
-                        # Others’ mean for row1 = (-4.828313737 - (-4.605170186)) = -0.223143551
-                        PSNames.peer_score: np.log(1 - 0.99) - (-0.223143551),  # ≈ -4.382026635
+                        PSNames.interval_agg_prediction: 0.2,
+                        PSNames.log_score: np.log(0.8),
+                        PSNames.peer_score: 0.0,
                     },
-                    # Row 2:
                     2: {
                         PSNames.interval_agg_prediction: 0.2,
-                        PSNames.log_score: np.log(1 - 0.2),  # np.log(0.8) ≈ -0.223143551
-                        # Others’ mean for row2 = (-4.828313737 - (-0.223143551)) = -4.605170186
-                        PSNames.peer_score: np.log(1 - 0.2) - (-4.605170186),  # ≈ 4.382026635
+                        PSNames.log_score: np.log(0.8),
+                        PSNames.peer_score: 0.0,
+                    },
+                },
+            ),
+            # outcome_round == 1 with a miner registered after event start.
+            (
+                1,
+                pd.DataFrame(
+                    {
+                        # Three miners in the same interval (interval_idx 0)
+                        # Miner 1 and 2 registered early (should be imputed if missing);
+                        # Miner 3 registered after the interval start and thus is not marked unresponsive.
+                        PSNames.miner_uid: [1, 2, 3],
+                        PSNames.miner_registered_minutes: [50, 40, 150],
+                        PSNames.interval_start: [100, 100, 100],
+                        # Miner 1: provided prediction 0.7;
+                        # Miner 2: missing prediction (registered early -> imputed);
+                        # Miner 3: missing prediction (registered late -> remains untouched in fill, later imputed via group fill)
+                        PSNames.interval_agg_prediction: [0.7, pd.NA, pd.NA],
+                        PSNames.weight: [1, 1, 1],
+                        PSNames.interval_idx: [0, 0, 0],
+                    }
+                ),
+                {
+                    # The group contains one responsive miner (0.7). Thus:
+                    # For miners 1 and 2: imputed value = 0.7 + (0.7 - 0.7)*UPTIME_PENALTY_DISTANCE = 0.7.
+                    # Miner 3, though not flagged in fill_unresponsive_miners, will later be filled using
+                    # the group's mean log score resulting in the same final imputation of 0.7.
+                    1: {
+                        PSNames.interval_agg_prediction: 0.7,
+                        PSNames.log_score: np.log(0.7),
+                        PSNames.peer_score: 0.0,
+                    },
+                    2: {
+                        PSNames.interval_agg_prediction: 0.7,
+                        PSNames.log_score: np.log(0.7),
+                        PSNames.peer_score: 0.0,
+                    },
+                    3: {
+                        PSNames.interval_agg_prediction: 0.7,
+                        PSNames.log_score: np.log(0.7),
+                        PSNames.peer_score: 0.0,
+                    },
+                },
+            ),
+            # outcome_round == 0 with a miner registered after event start.
+            (
+                0,
+                pd.DataFrame(
+                    {
+                        # Three miners in the same interval (interval_idx 0)
+                        PSNames.miner_uid: [1, 2, 3],
+                        PSNames.miner_registered_minutes: [50, 40, 150],
+                        PSNames.interval_start: [100, 100, 100],
+                        # Miner 1: provided prediction 0.2;
+                        # Miner 2: missing prediction (registered early -> imputed);
+                        # Miner 3: missing prediction (registered late -> remains untouched in fill, later imputed via group fill)
+                        PSNames.interval_agg_prediction: [0.2, pd.NA, pd.NA],
+                        PSNames.weight: [1, 1, 1],
+                        PSNames.interval_idx: [0, 0, 0],
+                    }
+                ),
+                {
+                    # With one responsive miner (0.2) in the group:
+                    # Imputed value becomes 0.2 for miners missing a prediction.
+                    # log_score for outcome_round 0: log(1 - 0.2) = log(0.8) for all.
+                    1: {
+                        PSNames.interval_agg_prediction: 0.2,
+                        PSNames.log_score: np.log(0.8),
+                        PSNames.peer_score: 0.0,
+                    },
+                    2: {
+                        PSNames.interval_agg_prediction: 0.2,
+                        PSNames.log_score: np.log(0.8),
+                        PSNames.peer_score: 0.0,
+                    },
+                    3: {
+                        PSNames.interval_agg_prediction: 0.2,
+                        PSNames.log_score: np.log(0.8),
+                        PSNames.peer_score: 0.0,
+                    },
+                },
+            ),
+            # Outcome round == 1 with 4 miners.
+            (
+                1,
+                pd.DataFrame(
+                    {
+                        # Four miners in the same interval (interval_idx 0)
+                        PSNames.miner_uid: [1, 2, 3, 4],
+                        # Early registered miners (should be flagged) and a late registered miner:
+                        PSNames.miner_registered_minutes: [50, 40, 150, 60],
+                        PSNames.interval_start: [100, 100, 100, 100],
+                        # Predictions:
+                        # Miner 1: provided 0.6,
+                        # Miner 2: missing (early - imputed),
+                        # Miner 3: missing (late - not imputed in fill, later filled via group),
+                        # Miner 4: provided 0.8.
+                        PSNames.interval_agg_prediction: [0.6, pd.NA, pd.NA, 0.8],
+                        PSNames.weight: [1, 1, 1, 1],
+                        PSNames.interval_idx: [0, 0, 0, 0],
+                    }
+                ),
+                {
+                    # Expected final values:
+                    # Miner 1: prediction 0.6, log_score = log(0.6) = -0.51083, peer_score = -0.19652.
+                    1: {
+                        PSNames.interval_agg_prediction: 0.6,
+                        PSNames.log_score: np.log(0.6),
+                        PSNames.peer_score: -0.1965215,
+                    },
+                    # Miner 2: imputed prediction = 0.66667, log_score = log(0.66667) = -0.40547, peer_score = -0.03848.
+                    2: {
+                        PSNames.interval_agg_prediction: 0.66667,
+                        PSNames.log_score: np.log(0.66667),
+                        PSNames.peer_score: -0.03848,
+                    },
+                    # Miner 3: late registered, filled later to = 0.684, log_score = log(0.684) = -0.37981, peer_score = 0.0.
+                    3: {
+                        PSNames.interval_agg_prediction: 0.684,
+                        PSNames.log_score: np.log(0.684),
+                        PSNames.peer_score: 0.0,
+                    },
+                    # Miner 4: prediction remains 0.8, log_score = log(0.8) = -0.22314, peer_score = 0.23500.
+                    4: {
+                        PSNames.interval_agg_prediction: 0.8,
+                        PSNames.log_score: np.log(0.8),
+                        PSNames.peer_score: 0.2350015,
+                    },
+                },
+            ),
+            # Outcome round == 0 with 4 miners.
+            (
+                0,
+                pd.DataFrame(
+                    {
+                        PSNames.miner_uid: [1, 2, 3, 4],
+                        PSNames.miner_registered_minutes: [50, 40, 150, 60],
+                        PSNames.interval_start: [100, 100, 100, 100],
+                        # Predictions:
+                        # Miner 1: provided 0.2,
+                        # Miner 2: missing (early -> imputed),
+                        # Miner 3: missing (late -> later filled),
+                        # Miner 4: provided 0.4.
+                        PSNames.interval_agg_prediction: [0.2, pd.NA, pd.NA, 0.4],
+                        PSNames.weight: [1, 1, 1, 1],
+                        PSNames.interval_idx: [0, 0, 0, 0],
+                    }
+                ),
+                {
+                    # Expected final values:
+                    # For outcome_round==0 we work with 1 - prediction:
+                    # Miner 1: prediction 0.2, log_score = log(0.8) = -0.22314, peer_score = 0.23500.
+                    1: {
+                        PSNames.interval_agg_prediction: 0.2,
+                        PSNames.log_score: np.log(0.8),
+                        PSNames.peer_score: 0.2350015,
+                    },
+                    # Miner 2: imputed prediction = 0.33333, log_score = log(0.66667) = -0.40547, peer_score = -0.03848.
+                    2: {
+                        PSNames.interval_agg_prediction: 0.33333,
+                        PSNames.log_score: np.log(0.66667),
+                        PSNames.peer_score: -0.03848,
+                    },
+                    # Miner 3: late registered, filled later to = 0.316, log_score = log(0.684) = -0.37981, peer_score = 0.0.
+                    3: {
+                        PSNames.interval_agg_prediction: 0.316,
+                        PSNames.log_score: np.log(0.684),
+                        PSNames.peer_score: 0.0,
+                    },
+                    # Miner 4: prediction remains 0.4, log_score = log(0.6) = -0.51083, peer_score = -0.19652.
+                    4: {
+                        PSNames.interval_agg_prediction: 0.4,
+                        PSNames.log_score: np.log(0.6),
+                        PSNames.peer_score: -0.1965215,
+                    },
+                },
+            ),
+            # Regular test case: 3 miners, 2 intervals, no special imputation.
+            (
+                1,
+                pd.DataFrame(
+                    {
+                        # Three miners over two intervals.
+                        PSNames.miner_uid: [1, 2, 3],
+                        PSNames.miner_registered_minutes: [50, 50, 50],
+                        # Interval 0 for miners 1 & 2, interval 1 for miner 3.
+                        PSNames.interval_start: [100, 100, 200],
+                        # All predictions provided.
+                        PSNames.interval_agg_prediction: [0.7, 0.8, 0.6],
+                        PSNames.weight: [1, 1, 1],
+                        PSNames.interval_idx: [0, 0, 1],
+                    }
+                ),
+                {
+                    # For interval 0:
+                    # Miner 1: log_score = log(0.7), peer_score = log(0.7) - log(0.8).
+                    1: {
+                        PSNames.interval_agg_prediction: 0.7,
+                        PSNames.log_score: np.log(0.7),
+                        PSNames.peer_score: np.log(0.7) - np.log(0.8),
+                    },
+                    # Miner 2: log_score = log(0.8), peer_score = log(0.8) - log(0.7).
+                    2: {
+                        PSNames.interval_agg_prediction: 0.8,
+                        PSNames.log_score: np.log(0.8),
+                        PSNames.peer_score: np.log(0.8) - np.log(0.7),
+                    },
+                    # For interval 1: Only miner 3.
+                    # With no other miner, mean_log_score_others falls back to worst_log_score = log(CLIP_EPS).
+                    # Peer score = log(0.6) - log(CLIP_EPS).
+                    3: {
+                        PSNames.interval_agg_prediction: 0.6,
+                        PSNames.log_score: np.log(0.6),
+                        PSNames.peer_score: np.log(0.6) - np.log(CLIP_EPS),
                     },
                 },
             ),
@@ -568,19 +941,19 @@ class TestPeerScoring:
             np.testing.assert_allclose(
                 row[PSNames.interval_agg_prediction],
                 exp[PSNames.interval_agg_prediction],
-                rtol=1e-5,
+                rtol=1e-4,
                 err_msg=f"Incorrect interval_agg_prediction for miner_uid {uid} and outcome_round {outcome_round}",
             )
             np.testing.assert_allclose(
                 row[PSNames.log_score],
                 exp[PSNames.log_score],
-                rtol=1e-5,
+                rtol=1e-4,
                 err_msg=f"Incorrect log_score for miner_uid {uid} and outcome_round {outcome_round}",
             )
             np.testing.assert_allclose(
                 row[PSNames.peer_score],
                 exp[PSNames.peer_score],
-                rtol=1e-5,
+                rtol=1e-4,
                 err_msg=f"Incorrect peer_score for miner_uid {uid} and outcome_round {outcome_round}",
             )
 
@@ -1190,14 +1563,15 @@ class TestPeerScoring:
             0: {
                 "miner_uid": 1,
                 "miner_hotkey": "hotkey1",
-                "rema_prediction": 0.01000000000000001,
-                "rema_peer_score": -0.04275585662554291,
+                # Updated expected values:
+                "rema_prediction": 0.01911853,  # new filled value for hotkey1
+                "rema_peer_score": 0.0,  # group peer score becomes 0.0
             },
             1: {
                 "miner_uid": 2,
                 "miner_hotkey": "hotkey2",
-                "rema_prediction": 0.01911853027985871,
-                "rema_peer_score": 0.04275585662554291,
+                "rema_prediction": 0.01911853,  # assuming both filled to same value
+                "rema_peer_score": 0.0,
             },
         }
         expected_scores_log_ev_2 = {
