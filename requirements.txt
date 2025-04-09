@@ -9,9 +9,7 @@ bittensor-cli==9.2.0
 bittensor==9.2.0
 fastapi==0.110.3
 forecasting-tools==0.2.12
-generativeai==0.0.1
 gnews==0.3.7
-google-generativeai==0.7.2
 numpy~=2.0.1
 pandas==2.2.2
 pydantic==2.9.2

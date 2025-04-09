@@ -14,7 +14,7 @@ jobs:
     steps:
       - name: Set up Python
         id: setup-python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: "3.10"
 
@@ -25,6 +25,12 @@ jobs:
         run: |
           echo "::notice::Check for Large Files"
           bash ./.github/scripts/check-large-files.sh
+
+      - name: Lint GH actions
+        uses: reviewdog/action-actionlint@v1
+        with:
+          reporter: github-check
+          fail_level: error
 
       - name: Extract Python minor version
         run: |

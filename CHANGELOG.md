@@ -1,5 +1,8 @@
 # Release Notes
 
+## [1.4.4] - 2025-04-07
+- **Scoring**: Assign a weight of 1.0 to the first two intervals when computing the reverse exponential moving average for prediction aggregation.
+
 ## [1.4.3] - 2025-04-01
 - **Bittensor Upgrade**: Upgraded to Bittensor version 9.2.0
 - **Scoring**: Reduced penalty for unresponsive miners by imputing missing predictions as the value at 1/3 of the distance between the worst prediction and the mean prediction (closer to the worst) instead of using the completely wrong outcome.
