@@ -167,6 +167,14 @@ class PeerScoring(AbstractTask):
         event.registered_date = to_utc(event.registered_date)
         return event
 
+    @staticmethod
+    def reverse_exponential_weight(idx, n_intervals):
+        # first 2 intervals are 1, then it decays exponentially
+        if idx < 2:
+            return 1
+        else:
+            return math.exp(-(n_intervals / (n_intervals - idx)) + 1)
+
     def get_intervals_df(self, event_registered_start_minutes, event_cutoff_start_minutes):
         n_intervals = (
             event_cutoff_start_minutes - event_registered_start_minutes
@@ -199,7 +207,7 @@ class PeerScoring(AbstractTask):
         )
         # Reverse exponential MA weights:
         intervals[PSNames.weight] = intervals[PSNames.interval_idx].apply(
-            lambda idx: math.exp(-(n_intervals / (n_intervals - idx)) + 1)
+            lambda idx: self.reverse_exponential_weight(idx, n_intervals)
         )
 
         return intervals

@@ -249,10 +249,29 @@ class TestPeerScoring:
         assert list(intervals_df.columns) == expected_columns
         assert intervals_df.empty
 
+    def test_reverse_exponential_weight_decay(self, peer_scoring_task: PeerScoring):
+        n_intervals = 1
+        weight = peer_scoring_task.reverse_exponential_weight(0, n_intervals)
+        assert weight == 1
+
+        n_intervals = 2
+        for idx in range(n_intervals):
+            weight = peer_scoring_task.reverse_exponential_weight(idx, n_intervals)
+            assert weight == 1
+
+        n_intervals = 10
+        for idx in [0, 1]:
+            weight = peer_scoring_task.reverse_exponential_weight(idx, n_intervals)
+            assert weight == 1
+        for idx in range(2, n_intervals):
+            expected_weight = math.exp(-(n_intervals / (n_intervals - idx)) + 1)
+            weight = peer_scoring_task.reverse_exponential_weight(idx, n_intervals)
+            np.testing.assert_almost_equal(weight, expected_weight)
+
     def test_get_intervals_df_success(self, peer_scoring_task: PeerScoring):
         unit = peer_scoring_task
         event_registered_start_minutes = 0
-        event_cutoff_start_minutes = 580
+        event_cutoff_start_minutes = 1160
 
         unit.errors_count = 0
         unit.logger.error.reset_mock()
@@ -267,7 +286,8 @@ class TestPeerScoring:
         n_intervals = (
             event_cutoff_start_minutes - event_registered_start_minutes
         ) // AGGREGATION_INTERVAL_LENGTH_MINUTES
-        assert n_intervals == 2
+
+        assert n_intervals == 4
         assert intervals_df.shape[0] == n_intervals
 
         expected_columns = [
@@ -288,7 +308,10 @@ class TestPeerScoring:
             assert row[PSNames.interval_start] == expected_interval_start
             assert row[PSNames.interval_end] == expected_interval_end
 
-            expected_weight = math.exp(-(n_intervals / (n_intervals - idx)) + 1)
+            if idx < 2:
+                expected_weight = 1
+            else:
+                expected_weight = math.exp(-(n_intervals / (n_intervals - idx)) + 1)
             np.testing.assert_almost_equal(row[PSNames.weight], expected_weight)
 
     def test_prepare_predictions_df_no_valid_miner(self, peer_scoring_task: PeerScoring):
@@ -1564,13 +1587,13 @@ class TestPeerScoring:
                 "miner_uid": 1,
                 "miner_hotkey": "hotkey1",
                 # Updated expected values:
-                "rema_prediction": 0.01911853,  # new filled value for hotkey1
+                "rema_prediction": 0.0189728,  # new filled value for hotkey1
                 "rema_peer_score": 0.0,  # group peer score becomes 0.0
             },
             1: {
                 "miner_uid": 2,
                 "miner_hotkey": "hotkey2",
-                "rema_prediction": 0.01911853,  # assuming both filled to same value
+                "rema_prediction": 0.0189728,  # assuming both filled to same value
                 "rema_peer_score": 0.0,
             },
         }
