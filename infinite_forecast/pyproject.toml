@@ -1,0 +1,68 @@
+[tool.poetry]
+name = "infinite-forecast"
+version = "0.1.0"
+description = "Advanced forecasting miners, event resolvers, and trading tools for Infinite Games"
+authors = ["Your Name <your.email@example.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+fastapi = "^0.103.0"
+uvicorn = "^0.23.2"
+pydantic = "^2.3.0"
+httpx = "^0.24.1"
+python-dotenv = "^1.0.0"
+sqlalchemy = "^2.0.20"
+aiosqlite = "^0.19.0"
+openai = "^0.28.0"
+anthropic = "^0.5.0"
+numpy = "^1.25.2"
+pandas = "^2.1.0"
+feedparser = "^6.0.10"
+tenacity = "^8.2.3"
+pytest = "^7.4.0"
+pytest-asyncio = "^0.21.1"
+streamlit = "^1.26.0"
+plotly = "^5.16.1"
+
+[tool.poetry.group.dev.dependencies]
+black = "^23.7.0"
+isort = "^5.12.0"
+mypy = "^1.5.1"
+pylint = "^2.17.5"
+pytest-cov = "^4.1.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.black]
+line-length = 100
+target-version = ["py310"]
+include = '\.pyi?$'
+
+[tool.isort]
+profile = "black"
+line_length = 100
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+
+[tool.pylint.messages_control]
+disable = [
+    "missing-docstring",
+    "invalid-name",
+]
+
+[tool.pylint.format]
+max-line-length = 100
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = "test_*.py"
+python_functions = "test_*"
+python_classes = "Test*" 
