@@ -1,0 +1,107 @@
+# Generator Configuration
+
+# RSS Feed Configuration
+rss:
+  # Refresh interval (seconds)
+  refresh_interval: 300  # Check feeds every 5 minutes
+  
+  # Sources
+  sources:
+    # Finance news sources
+    - name: CNBC Finance
+      url: https://www.cnbc.com/id/10000664/device/rss/rss.html
+      category: financial
+      
+    - name: Bloomberg Markets
+      url: https://feeds.bloomberg.com/markets/news.rss
+      category: financial
+      
+    - name: Yahoo Finance
+      url: https://finance.yahoo.com/news/rssindex
+      category: financial
+      
+    - name: MarketWatch
+      url: http://feeds.marketwatch.com/marketwatch/topstories
+      category: financial
+      
+    - name: Financial Times Markets
+      url: https://www.ft.com/markets?format=rss
+      category: financial
+  
+  # Processing
+  processing:
+    deduplication: true
+    min_publish_age: 300  # Minimum age of article before processing (seconds)
+    max_articles_per_run: 50  # Maximum articles to process per run
+
+# Stock Market Data
+stocks:
+  # API Sources
+  sources:
+    - provider: alpha_vantage
+      enabled: true
+      
+    - provider: yahoo_finance
+      enabled: true
+  
+  # Markets to track
+  markets:
+    - US  # US stock market
+    - EU  # European markets
+    
+  # Indices to track
+  indices:
+    - S&P 500
+    - NASDAQ
+    - Dow Jones
+    - FTSE 100
+  
+  # Minimum change threshold to generate event
+  min_change_threshold: 0.02  # 2% change
+
+# LLM Event Generation
+llm:
+  # Model configuration
+  provider: openai
+  model: gpt-4
+  temperature: 0.3
+  max_tokens: 1000
+  
+  # Event generation
+  event_types:
+    - stock_price_prediction
+    - market_trend_prediction
+    - earnings_impact
+    
+  # Quality control
+  quality:
+    min_confidence: 0.8
+    review_threshold: 0.85  # Events below this confidence get human review
+    
+  # Rate limiting
+  rate_limit:
+    max_events_per_hour: 100
+    max_tokens_per_hour: 500000
+
+# Event Submission
+submission:
+  # Automatic submission
+  auto_submit: true
+  
+  # Submission criteria
+  criteria:
+    min_confidence: 0.85
+    min_sources: 3  # Minimum number of sources supporting the event
+    
+  # Batch submission
+  batch:
+    enabled: true
+    max_batch_size: 25
+    interval: 1800  # Submit batch every 30 minutes
+
+# Logging
+logging:
+  level: INFO
+  file: "logs/generator.log"
+  rotation: "1 day"
+  retention: "30 days" 

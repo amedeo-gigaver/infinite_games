@@ -1,0 +1,84 @@
+# Resolver Configuration
+
+# LLM Configuration
+llm:
+  # Primary model
+  primary:
+    provider: openai
+    model: gpt-4
+    temperature: 0.1
+    max_tokens: 1000
+    timeout: 30  # Seconds
+  
+  # Fallback model
+  fallback:
+    provider: anthropic
+    model: claude-3-opus
+    temperature: 0.1
+    max_tokens: 1000
+    timeout: 30  # Seconds
+    
+  # Cost optimization
+  cost:
+    target_per_event: 0.1  # Maximum cost per event in USD
+    optimize_tokens: true  # Automatically optimize token usage
+    
+# Evidence Collection
+evidence:
+  # Number of sources to check
+  sources_count: 5
+  
+  # Sources to use
+  sources:
+    - perplexity
+    - serper
+    - web_search
+    
+  # Caching
+  cache:
+    enabled: true
+    ttl: 86400  # Cache evidence for 24 hours
+    
+  # Relevance threshold (0-1)
+  relevance_threshold: 0.7
+    
+# Verification
+verification:
+  # Minimum confidence score to consider verified (0-1)
+  min_confidence: 0.85
+  
+  # Cross-verification
+  cross_verification:
+    enabled: true
+    min_agreement: 0.8  # Minimum agreement between sources
+    
+  # Result parsing
+  result_parsing:
+    sanitize: true
+    extract_confidence: true
+    
+# Cache Configuration
+cache:
+  # SQLite cache
+  sqlite:
+    enabled: true
+    db_path: "cache/resolver_cache.db"
+    max_size: 1000000  # Max number of items to store
+
+# Logging
+logging:
+  level: INFO
+  file: "logs/resolver.log"
+  rotation: "1 day"
+  retention: "30 days"
+  
+# Monitoring
+monitoring:
+  metrics:
+    enabled: true
+    endpoint: "/metrics"
+  
+  events:
+    track_resolution_time: true
+    track_cost: true
+    track_accuracy: true 

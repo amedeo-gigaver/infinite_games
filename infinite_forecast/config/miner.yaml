@@ -1,0 +1,71 @@
+# Miner Configuration
+
+# Network Configuration
+network:
+  testnet:
+    netuid: 155
+    network: test
+  mainnet:
+    netuid: 6
+    network: finney
+
+# Forecaster Configuration
+forecasters:
+  # LLM Forecaster for geopolitical/political events
+  llm:
+    enabled: true
+    model: gpt-4
+    temperature: 0.1
+    max_tokens: 1000
+    cache_ttl: 3600  # Cache predictions for 1 hour
+    recalculation_interval: 14400  # Recalculate every 4 hours
+    providers:
+      - openai
+      - anthropic
+      - perplexity
+  
+  # Economic Forecaster for FRED data
+  economic:
+    enabled: true
+    cache_ttl: 3600
+    recalculation_interval: 14400
+    
+  # Crypto Forecaster for cryptocurrency markets
+  crypto:
+    enabled: true
+    cache_ttl: 1800  # Cache for 30 minutes (more volatile)
+    recalculation_interval: 7200  # Recalculate every 2 hours
+    
+  # Hybrid Forecaster combining multiple approaches
+  hybrid:
+    enabled: true
+    cache_ttl: 3600
+    recalculation_interval: 14400
+    components:
+      - llm
+      - economic
+      - crypto
+
+# Cache Configuration
+cache:
+  # SQLite cache
+  sqlite:
+    enabled: true
+    db_path: "cache/miner_cache.db"
+    max_size: 1000000  # Max number of items to store
+    
+  # Memory cache
+  memory:
+    enabled: true
+    max_size: 10000  # Max number of items to store in memory
+
+# Logging Configuration
+logging:
+  level: INFO
+  file: "logs/miner.log"
+  rotation: "1 day"
+  retention: "30 days"
+
+# API Keys (NOT to be stored here - use env variables instead)
+api_keys:
+  from_env: true  # Load keys from environment variables 
