@@ -4,7 +4,7 @@
 
 The validator is streaming binary outcomes events to miners. The events can come directly from external APIs or be LLM generated. Every time an event settles, the validator will score the miners which submitted a prediction for that given event.
 
-The main computational prerequisite is related to storage. Validators are now storing the entire time-series of a miner's predictions for a given event, cf. the [scoring doc](https://hackmd.io/@nielsma/S1sB8xO_C).
+The main computational prerequisite is related to storage. Validators are now storing the entire time-series of a miner's predictions for a given event, cf. the [scoring doc](./peer-scoring.md).
 
 It is essential that validators do not wipe out their local database and persist the data. We automatically implement a discard functionality for data which is more than 1 month old.
 
