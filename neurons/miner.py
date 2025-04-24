@@ -19,19 +19,24 @@ import time
 from bittensor import logging
 
 from neurons.miner.forecasters.base import BaseForecaster, DummyForecaster
-from neurons.miner.forecasters.llm_forecaster import LLMForecaster
+from neurons.miner.forecasters.llm_forecaster import LLMForecaster, LLMForecasterWithSN13
 from neurons.miner.main import Miner
 from neurons.miner.models.event import MinerEvent
+from neurons.miner.sn13.client import Subnet13Client
 from neurons.validator.utils.logger.logger import InfiniteGamesLogger, miner_logger
 
 
 def get_forecaster(logger: InfiniteGamesLogger):
+    if os.getenv("SN13_API_KEY") is not None:
+        sn13_client = Subnet13Client(logger)
+    else:
+        sn13_client = None
+
     async def assign_forecaster(event: MinerEvent) -> typing.Type[BaseForecaster]:
         # Change to `LLMForecaster` to use the LLM forecaster
         return DummyForecaster(
             event,
             logger=logger,
-            extremize=False,
         )
 
     return assign_forecaster

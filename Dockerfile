@@ -1,8 +1,5 @@
 FROM python:3.10.12-slim
 
-ARG GIT_COMMIT_HASH
-ENV GIT_COMMIT_HASH=${GIT_COMMIT_HASH}
-
 ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -28,5 +25,8 @@ COPY requirements.txt /root/infinite_games
 
 RUN pip install --upgrade pip \
     && pip install -r requirements.txt
+
+ARG GIT_COMMIT_HASH
+ENV GIT_COMMIT_HASH=${GIT_COMMIT_HASH}
 
 COPY . /root/infinite_games

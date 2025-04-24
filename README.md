@@ -131,7 +131,6 @@ and normalizes the resulting scores across all miners.
 - [x] Validator v2 - modular and much higher throughput 
 - [x] Scoring v2 (batches, peer score)
 - [x] Exposing the silicon crowd predictions 
-- [ ] Decentralisation of event generation and validator dynamic desirability (inspired from SN13)
 
 - [ ] Decentralisation of event generation and validator dynamic desirability (inspired from SN13)
 - [ ] Trustless event resolution

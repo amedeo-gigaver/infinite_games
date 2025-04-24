@@ -1,5 +1,8 @@
 # Release Notes
 
+## [1.4.5] - 2025-04-22
+- **Bittensor Upgrade**: Upgraded to Bittensor version 9.4.0
+
 ## [1.4.4] - 2025-04-07
 - **Scoring**: Assign a weight of 1.0 to the first two intervals when computing the reverse exponential moving average for prediction aggregation.
 

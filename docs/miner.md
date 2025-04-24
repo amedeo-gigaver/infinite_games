@@ -334,11 +334,27 @@ export PERPLEXITY_API_KEY=<your_perplexity_api_key>
 export OPENAI_API_KEY=<your_openai_api_key>
 ```
 
-3. Open [`neurons/miner.py#L31`](../neurons/miner.py#L31) and locate the `assign_forecaster` function
+3. Open [`neurons/miner.py#L31`](../neurons/miner.py#L35) and locate the `assign_forecaster` function
 4. Replace the placeholder forecaster with `LLMForecaster`
 5. Start your miner - it will now use LLM models to forecast events
 
-## 7. Creating Your Own Forecaster
+## 7. Using the Built-in LLM forecaster with SN13
+
+The repository includes an improved version of the pre-built LLM forecaster, that utilises the SN13 API to get accurate and relevant data from X and reddit. To use it you need to follow the guidelines from step 6, plus:
+
+1. Set the `SN13_API_KEY` as environment variable. You can get your api key for subnet 13 from their website.
+2. Make sure you have set an `OPENAI_API_KEY` as environment variable.
+3. Replace the placeholder forecaster with the following
+```python
+    return LLMForecasterWithSN13(
+        event,
+        logger=logger,
+        sn13_client=sn13_client,
+    )
+```
+
+
+## 8. Creating Your Own Forecaster
 
 You can create your own custom forecaster to implement different prediction strategies:
 
@@ -347,6 +363,7 @@ You can create your own custom forecaster to implement different prediction stra
    - This method must return a prediction value between 0 and 1
    - You can access event information through the `MinerEvent` class ([`neurons/miner/models/event.py`](../neurons/miner/models/event.py))
 3. Update the `assign_forecaster` function in [`neurons/miner.py`](../neurons/miner.py) to use your forecaster
+4. (Optional) You can use the implemented provider for subnet 13 to enrich your forecaster. ([`neurons/miner/sn13/client.py`](../neurons/miner/sn13/client.py))
 
 The `assign_forecaster` function lets you use different forecasters for different types of events. You can examine the event information and choose the most appropriate forecaster for each case.
 
