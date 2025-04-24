@@ -13,6 +13,10 @@ script_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(script_dir)
 sys.path.append(parent_dir)
 # -- DO NOT TOUCH ABOVE --
+from dotenv import load_dotenv
+load_dotenv()
+
+import argparse
 
 import time
 
@@ -56,3 +60,12 @@ if __name__ == "__main__":
                 await asyncio.sleep(5)
 
     asyncio.run(run_miner())
+
+from neurons.miner.forecasters.custom_forecaster import CustomForecaster
+
+def assign_forecaster(event):
+    """
+    Choose your forecaster here. We replace the baseline LLMForecaster
+    with our CustomForecaster for every event.
+    """
+    return CustomForecaster(event=event)
