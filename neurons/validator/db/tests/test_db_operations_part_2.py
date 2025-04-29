@@ -1,8 +1,10 @@
 from datetime import datetime, timedelta, timezone
 
+from neurons.validator.db.client import DatabaseClient
+from neurons.validator.db.operations import DatabaseOperations
 from neurons.validator.db.tests.test_utils import TestDbOperationsBase
 from neurons.validator.models.event import EventsModel, EventStatus
-from neurons.validator.models.score import SCORE_FIELDS, ScoresModel
+from neurons.validator.models.score import SCORE_FIELDS, ScoresExportedStatus, ScoresModel
 
 
 class TestDbOperationsPart2(TestDbOperationsBase):
@@ -34,11 +36,11 @@ class TestDbOperationsPart2(TestDbOperationsBase):
         await db_operations.insert_peer_scores([score_export, score_non_export])
         await db_client.update(
             "UPDATE scores SET processed = ?, exported = ?, created_at = ? WHERE event_id = ?",
-            [1, 0, now.isoformat(), export_event_id],
+            [1, ScoresExportedStatus.NOT_EXPORTED, now.isoformat(), export_event_id],
         )
         await db_client.update(
             "UPDATE scores SET processed = ?, exported = ?, created_at = ? WHERE event_id = ?",
-            [1, 1, now.isoformat(), non_export_event_id],
+            [1, ScoresExportedStatus.EXPORTED, now.isoformat(), non_export_event_id],
         )
 
         # Prepare corresponding events in the events table.
@@ -383,17 +385,485 @@ class TestDbOperationsPart2(TestDbOperationsBase):
 
         assert result is None
 
-    async def test_get_wa_prediction_event(self, db_operations, db_client):
-        unique_event_id = "unique_event_id"
-
-        wa_prediction = await db_operations.get_wa_prediction_event(unique_event_id, 1)
-
-        # No predictions yet
-        assert wa_prediction is None
+    async def test_delete_scores_discarded_event(
+        self, db_operations: DatabaseOperations, db_client: DatabaseClient
+    ):
+        events = [
+            (
+                "discarded_event_id",
+                "discarded_event_id",
+                "truncated_market1",
+                "market_1",
+                "desc1",
+                "2024-12-02",
+                "2024-12-03",
+                "outcome1",
+                EventStatus.DISCARDED,
+                '{"key": "value"}',
+                "2000-12-02T14:30:00+00:00",
+                "2000-01-01T14:30:00+00:00",
+                "2000-01-02T14:30:00+00:00",
+            ),
+            (
+                "pending_event_id",
+                "pending_event_id",
+                "truncated_market2",
+                "market_2",
+                "desc2",
+                "2024-12-03",
+                "2024-12-04",
+                "outcome2",
+                EventStatus.PENDING,
+                '{"key": "value"}',
+                "2012-12-02T14:30:00+00:00",
+                "2001-01-01T14:30:00+00:00",
+                "2001-01-02T14:30:00+00:00",
+            ),
+        ]
 
         scores = [
             ScoresModel(
-                event_id="event_id",
+                event_id="discarded_event_id",
+                miner_uid=1,
+                miner_hotkey="hk1",
+                prediction=0.75,
+                event_score=0.85,
+                spec_version=1,
+            ),
+            ScoresModel(
+                event_id="pending_event_id",
+                miner_uid=2,
+                miner_hotkey="hk2",
+                prediction=0.65,
+                event_score=0.80,
+                spec_version=1,
+            ),
+        ]
+
+        await db_operations.upsert_events(events=events)
+        await db_operations.insert_peer_scores(scores)
+
+        # Mark all scores as exported
+        await db_client.update(
+            """
+                UPDATE
+                    scores
+                SET
+                    exported = ?
+                """,
+            [ScoresExportedStatus.EXPORTED],
+        )
+
+        # delete
+        result = await db_operations.delete_scores(batch_size=100)
+
+        assert len(result) == 1
+        assert result[0][0] == 1
+
+        result = await db_client.many(
+            """
+                SELECT event_id FROM scores ORDER BY ROWID ASC
+            """
+        )
+
+        assert len(result) == 1
+        assert result[0][0] == "pending_event_id"
+
+    async def test_delete_scores_exported_unexported(
+        self, db_operations: DatabaseOperations, db_client: DatabaseClient
+    ):
+        events = [
+            (
+                "exported_score_event_id",
+                "exported_score_event_id",
+                "truncated_market1",
+                "market_1",
+                "desc1",
+                "2024-12-02",
+                "2024-12-03",
+                "outcome1",
+                "status1",
+                '{"key": "value"}',
+                "2000-12-02T14:30:00+00:00",
+                "2000-01-01T14:30:00+00:00",
+                "2000-01-02T14:30:00+00:00",
+            ),
+            (
+                "not_exported_score_event_id",
+                "not_exported_score_event_id",
+                "truncated_market4",
+                "market_4",
+                "desc4",
+                "2024-12-03",
+                "2024-12-04",
+                "outcome4",
+                "status4",
+                '{"key": "value"}',
+                "2012-12-02T14:30:00+00:00",
+                "2001-01-01T14:30:00+00:00",
+                "2001-01-02T14:30:00+00:00",
+            ),
+        ]
+
+        scores = [
+            ScoresModel(
+                event_id="exported_score_event_id",
+                miner_uid=1,
+                miner_hotkey="hk1",
+                prediction=0.75,
+                event_score=0.85,
+                spec_version=1,
+            ),
+            ScoresModel(
+                event_id="not_exported_score_event_id",
+                miner_uid=2,
+                miner_hotkey="hk12",
+                prediction=0.65,
+                event_score=0.80,
+                spec_version=1,
+            ),
+        ]
+
+        await db_operations.upsert_events(events=events)
+        await db_operations.insert_peer_scores(scores)
+
+        # Mark all events as processed but unprocessed and discarded ones
+        await db_client.update(
+            """
+                UPDATE
+                    events
+                SET
+                    processed = ?,
+                    resolved_at = ?
+            """,
+            [
+                True,
+                (datetime.now(timezone.utc) - timedelta(days=15, hours=1)).isoformat(),
+            ],
+        )
+
+        # Mark all scores as exported but not exported one
+        await db_client.update(
+            """
+                UPDATE
+                    scores
+                SET
+                    exported = ?
+                WHERE
+                    event_id NOT IN ('not_exported_score_event_id')
+                """,
+            [ScoresExportedStatus.EXPORTED],
+        )
+
+        # delete
+        result = await db_operations.delete_scores(batch_size=100)
+
+        assert len(result) == 1
+        assert result[0][0] == 1
+
+        result = await db_client.many(
+            """
+                SELECT event_id FROM scores ORDER BY ROWID ASC
+            """
+        )
+
+        # Should have unexported score left
+        assert len(result) == 1
+        assert result[0][0] == "not_exported_score_event_id"
+
+    async def test_delete_scores_batch_size(
+        self, db_operations: DatabaseOperations, db_client: DatabaseClient
+    ):
+        events = [
+            (
+                "event_id_1",
+                "event_id_1",
+                "truncated_market1",
+                "market_1",
+                "desc1",
+                "2024-12-02",
+                "2024-12-03",
+                "outcome1",
+                "status1",
+                '{"key": "value"}',
+                "2000-12-02T14:30:00+00:00",
+                "2000-01-01T14:30:00+00:00",
+                "2000-01-02T14:30:00+00:00",
+            ),
+            (
+                "event_id_2",
+                "event_id_2",
+                "truncated_market2",
+                "market_2",
+                "desc2",
+                "2024-12-03",
+                "2024-12-04",
+                "outcome2",
+                "status2",
+                '{"key": "value"}',
+                "2012-12-02T14:30:00+00:00",
+                "2001-01-01T14:30:00+00:00",
+                "2001-01-02T14:30:00+00:00",
+            ),
+            (
+                "event_id_3",
+                "event_id_3",
+                "truncated_market3",
+                "market_3",
+                "desc3",
+                "2024-12-04",
+                "2024-12-05",
+                "outcome3",
+                "status3",
+                '{"key": "value"}',
+                "2012-12-02T14:30:00+00:00",
+                "2001-01-01T14:30:00+00:00",
+                "2001-01-02T14:30:00+00:00",
+            ),
+        ]
+
+        scores = [
+            ScoresModel(
+                event_id="event_id_1",
+                miner_uid=1,
+                miner_hotkey="hk1",
+                prediction=0.75,
+                event_score=0.85,
+                spec_version=1,
+            ),
+            ScoresModel(
+                event_id="event_id_2",
+                miner_uid=2,
+                miner_hotkey="hk2",
+                prediction=0.65,
+                event_score=0.80,
+                spec_version=1,
+            ),
+            ScoresModel(
+                event_id="event_id_3",
+                miner_uid=3,
+                miner_hotkey="hk3",
+                prediction=0.70,
+                event_score=0.75,
+                spec_version=1,
+            ),
+        ]
+
+        await db_operations.upsert_events(events=events)
+        await db_operations.insert_peer_scores(scores)
+
+        # Mark all events as processed
+        await db_client.update(
+            """
+                UPDATE
+                    events
+                SET
+                    processed = ?,
+                    resolved_at = ?
+            """,
+            [
+                True,
+                (datetime.now(timezone.utc) - timedelta(days=15, hours=1)).isoformat(),
+            ],
+        )
+        # Mark all scores as exported
+        await db_client.update(
+            """
+                UPDATE
+                    scores
+                SET
+                    exported = ?
+                """,
+            [ScoresExportedStatus.EXPORTED],
+        )
+
+        # delete with batch size 2
+        result = await db_operations.delete_scores(batch_size=2)
+
+        assert len(result) == 2
+
+        # Check the rows are deleted in ASC order
+        assert result[0][0] == 1
+        assert result[1][0] == 2
+
+        result = await db_client.many(
+            """
+                SELECT event_id FROM scores ORDER BY ROWID ASC
+            """
+        )
+
+        # Should have 1 score left
+        assert len(result) == 1
+        assert result[0][0] == "event_id_3"
+
+        # delete again
+        result = await db_operations.delete_scores(batch_size=2)
+
+        assert len(result) == 1
+
+        result = await db_client.many(
+            """
+                SELECT event_id FROM scores ORDER BY ROWID ASC
+            """
+        )
+
+        # Should have no scores left
+        assert len(result) == 0
+
+    async def test_delete_scores_resolved_at_condition(
+        self, db_operations: DatabaseOperations, db_client: DatabaseClient
+    ):
+        # Create events with different resolved_at timestamps
+
+        events = [
+            (
+                "old_event_id",
+                "old_event_id",
+                "truncated_market1",
+                "market_1",
+                "desc1",
+                "2024-12-02",
+                "2024-12-03",
+                "outcome1",
+                "status1",
+                '{"key": "value"}',
+                "2000-12-02T14:30:00+00:00",
+                "2000-12-02T14:30:00+00:00",
+                "2000-01-02T14:30:00+00:00",
+            ),
+            (
+                "recent_event_id",
+                "recent_event_id",
+                "truncated_market2",
+                "market_2",
+                "desc2",
+                "2024-12-03",
+                "2024-12-04",
+                "outcome2",
+                "status2",
+                '{"key": "value"}',
+                "2012-12-02T14:30:00+00:00",
+                "2012-12-02T14:30:00+00:00",
+                "2001-01-02T14:30:00+00:00",
+            ),
+        ]
+
+        scores = [
+            ScoresModel(
+                event_id="old_event_id",
+                miner_uid=1,
+                miner_hotkey="hk1",
+                prediction=0.75,
+                event_score=0.85,
+                spec_version=1,
+            ),
+            ScoresModel(
+                event_id="recent_event_id",
+                miner_uid=2,
+                miner_hotkey="hk2",
+                prediction=0.65,
+                event_score=0.80,
+                spec_version=1,
+            ),
+        ]
+
+        await db_operations.upsert_events(events=events)
+        await db_operations.insert_peer_scores(scores)
+
+        # Mark events as processed
+
+        # Set events processed and resolved at
+        await db_client.update(
+            """
+                UPDATE
+                    events
+                SET
+                    processed = ?,
+                    resolved_at = ?
+                WHERE
+                    unique_event_id = ?
+            """,
+            [
+                True,
+                (
+                    datetime.now(timezone.utc) - timedelta(days=15, hours=1)
+                ).isoformat(),  # Resolved 15 days ago
+                events[0][0],
+            ],
+        )
+
+        await db_client.update(
+            """
+                UPDATE
+                    events
+                SET
+                    processed = ?,
+                    resolved_at = ?
+                WHERE
+                    unique_event_id = ?
+            """,
+            [
+                True,
+                (datetime.now(timezone.utc) - timedelta(days=3)).isoformat(),  # Resolved 3 days ago
+                events[1][0],
+            ],
+        )
+
+        # Mark all scores as exported
+        await db_client.update(
+            """
+                UPDATE
+                    scores
+                SET
+                    exported = ?
+            """,
+            [ScoresExportedStatus.EXPORTED],
+        )
+
+        # Try to delete scores
+        result = await db_operations.delete_scores(batch_size=100)
+
+        # Only the score for the old resolved event should be deleted
+        assert len(result) == 1
+        assert result[0][0] == 1  # ROWID of the old event's score
+
+        # Verify remaining scores
+        remaining_scores = await db_client.many(
+            """
+                SELECT event_id FROM scores ORDER BY ROWID ASC
+            """
+        )
+
+        assert len(remaining_scores) == 1
+        assert remaining_scores[0][0] == "recent_event_id"  # Score for recent event should remain
+
+    async def test_get_wa_predictions_events(
+        self, db_operations: DatabaseOperations, db_client: DatabaseClient
+    ):
+        unique_event_id_1 = "unique_event_id_1"
+        unique_event_id_2 = "unique_event_id_2"
+        unique_event_ids = [unique_event_id_1, unique_event_id_2, "fake_unique_event_id"]
+
+        wa_predictions = await db_operations.get_wa_predictions_events(
+            unique_event_ids=unique_event_ids, interval_start_minutes=1
+        )
+
+        # No predictions yet
+        assert len(wa_predictions) == 0
+
+        scores = [
+            ScoresModel(
+                event_id="event_id_1",
+                miner_uid=i,
+                miner_hotkey=f"hk{i}",
+                prediction=0.5,
+                event_score=0.5,
+                spec_version=1,
+            )
+            for i in range(50)
+        ] + [
+            ScoresModel(
+                event_id="event_id_1",
                 miner_uid=i,
                 miner_hotkey=f"hk{i}",
                 prediction=0.5,
@@ -402,6 +872,7 @@ class TestDbOperationsPart2(TestDbOperationsBase):
             )
             for i in range(50)
         ]
+
         await db_operations.insert_peer_scores(scores)
 
         await db_client.update(
@@ -411,7 +882,19 @@ class TestDbOperationsPart2(TestDbOperationsBase):
         # insert predictions like 0.0, 0.01, 0.02, 0.03, ..., 0.99 for calculations
         predictions = [
             (
-                unique_event_id,
+                unique_event_id_1,
+                f"hk{i}",
+                i,
+                "1",
+                10,
+                i * 0.01,
+                1,
+                i * 0.01,
+            )
+            for i in range(100)
+        ] + [
+            (
+                unique_event_id_2,
                 f"hk{i}",
                 i,
                 "1",
@@ -422,27 +905,84 @@ class TestDbOperationsPart2(TestDbOperationsBase):
             )
             for i in range(100)
         ]
+
         await db_operations.upsert_predictions(predictions=predictions)
         # validate inserted predictions
         inserted_predictions = await db_client.many(
             "SELECT * FROM predictions", use_row_factory=True
         )
-        assert [int(p["minerUid"]) for p in inserted_predictions] == list(range(100))
+        assert [int(p["minerUid"]) for p in inserted_predictions] == list(range(100)) * 2
         assert [p["interval_agg_prediction"] for p in inserted_predictions] == [
             i * 0.01 for i in range(100)
-        ]
+        ] * 2
 
         # No prediction for interval
-        wa_prediction = await db_operations.get_wa_prediction_event(unique_event_id, 11)
+        wa_predictions = await db_operations.get_wa_predictions_events(
+            unique_event_ids=unique_event_ids, interval_start_minutes=11
+        )
 
-        assert wa_prediction is None
+        assert len(wa_predictions) == 0
 
-        wa_prediction = await db_operations.get_wa_prediction_event(
-            unique_event_id=unique_event_id,
+        wa_predictions = await db_operations.get_wa_predictions_events(
+            unique_event_ids=unique_event_ids,
             interval_start_minutes=10,
         )
         # top 10 miners should be 40-49 with metagraph scores 0.4-0.49
         # their prediction should be 0.40-0.49
-        assert wa_prediction == sum([(i * 0.01) ** 2 for i in range(40, 50)]) / sum(
+        assert len(wa_predictions) == 2
+
+        expected_wa_prediction = sum([(i * 0.01) ** 2 for i in range(40, 50)]) / sum(
             [i * 0.01 for i in range(40, 50)]
         )
+
+        assert wa_predictions[unique_event_id_1] == expected_wa_prediction
+        assert wa_predictions[unique_event_id_2] == expected_wa_prediction
+
+    async def test_get_wa_predictions_events_nulls(
+        self, db_operations: DatabaseOperations, db_client: DatabaseClient
+    ):
+        unique_event_id = "unique_event_id_1"
+        unique_event_ids = [unique_event_id]
+
+        scores = [
+            ScoresModel(
+                event_id="event_id_1",
+                miner_uid=i,
+                miner_hotkey=f"hk{i}",
+                prediction=0.5,
+                event_score=0.5,
+                spec_version=1,
+            )
+            for i in range(20)
+        ]
+
+        await db_operations.insert_peer_scores(scores)
+
+        await db_client.update(
+            "UPDATE scores SET processed = 1, metagraph_score = miner_uid * 0.01",
+        )
+
+        predictions = [
+            (
+                unique_event_id,
+                f"hk{i}",
+                i,
+                "1",
+                10,
+                # Set null interval_agg_prediction
+                None,
+                1,
+                i * 0.01,
+            )
+            for i in range(50)
+        ]
+
+        await db_operations.upsert_predictions(predictions=predictions)
+
+        wa_predictions = await db_operations.get_wa_predictions_events(
+            unique_event_ids=unique_event_ids,
+            interval_start_minutes=10,
+        )
+
+        assert len(wa_predictions) == 1
+        assert wa_predictions[unique_event_id] is None

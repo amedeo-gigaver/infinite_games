@@ -18,32 +18,87 @@ last_n_events AS (
     ORDER BY event_min_row DESC
     LIMIT :n_events
 ),
-pre_aggregate AS (
-    -- Aggregate peer scores across the selected events.
+yes_stats AS (
+    -- compute YES-rate in that window
     SELECT
-        miner_uid,
-        miner_hotkey,
-        SUM(event_score) AS sum_peer_score,
-        COUNT(event_score) AS count_peer_score
-    FROM scores
+        COUNT(1) AS n_window,
+        COALESCE(SUM(CASE WHEN outcome = "1" THEN 1 ELSE 0 END), 0) AS yes_cnt
+    FROM events
     WHERE event_id IN (SELECT event_id FROM last_n_events)
-    GROUP BY miner_uid, miner_hotkey
+),
+class_weights AS (
+  -- Laplace-smoothed YES probability
+  SELECT
+    (yes_cnt + 1.0) * 1.0 / (n_window + 2.0) AS q_yes,
+    n_window,
+    yes_cnt
+  FROM yes_stats
+),
+weights AS (
+  SELECT
+    1.0 / q_yes AS w1,
+    1.0 / (1.0 - q_yes) AS w0
+  FROM class_weights
+),
+weight_totals AS (
+  SELECT
+      /*  window_weight = YES* w1  +  NO * w0  */
+      (yes_cnt * w1) +
+      ((n_window - yes_cnt) * w0)     AS window_weight
+  FROM class_weights CROSS JOIN weights
+),
+pre_aggregate AS (
+    -- Aggregate weighted peer scores across the selected events.
+    SELECT
+        s.miner_uid,
+        s.miner_hotkey,
+        SUM(
+            s.event_score *
+            CASE WHEN ev.outcome = "1"
+                    THEN (SELECT w1 FROM weights)
+                    ELSE (SELECT w0 FROM weights)
+            END
+        ) AS sum_wpeer_score,
+        SUM(
+            CASE WHEN ev.outcome = "1"
+                    THEN (SELECT w1 FROM weights)
+                    ELSE (SELECT w0 FROM weights)
+            END
+        ) AS sum_weight,
+        COUNT(event_score) AS count_peer_score
+    FROM scores  AS s
+    JOIN events  AS ev  ON ev.event_id = s.event_id
+    WHERE s.event_id IN (SELECT event_id FROM last_n_events)
+        AND ev.event_id IN (SELECT event_id FROM last_n_events)
+    GROUP BY s.miner_uid, s.miner_hotkey
 ),
 current_event AS (
-    -- Get scores for the current event.
+    -- Get weighted scores for the current event.
     SELECT
-        miner_uid,
-        miner_hotkey,
-        event_score
-    FROM scores
-    WHERE event_id = :event_id
+        s.miner_uid,
+        s.miner_hotkey,
+        s.event_score *
+            CASE WHEN ev.outcome = "1"
+                THEN (SELECT w1 FROM weights)
+                ELSE (SELECT w0 FROM weights)
+            END AS weighted_score,
+        CASE WHEN ev.outcome = "1"
+            THEN (SELECT w1 FROM weights)
+            ELSE (SELECT w0 FROM weights)
+        END AS this_weight
+    FROM scores  AS s
+    JOIN events  AS ev  ON ev.event_id = s.event_id
+    WHERE s.event_id = :event_id
+      AND ev.event_id = :event_id
 ),
 joined_data AS (
     -- Join current event scores with the aggregated scores.
     SELECT
         ce.miner_uid,
         ce.miner_hotkey,
-        ce.event_score + COALESCE(pa.sum_peer_score, 0) AS sum_peer_score,
+        COALESCE(pa.sum_wpeer_score,0) + ce.weighted_score AS sum_wpeer_score,
+        /* ------  fixed denominator  ------ */
+        (SELECT window_weight FROM weight_totals) + ce.this_weight  AS sum_weight,
         1 + max(COALESCE(pa.count_peer_score, 0), :n_events) AS count_peer_score,
         1 + COALESCE(pa.count_peer_score, 0) AS true_count_peer_score
     FROM current_event ce
@@ -55,12 +110,12 @@ avg_scores AS (
     -- Compute moving average and square max average peer scores.
     SELECT
         *,
-        sum_peer_score / count_peer_score AS avg_peer_score,
+        sum_wpeer_score / sum_weight AS avg_peer_score,
         -- sadly no power operator in sqlite
         (
-            max(sum_peer_score / count_peer_score, 0)
+            max(sum_wpeer_score / sum_weight, 0)
         ) * (
-            max(sum_peer_score / count_peer_score, 0)
+            max(sum_wpeer_score / sum_weight, 0)
         ) AS sqmax_avg_peer_score
     FROM joined_data
 ),
@@ -85,7 +140,8 @@ payload AS (
         miner_hotkey,
         metagraph_score,
         json_object(
-            'sum_peer_score', sum_peer_score,
+            'sum_weighted_peer_score', sum_wpeer_score,
+            'sum_weight', sum_weight,
             'count_peer_score', count_peer_score,
             'true_count_peer_score', true_count_peer_score,
             'avg_peer_score', avg_peer_score,

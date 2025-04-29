@@ -21,24 +21,29 @@ latest_metagraph_scores AS (
 		AND s.miner_hotkey = lr.miner_hotkey
 		AND s.ROWID = lr.max_rowid
 ),
-event_predictions AS (
-    -- Get the latest predictions for the event from the top 10 miners.
+events_predictions AS (
+    -- Get the latest predictions for the events
 	SELECT
-        lms.miner_uid,
-        lms.miner_hotkey,
+		pr.unique_event_id,
+        pr.interval_agg_prediction,
         lms.metagraph_score,
-        pr.interval_start_minutes,
-        pr.interval_agg_prediction
+		-- Rank them by metagraph_score per event id
+		ROW_NUMBER() OVER (PARTITION BY pr.unique_event_id ORDER BY lms.metagraph_score DESC) AS rn
 	FROM latest_metagraph_scores lms
 	INNER JOIN predictions pr
 		ON pr.minerUid = lms.miner_uid
 		AND pr.minerHotkey = lms.miner_hotkey
-	WHERE pr.unique_event_id = :unique_event_id
+	WHERE
+		pr.unique_event_id IN (:unique_event_ids)
 		AND interval_start_minutes = :interval_start_minutes
-	ORDER BY lms.metagraph_score DESC
-	LIMIT 10
 )
 SELECT
+	unique_event_id,
 	SUM(metagraph_score*interval_agg_prediction)/SUM(metagraph_score)
         AS weighted_average_prediction
-FROM event_predictions;
+FROM events_predictions
+WHERE
+	-- Filter top 10 scores / miners
+	rn <= 10
+GROUP BY unique_event_id
+ORDER BY unique_event_id ASC;

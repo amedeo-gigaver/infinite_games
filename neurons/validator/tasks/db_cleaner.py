@@ -45,7 +45,16 @@ class DbCleaner(AbstractTask):
         return self.interval
 
     async def run(self):
-        deleted = await self.db_operations.delete_predictions(self.batch_size)
+        # Delete predictions
+        deleted_predictions = await self.db_operations.delete_predictions(self.batch_size)
 
-        if len(deleted) > 0:
-            self.logger.debug("Predictions deleted", extra={"deleted_count": len(deleted)})
+        if len(deleted_predictions) > 0:
+            self.logger.debug(
+                "Predictions deleted", extra={"deleted_count": len(deleted_predictions)}
+            )
+
+        # Delete scores
+        deleted_scores = await self.db_operations.delete_scores(self.batch_size)
+
+        if len(deleted_scores) > 0:
+            self.logger.debug("Scores deleted", extra={"deleted_count": len(deleted_scores)})

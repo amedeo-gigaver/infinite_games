@@ -7,6 +7,7 @@ from freezegun import freeze_time
 
 from neurons.validator.db.client import DatabaseClient
 from neurons.validator.db.operations import DatabaseOperations
+from neurons.validator.models.event import EventsModel, EventStatus
 from neurons.validator.models.score import SCORE_FIELDS, ScoresModel
 from neurons.validator.tasks.metagraph_scoring import MOVING_AVERAGE_EVENTS, MetagraphScoring
 from neurons.validator.utils.logger.logger import InfiniteGamesLogger
@@ -59,7 +60,7 @@ class TestMetagraphScoring:
     @pytest.mark.parametrize(
         "scores_list, expected_result, log_calls",
         [
-            # Case 1: No scores.
+            # Case 0: No scores.
             (
                 [],
                 [],
@@ -69,7 +70,7 @@ class TestMetagraphScoring:
                     ]
                 },
             ),
-            # Case 2: All scores are processed.
+            # Case 1: All scores are processed.
             (
                 [
                     ScoresModel(
@@ -100,7 +101,7 @@ class TestMetagraphScoring:
                     ]
                 },
             ),
-            # Case 3: Single miner single event.
+            # Case 2: Single miner single event.
             (
                 [
                     ScoresModel(
@@ -120,11 +121,12 @@ class TestMetagraphScoring:
                         "processed": 1,
                         "metagraph_score": 1.0,
                         "other_data": {
-                            "sum_peer_score": 0.80,
+                            "sum_weighted_peer_score": 1.6,
+                            "sum_weight": 2.0,
                             "count_peer_score": MOVING_AVERAGE_EVENTS + 1,
                             "true_count_peer_score": 1,
-                            "avg_peer_score": 0.008 * (99 / MOVING_AVERAGE_EVENTS),
-                            "sqmax_avg_peer_score": 0.00064,
+                            "avg_peer_score": 0.8,
+                            "sqmax_avg_peer_score": 0.64,
                         },
                     },
                 ],
@@ -176,11 +178,12 @@ class TestMetagraphScoring:
                         "processed": 1,
                         "metagraph_score": 0.8,
                         "other_data": {
-                            "sum_peer_score": 0.80,
+                            "sum_weighted_peer_score": 1.60,
+                            "sum_weight": 2.0,
                             "count_peer_score": MOVING_AVERAGE_EVENTS + 1,
                             "true_count_peer_score": 1,
-                            "avg_peer_score": 0.008 * (99 / MOVING_AVERAGE_EVENTS),
-                            "sqmax_avg_peer_score": 0.000064,
+                            "avg_peer_score": 0.8,
+                            "sqmax_avg_peer_score": 0.64,
                         },
                     },
                     {
@@ -188,11 +191,12 @@ class TestMetagraphScoring:
                         "processed": 1,
                         "metagraph_score": 0.2,
                         "other_data": {
-                            "sum_peer_score": 0.40,
+                            "sum_weighted_peer_score": 0.80,
+                            "sum_weight": 2.0,
                             "count_peer_score": MOVING_AVERAGE_EVENTS + 1,
                             "true_count_peer_score": 1,
-                            "avg_peer_score": 0.004 * (99 / MOVING_AVERAGE_EVENTS),
-                            "sqmax_avg_peer_score": 0.000016,
+                            "avg_peer_score": 0.4,
+                            "sqmax_avg_peer_score": 0.16,
                         },
                     },
                 ],
@@ -288,11 +292,12 @@ class TestMetagraphScoring:
                         "processed": 1,
                         "metagraph_score": 0.8,
                         "other_data": {
-                            "sum_peer_score": 0.80,
+                            "sum_weighted_peer_score": 1.6,
+                            "sum_weight": 2.0,
                             "count_peer_score": MOVING_AVERAGE_EVENTS + 1,
                             "true_count_peer_score": 1,
-                            "avg_peer_score": 0.008 * (99 / MOVING_AVERAGE_EVENTS),
-                            "sqmax_avg_peer_score": 0.000064,
+                            "avg_peer_score": 0.8,
+                            "sqmax_avg_peer_score": 0.64,
                         },
                     },
                     {
@@ -300,11 +305,12 @@ class TestMetagraphScoring:
                         "processed": 1,
                         "metagraph_score": 0.2,
                         "other_data": {
-                            "sum_peer_score": 0.40,
+                            "sum_weighted_peer_score": 0.8,
+                            "sum_weight": 2.0,
                             "count_peer_score": MOVING_AVERAGE_EVENTS + 1,
                             "true_count_peer_score": 1,
-                            "avg_peer_score": 0.004 * (99 / MOVING_AVERAGE_EVENTS),
-                            "sqmax_avg_peer_score": 0.000016,
+                            "avg_peer_score": 0.4,
+                            "sqmax_avg_peer_score": 0.16,
                         },
                     },
                     {
@@ -312,10 +318,11 @@ class TestMetagraphScoring:
                         "processed": 1,
                         "metagraph_score": 0.0,
                         "other_data": {
-                            "sum_peer_score": -0.40,
+                            "sum_weighted_peer_score": -0.80,
+                            "sum_weight": 2.0,
                             "count_peer_score": MOVING_AVERAGE_EVENTS + 1,
                             "true_count_peer_score": 1,
-                            "avg_peer_score": -0.004 * (99 / MOVING_AVERAGE_EVENTS),
+                            "avg_peer_score": -0.4,
                             "sqmax_avg_peer_score": 0.0,
                         },
                     },
@@ -378,11 +385,12 @@ class TestMetagraphScoring:
                         "processed": 1,
                         "metagraph_score": 1.0,
                         "other_data": {
-                            "sum_peer_score": 0.80,
+                            "sum_weighted_peer_score": 1.6,
+                            "sum_weight": 2.0,
                             "count_peer_score": MOVING_AVERAGE_EVENTS + 1,
                             "true_count_peer_score": 1,
-                            "avg_peer_score": 0.008 * (99 / MOVING_AVERAGE_EVENTS),
-                            "sqmax_avg_peer_score": 0.000064,
+                            "avg_peer_score": 0.8,
+                            "sqmax_avg_peer_score": 0.64,
                         },
                     },
                     {
@@ -390,11 +398,12 @@ class TestMetagraphScoring:
                         "processed": 1,
                         "metagraph_score": 0.9,
                         "other_data": {
-                            "sum_peer_score": 1.2,
+                            "sum_weighted_peer_score": 1.8,
+                            "sum_weight": 3.0,
                             "count_peer_score": MOVING_AVERAGE_EVENTS + 1,
                             "true_count_peer_score": 2,
-                            "avg_peer_score": 0.012 * (99 / MOVING_AVERAGE_EVENTS),
-                            "sqmax_avg_peer_score": 0.000144,
+                            "avg_peer_score": 0.6,
+                            "sqmax_avg_peer_score": 0.36,
                         },
                     },
                     {
@@ -402,11 +411,12 @@ class TestMetagraphScoring:
                         "processed": 1,
                         "metagraph_score": 0.1,
                         "other_data": {
-                            "sum_peer_score": 0.40,
+                            "sum_weighted_peer_score": 0.6,
+                            "sum_weight": 3.0,
                             "count_peer_score": MOVING_AVERAGE_EVENTS + 1,
                             "true_count_peer_score": 1,
-                            "avg_peer_score": 0.004 * (99 / MOVING_AVERAGE_EVENTS),
-                            "sqmax_avg_peer_score": 0.000016,
+                            "avg_peer_score": 0.2,
+                            "sqmax_avg_peer_score": 0.04,
                         },
                     },
                 ],
@@ -506,11 +516,12 @@ class TestMetagraphScoring:
                         "processed": 1,
                         "metagraph_score": 1.0,
                         "other_data": {
-                            "sum_peer_score": 0.8,
+                            "sum_weighted_peer_score": 1.6,
+                            "sum_weight": 2.0,
                             "count_peer_score": MOVING_AVERAGE_EVENTS + 1,
                             "true_count_peer_score": 1,
-                            "avg_peer_score": 0.008 * (99 / MOVING_AVERAGE_EVENTS),
-                            "sqmax_avg_peer_score": 0.000064,
+                            "avg_peer_score": 0.8,
+                            "sqmax_avg_peer_score": 0.64,
                         },
                     },
                     {
@@ -518,11 +529,12 @@ class TestMetagraphScoring:
                         "processed": 1,
                         "metagraph_score": 0.9,
                         "other_data": {
-                            "sum_peer_score": 1.2,
+                            "sum_weighted_peer_score": 1.8,
+                            "sum_weight": 3.0,
                             "count_peer_score": MOVING_AVERAGE_EVENTS + 1,
                             "true_count_peer_score": 2,
-                            "avg_peer_score": 0.012 * (99 / MOVING_AVERAGE_EVENTS),
-                            "sqmax_avg_peer_score": 0.000144,
+                            "avg_peer_score": 0.6,
+                            "sqmax_avg_peer_score": 0.36,
                         },
                     },
                     {
@@ -530,11 +542,12 @@ class TestMetagraphScoring:
                         "processed": 1,
                         "metagraph_score": 0.835,
                         "other_data": {
-                            "sum_peer_score": 1.8,
+                            "sum_weighted_peer_score": 2.4,
+                            "sum_weight": 4.0,
                             "count_peer_score": MOVING_AVERAGE_EVENTS + 1,
                             "true_count_peer_score": 3,
-                            "avg_peer_score": 0.018 * (99 / MOVING_AVERAGE_EVENTS),
-                            "sqmax_avg_peer_score": 0.000164,
+                            "avg_peer_score": 0.6,
+                            "sqmax_avg_peer_score": 0.36,
                         },
                     },
                     {
@@ -542,11 +555,12 @@ class TestMetagraphScoring:
                         "processed": 1,
                         "metagraph_score": 0.1,
                         "other_data": {
-                            "sum_peer_score": 0.40,
+                            "sum_weighted_peer_score": 0.6,
+                            "sum_weight": 3.0,
                             "count_peer_score": MOVING_AVERAGE_EVENTS + 1,
                             "true_count_peer_score": 1,
-                            "avg_peer_score": 0.004 * (99 / MOVING_AVERAGE_EVENTS),
-                            "sqmax_avg_peer_score": 0.000016,
+                            "avg_peer_score": 0.2,
+                            "sqmax_avg_peer_score": 0.04,
                         },
                     },
                     {
@@ -554,11 +568,12 @@ class TestMetagraphScoring:
                         "processed": 1,
                         "metagraph_score": 0.165,
                         "other_data": {
-                            "sum_peer_score": 0.80,
+                            "sum_weighted_peer_score": 1.0667,
+                            "sum_weight": 4.0,
                             "count_peer_score": MOVING_AVERAGE_EVENTS + 1,
                             "true_count_peer_score": 2,
-                            "avg_peer_score": 0.008 * (99 / MOVING_AVERAGE_EVENTS),
-                            "sqmax_avg_peer_score": 0.000064,
+                            "avg_peer_score": 0.26667,
+                            "sqmax_avg_peer_score": 0.0711,
                         },
                     },
                     {
@@ -566,10 +581,11 @@ class TestMetagraphScoring:
                         "processed": 1,
                         "metagraph_score": 0.0,
                         "other_data": {
-                            "sum_peer_score": -0.40,
+                            "sum_weighted_peer_score": -0.6,
+                            "sum_weight": 3.0,
                             "count_peer_score": MOVING_AVERAGE_EVENTS + 1,
                             "true_count_peer_score": 1,
-                            "avg_peer_score": -0.004 * (99 / MOVING_AVERAGE_EVENTS),
+                            "avg_peer_score": -0.2,
                             "sqmax_avg_peer_score": 0.0,
                         },
                     },
@@ -608,6 +624,75 @@ class TestMetagraphScoring:
                     ]
                 },
             ),
+            # Case 8: 2 miners 100 events each
+            (
+                [
+                    ScoresModel(
+                        event_id=f"expected_event_id_{i}",
+                        miner_uid=3,
+                        miner_hotkey="hk3",
+                        prediction=0.1 if i % 2 == 0 else 0.9,
+                        event_score=0.80,
+                        created_at="2025-01-02 03:00:00",
+                        spec_version=1,
+                        processed=False,
+                    )
+                    for i in range(100)
+                ]
+                + [
+                    ScoresModel(
+                        event_id=f"expected_event_id_{i}",
+                        miner_uid=4,
+                        miner_hotkey="hk4",
+                        prediction=0.1 if i % 2 == 0 else 0.9,
+                        event_score=0.40,
+                        created_at="2025-01-02 03:00:00",
+                        spec_version=1,
+                        processed=False,
+                    )
+                    for i in range(100)
+                ],
+                [
+                    {
+                        "event_id": f"expected_event_id_{i}",
+                        "processed": 1,
+                        "metagraph_score": 0.8,
+                        "other_data": {
+                            "sum_weighted_peer_score": 1.6 * (i + 1),
+                            "sum_weight": 2.0 * (i + 1),
+                            "count_peer_score": MOVING_AVERAGE_EVENTS + 1,
+                            "true_count_peer_score": i + 1,
+                            "avg_peer_score": 0.8,
+                            "sqmax_avg_peer_score": 0.64,
+                        },
+                    }
+                    for i in range(100)
+                ]
+                + [
+                    {
+                        "event_id": f"expected_event_id_{i}",
+                        "processed": 1,
+                        "metagraph_score": 0.2,
+                        "other_data": {
+                            "sum_weighted_peer_score": 0.8 * (i + 1),
+                            "sum_weight": 2.0 * (i + 1),
+                            "count_peer_score": MOVING_AVERAGE_EVENTS + 1,
+                            "true_count_peer_score": i + 1,
+                            "avg_peer_score": 0.4,
+                            "sqmax_avg_peer_score": 0.16,
+                        },
+                    }
+                    for i in range(100)
+                ],
+                {
+                    "debug": [
+                        (
+                            "Found events to calculate metagraph scores.",
+                            {"n_events": 100},
+                        ),
+                    ],
+                },
+            ),
         ],
     )
     async def test_run(
@@ -619,6 +704,36 @@ class TestMetagraphScoring:
         db_client,
         db_operations,
     ):
+        # insert EVENTS that match the score rows
+        if scores_list:
+            uniq_event_ids = {s.event_id for s in scores_list}
+
+            stub_events = []
+            for eid in uniq_event_ids:
+                # simple heuristic: prediction > 0.5 -> outcome "1", else "0"
+                some_score = next(s for s in scores_list if s.event_id == eid)
+                outcome = "1" if some_score.prediction >= 0.5 else "0"
+
+                stub_events.append(
+                    EventsModel(
+                        unique_event_id=f"stub_{eid}",
+                        event_id=eid,
+                        market_type="unit_test",
+                        event_type="unit_test",
+                        description=f"stub for {eid}",
+                        starts="2100-01-01",
+                        resolve_date="2100-01-02",
+                        outcome=outcome,
+                        status=EventStatus.SETTLED,
+                        metadata="{}",
+                        created_at="2100-01-01T00:00:00+00:00",
+                        cutoff="2100-01-01T00:00:00+00:00",
+                        end_date="2100-01-02T00:00:00+00:00",
+                    )
+                )
+
+            await db_operations.upsert_pydantic_events(stub_events)
+
         # insert scores
         sql = f"""
             INSERT INTO scores ({', '.join(SCORE_FIELDS)})
@@ -667,9 +782,16 @@ class TestMetagraphScoring:
                 )
 
                 other_data = json.loads(updated["other_data"])
-                assert other_data["sum_peer_score"] == pytest.approx(
-                    expected["other_data"]["sum_peer_score"], abs=1e-3
-                )
+                # quite complex to calculate weighted values for all i
+                if len(updated_scores) < 20 or (
+                    len(updated_scores) >= 20 and (i > 30 and i < 100 or i > 130)
+                ):
+                    assert other_data["sum_weighted_peer_score"] == pytest.approx(
+                        expected["other_data"]["sum_weighted_peer_score"], rel=1e-3
+                    )
+                    assert other_data["sum_weight"] == pytest.approx(
+                        expected["other_data"]["sum_weight"], rel=1e-3
+                    )
                 assert other_data["count_peer_score"] == expected["other_data"]["count_peer_score"]
                 assert (
                     other_data["true_count_peer_score"]

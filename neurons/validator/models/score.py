@@ -1,7 +1,13 @@
 from datetime import datetime
+from enum import IntEnum
 from typing import Any, Optional
 
 from pydantic import BaseModel, field_validator
+
+
+class ScoresExportedStatus(IntEnum):
+    NOT_EXPORTED = 0
+    EXPORTED = 1
 
 
 class ScoresModel(BaseModel):
