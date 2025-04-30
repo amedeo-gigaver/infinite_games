@@ -9,7 +9,7 @@ from neurons.validator.models.prediction import (
     PredictionExportedStatus,
     PredictionsModel,
 )
-from neurons.validator.models.score import SCORE_FIELDS, ScoresModel
+from neurons.validator.models.score import SCORE_FIELDS, ScoresExportedStatus, ScoresModel
 from neurons.validator.utils.logger.logger import InfiniteGamesLogger
 
 SQL_FOLDER = Path(Path(__file__).parent, "sql")
@@ -74,6 +74,48 @@ class DatabaseOperations:
                     ROWID
             """,
             [EventStatus.DISCARDED, PredictionExportedStatus.EXPORTED, batch_size],
+        )
+
+    async def delete_scores(self, batch_size: int) -> Iterable[tuple[int]]:
+        return await self.__db_client.delete(
+            """
+                WITH scores_to_delete AS (
+                    SELECT
+                        s.ROWID
+                    FROM
+                        scores s
+                    LEFT JOIN
+                        events e ON s.event_id = e.event_id
+                    WHERE
+                        (
+                            -- orphan scores
+                            e.event_id IS NULL
+                            -- scores older than X days and processed event
+                            OR (
+                                    e.processed = TRUE
+                                    AND datetime(e.resolved_at) < datetime(CURRENT_TIMESTAMP, '-15 day')
+                                )
+                            -- scores for discarded events
+                            OR e.status = ?
+                        )
+                        AND s.exported = ?
+                    ORDER BY
+                        s.ROWID ASC
+                    LIMIT ?
+                )
+                DELETE FROM
+                    scores
+                WHERE
+                    ROWID IN (
+                        SELECT
+                            ROWID
+                        FROM
+                            scores_to_delete
+                    )
+                RETURNING
+                    ROWID
+            """,
+            [EventStatus.DISCARDED, ScoresExportedStatus.EXPORTED, batch_size],
         )
 
     async def get_event(self, unique_event_id: str) -> None | EventsModel:
@@ -604,7 +646,7 @@ class DatabaseOperations:
                         MIN(ROWID) AS min_row_id
                     FROM scores
                     WHERE processed = 1
-                        AND exported = 0
+                        AND exported = ?
                     GROUP BY event_id
                     ORDER BY min_row_id ASC
                     LIMIT ?
@@ -617,6 +659,7 @@ class DatabaseOperations:
             """,
             use_row_factory=True,
             parameters=[
+                ScoresExportedStatus.NOT_EXPORTED,
                 max_events,
             ],
         )
@@ -665,10 +708,13 @@ class DatabaseOperations:
         return await self.__db_client.update(
             """
                 UPDATE scores
-                SET exported = 1
+                SET exported = ?
                 WHERE event_id = ?
             """,
-            parameters=(event_id,),
+            parameters=(
+                ScoresExportedStatus.EXPORTED,
+                event_id,
+            ),
         )
 
     async def get_last_metagraph_scores(self) -> list:
@@ -712,32 +758,32 @@ class DatabaseOperations:
     async def vacuum_database(self, pages: int):
         await self.__db_client.script(f"PRAGMA incremental_vacuum({pages})")
 
-    async def get_wa_prediction_event(
-        self, unique_event_id: str, interval_start_minutes: int
-    ) -> float | None:
+    async def get_wa_predictions_events(
+        self, unique_event_ids: list[str], interval_start_minutes: int
+    ) -> dict[str, None | float]:
         """
-        Retrieve the weighted average of the latest predictions for a given event
+        Retrieve the weighted average of the latest predictions for the given events
         """
-        raw_sql = Path(SQL_FOLDER, "latest_predictions_event.sql").read_text()
-        row = await self.__db_client.one(
+        raw_sql_template = Path(SQL_FOLDER, "latest_predictions_events.sql").read_text()
+
+        # Dynamically create named parameters for the IN clause
+        unique_event_params = {
+            f"unique_event_id_{i}": uid for i, uid in enumerate(unique_event_ids)
+        }
+        in_clause = ", ".join(f":unique_event_id_{i}" for i in range(len(unique_event_ids)))
+        raw_sql = raw_sql_template.replace(":unique_event_ids", in_clause)
+
+        rows = await self.__db_client.many(
             raw_sql,
             parameters={
-                "unique_event_id": unique_event_id,
+                **unique_event_params,
                 "interval_start_minutes": interval_start_minutes,
             },
         )
 
-        if row[0] is None:
-            self.logger.warning(
-                "No predictions found for the event",
-                extra={
-                    "unique_event_id": unique_event_id,
-                    "interval_start_minutes": interval_start_minutes,
-                },
+        return {
+            unique_event_id: (
+                float(weighted_avg_prediction) if weighted_avg_prediction is not None else None
             )
-
-            return row[0]
-
-        weighted_average_prediction = float(row[0])
-
-        return weighted_average_prediction
+            for unique_event_id, weighted_avg_prediction in rows
+        }

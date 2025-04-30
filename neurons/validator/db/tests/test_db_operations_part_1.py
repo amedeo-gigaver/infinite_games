@@ -1940,11 +1940,50 @@ class TestDbOperationsPart1(TestDbOperationsBase):
         )
         await db_operations.insert_peer_scores([previous_score, current_score])
 
+        events = [
+            EventsModel(
+                unique_event_id="unique1",
+                event_id="test_event",
+                market_type="truncated_market1",
+                event_type="market1",
+                description="desc1",
+                starts="2024-12-02",
+                resolve_date="2024-12-03",
+                outcome="1",
+                status=EventStatus.SETTLED,
+                metadata='{"key": "value"}',
+                created_at="2000-12-02T14:30:00+00:00",
+                cutoff="2000-12-30T14:30:00+00:00",
+                end_date="2000-12-31T14:30:00+00:00",
+            ),
+            EventsModel(
+                unique_event_id="unique2",
+                event_id="other_event",
+                market_type="truncated_market2",
+                event_type="market2",
+                description="desc2",
+                starts="2024-12-03",
+                resolve_date="2024-12-04",
+                outcome="0",
+                status=EventStatus.SETTLED,
+                metadata='{"key": "value"}',
+                created_at="2012-12-02T14:30:00+00:00",
+                cutoff="2000-12-30T14:30:00+00:00",
+                end_date="2000-12-31T14:30:00+00:00",
+            ),
+        ]
+
+        await db_operations.upsert_pydantic_events(events)
+
         # confirm right setup
         raw_scores = await db_client.many("SELECT event_id FROM scores")
         assert len(raw_scores) == 2
         assert raw_scores[0][0] == "other_event"
         assert raw_scores[1][0] == "test_event"
+        raw_events = await db_client.many("SELECT event_id FROM events")
+        assert len(raw_events) == 2
+        assert raw_events[0][0] == "test_event"
+        assert raw_events[1][0] == "other_event"
 
         updated = await db_operations.set_metagraph_peer_scores(event_id="test_event", n_events=5)
         assert updated == []
@@ -1966,8 +2005,9 @@ class TestDbOperationsPart1(TestDbOperationsBase):
         assert actual_rows[1]["other_data"] is not None
 
         other_data = json.loads(actual_rows[1]["other_data"])
-        assert other_data["sum_peer_score"] == 0.95
+        assert other_data["sum_weighted_peer_score"] == 2.85
+        assert other_data["sum_weight"] == 4.5
         assert other_data["count_peer_score"] == 6
         assert other_data["true_count_peer_score"] == 1
-        assert other_data["avg_peer_score"] == pytest.approx(0.1583333, abs=1e-6)
-        assert other_data["sqmax_avg_peer_score"] == pytest.approx(0.0250694, abs=1e-6)
+        assert other_data["avg_peer_score"] == pytest.approx(0.633333, abs=1e-6)
+        assert other_data["sqmax_avg_peer_score"] == pytest.approx(0.401111, abs=1e-6)
