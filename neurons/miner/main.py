@@ -91,6 +91,10 @@ class Miner(BaseMinerNeuron):
                     probability = event.get_probability()
                     market["probability"] = probability
                     market["miner_answered"] = probability is not None
+
+                    reasoning = event.get_reasoning()
+                    market["reasoning"] = reasoning
+
                     count += probability is not None
                     self.logger.info(f"Event {event_id} is resolved with probability {probability}")
 

@@ -22,6 +22,9 @@ class MinerEvent(BaseModel):
     probability: typing.Optional[float] = Field(
         None, ge=0, le=1, description="The prediction of the event"
     )
+    reasoning: typing.Optional[str] = Field(
+        None, description="The reasoning for the event prediction"
+    )
     description: str = Field(..., description="The title and the description of the event")
     cutoff: datetime = Field(..., description="The last date the event can be predicted")
     status: MinerEventStatus = Field(
@@ -63,3 +66,9 @@ class MinerEvent(BaseModel):
 
     def get_description(self) -> str:
         return self.description
+
+    def set_reasoning(self, reasoning: str | None):
+        self.reasoning = reasoning
+
+    def get_reasoning(self) -> str | None:
+        return self.reasoning

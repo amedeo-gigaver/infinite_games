@@ -9,6 +9,7 @@ from neurons.validator.models.prediction import (
     PredictionExportedStatus,
     PredictionsModel,
 )
+from neurons.validator.models.reasoning import REASONING_FIELDS, ReasoningModel
 from neurons.validator.models.score import SCORE_FIELDS, ScoresExportedStatus, ScoresModel
 from neurons.validator.utils.logger.logger import InfiniteGamesLogger
 
@@ -48,15 +49,21 @@ class DatabaseOperations:
                     LEFT JOIN
                         events e ON p.unique_event_id = e.unique_event_id
                     WHERE
-                        (
-                            e.unique_event_id IS NULL
-                            OR (
-                                    e.processed = TRUE
-                                    AND datetime(e.resolved_at) < datetime(CURRENT_TIMESTAMP, '-4 day')
-                                )
-                            OR e.status = ?
+                        -- Orphan predictions
+                        e.unique_event_id IS NULL
+
+                        -- Predictions for processed events and older than X
+                        OR (
+                            e.processed = TRUE
+                            AND datetime(e.resolved_at) < datetime(CURRENT_TIMESTAMP, '-4 day')
+                            AND p.exported = ?
                         )
-                        AND p.exported = ?
+
+                        -- Predictions for discarded events
+                        OR (
+                            e.status = ?
+                            AND p.exported = ?
+                        )
                     ORDER BY
                         p.ROWID ASC
                     LIMIT ?
@@ -73,7 +80,12 @@ class DatabaseOperations:
                 RETURNING
                     ROWID
             """,
-            [EventStatus.DISCARDED, PredictionExportedStatus.EXPORTED, batch_size],
+            [
+                PredictionExportedStatus.EXPORTED,
+                EventStatus.DISCARDED,
+                PredictionExportedStatus.EXPORTED,
+                batch_size,
+            ],
         )
 
     async def delete_scores(self, batch_size: int) -> Iterable[tuple[int]]:
@@ -87,18 +99,21 @@ class DatabaseOperations:
                     LEFT JOIN
                         events e ON s.event_id = e.event_id
                     WHERE
-                        (
-                            -- orphan scores
-                            e.event_id IS NULL
-                            -- scores older than X days and processed event
-                            OR (
-                                    e.processed = TRUE
-                                    AND datetime(e.resolved_at) < datetime(CURRENT_TIMESTAMP, '-15 day')
-                                )
-                            -- scores for discarded events
-                            OR e.status = ?
+                        -- Orphan scores
+                        e.event_id IS NULL
+
+                        -- Scores for processed events older than X
+                        OR (
+                            e.processed = TRUE
+                            AND datetime(e.resolved_at) < datetime(CURRENT_TIMESTAMP, '-15 day')
+                            AND s.exported = ?
                         )
-                        AND s.exported = ?
+
+                        -- Scores for discarded events
+                        OR (
+                            e.status = ?
+                            AND s.exported = ?
+                        )
                     ORDER BY
                         s.ROWID ASC
                     LIMIT ?
@@ -115,7 +130,12 @@ class DatabaseOperations:
                 RETURNING
                     ROWID
             """,
-            [EventStatus.DISCARDED, ScoresExportedStatus.EXPORTED, batch_size],
+            [
+                ScoresExportedStatus.EXPORTED,
+                EventStatus.DISCARDED,
+                ScoresExportedStatus.EXPORTED,
+                batch_size,
+            ],
         )
 
     async def get_event(self, unique_event_id: str) -> None | EventsModel:
@@ -409,6 +429,39 @@ class DatabaseOperations:
         return await self.__db_client.insert_many(
             sql=sql,
             parameters=event_tuples,
+        )
+
+    async def upsert_reasonings(self, reasonings: list[ReasoningModel]) -> None:
+        """Upsert a list of ReasoningModel objects into the database"""
+
+        fields_to_insert = [
+            field_name
+            for field_name in REASONING_FIELDS
+            if field_name not in ("created_at", "updated_at")
+        ]
+        placeholders = ", ".join(["?"] * len(fields_to_insert))
+        columns = ", ".join(fields_to_insert)
+
+        # Convert each reasoning into a tuple of values in the same order as fields_to_insert
+        reasoning_tuples = [
+            tuple(getattr(reasoning, field_name) for field_name in fields_to_insert)
+            for reasoning in reasonings
+        ]
+
+        sql = f"""
+                INSERT INTO reasoning
+                    ({columns}, created_at, updated_at)
+                VALUES
+                    ({placeholders}, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                ON CONFLICT
+                    (event_id, miner_uid, miner_hotkey)
+                DO UPDATE SET
+                    reasoning = excluded.reasoning,
+                    updated_at = CURRENT_TIMESTAMP
+        """
+        return await self.__db_client.insert_many(
+            sql=sql,
+            parameters=reasoning_tuples,
         )
 
     async def get_events_for_scoring(self, max_events=1000) -> list[EventsModel]:

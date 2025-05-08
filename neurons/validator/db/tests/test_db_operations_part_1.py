@@ -95,7 +95,7 @@ class TestDbOperationsPart1(TestDbOperationsBase):
         self, db_operations: DatabaseOperations, db_client: DatabaseClient
     ):
         events = [
-            # No events - orphan prediction
+            # No events - orphan predictions
         ]
 
         predictions = [
@@ -124,24 +124,10 @@ class TestDbOperationsPart1(TestDbOperationsBase):
         await db_operations.upsert_events(events=events)
         await db_operations.upsert_predictions(predictions=predictions)
 
-        # Mark first prediction as exported
-        await db_client.update(
-            """
-                UPDATE
-                    predictions
-                SET
-                    exported = ?
-                WHERE
-                    unique_event_id = ?
-                """,
-            [PredictionExportedStatus.EXPORTED, predictions[0][0]],
-        )
-
         # delete predictions
         result = await db_operations.delete_predictions(batch_size=100)
 
-        assert len(result) == 1
-        assert result[0][0] == 1
+        assert len(result) == 2
 
         result = await db_client.many(
             """
@@ -149,9 +135,8 @@ class TestDbOperationsPart1(TestDbOperationsBase):
             """
         )
 
-        # Should have deleted the orphan exported prediction
-        assert len(result) == 1
-        assert result[0][0] == predictions[1][0]
+        # Should have deleted all predictions
+        assert len(result) == 0
 
     async def test_delete_predictions_processed_unprocessed_events(
         self, db_operations: DatabaseOperations, db_client: DatabaseClient

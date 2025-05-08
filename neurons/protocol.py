@@ -8,6 +8,7 @@ class EventPredictionSynapse(Synapse):
         #     "event_id",
         #     "market_type",
         #     "probability",
+        #     "reasoning",
         #     "miner_answered",
         #     "description",
         #     "cutoff",

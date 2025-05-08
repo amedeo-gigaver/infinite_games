@@ -1,5 +1,7 @@
 from datetime import datetime, timedelta, timezone
 
+import pytest
+
 from neurons.validator.db.client import DatabaseClient
 from neurons.validator.db.operations import DatabaseOperations
 from neurons.validator.db.tests.test_utils import TestDbOperationsBase
@@ -385,6 +387,61 @@ class TestDbOperationsPart2(TestDbOperationsBase):
 
         assert result is None
 
+    async def test_delete_scores_orphan_scores(
+        self, db_operations: DatabaseOperations, db_client: DatabaseClient
+    ):
+        events = [
+            #    Orphan scores
+        ]
+
+        scores = [
+            ScoresModel(
+                event_id="exported_score_event",
+                miner_uid=1,
+                miner_hotkey="hk1",
+                prediction=0.75,
+                event_score=0.85,
+                spec_version=1,
+            ),
+            ScoresModel(
+                event_id="non_exported_score_event",
+                miner_uid=2,
+                miner_hotkey="hk2",
+                prediction=0.65,
+                event_score=0.80,
+                spec_version=1,
+            ),
+        ]
+
+        await db_operations.upsert_events(events=events)
+        await db_operations.insert_peer_scores(scores)
+
+        # Mark score as exported
+        await db_client.update(
+            """
+                UPDATE
+                    scores
+                SET
+                    exported = ?
+                WHERE
+                    event_id = ?
+                """,
+            [ScoresExportedStatus.EXPORTED, scores[0].event_id],
+        )
+
+        # delete
+        result = await db_operations.delete_scores(batch_size=100)
+
+        assert len(result) == 2
+
+        result = await db_client.many(
+            """
+                SELECT event_id FROM scores ORDER BY ROWID ASC
+            """
+        )
+
+        assert len(result) == 0
+
     async def test_delete_scores_discarded_event(
         self, db_operations: DatabaseOperations, db_client: DatabaseClient
     ):
@@ -469,13 +526,13 @@ class TestDbOperationsPart2(TestDbOperationsBase):
         assert len(result) == 1
         assert result[0][0] == "pending_event_id"
 
-    async def test_delete_scores_exported_unexported(
+    async def test_delete_scores_processed_events(
         self, db_operations: DatabaseOperations, db_client: DatabaseClient
     ):
         events = [
             (
-                "exported_score_event_id",
-                "exported_score_event_id",
+                "processed_event_old_id",
+                "processed_event_old_id",
                 "truncated_market1",
                 "market_1",
                 "desc1",
@@ -489,25 +546,55 @@ class TestDbOperationsPart2(TestDbOperationsBase):
                 "2000-01-02T14:30:00+00:00",
             ),
             (
-                "not_exported_score_event_id",
-                "not_exported_score_event_id",
-                "truncated_market4",
-                "market_4",
-                "desc4",
+                "processed_event_old_non_exported_score_id",
+                "processed_event_old_non_exported_score_id",
+                "truncated_market1",
+                "market_1",
+                "desc1",
+                "2024-12-02",
                 "2024-12-03",
-                "2024-12-04",
-                "outcome4",
-                "status4",
+                "outcome1",
+                "status1",
                 '{"key": "value"}',
-                "2012-12-02T14:30:00+00:00",
-                "2001-01-01T14:30:00+00:00",
-                "2001-01-02T14:30:00+00:00",
+                "2000-12-02T14:30:00+00:00",
+                "2000-01-01T14:30:00+00:00",
+                "2000-01-02T14:30:00+00:00",
+            ),
+            (
+                "processed_event_new_id",
+                "processed_event_new_id",
+                "truncated_market1",
+                "market_1",
+                "desc1",
+                "2024-12-02",
+                "2024-12-03",
+                "outcome1",
+                "status1",
+                '{"key": "value"}',
+                "2000-12-02T14:30:00+00:00",
+                "2000-01-01T14:30:00+00:00",
+                "2000-01-02T14:30:00+00:00",
+            ),
+            (
+                "non_processed_event_id",
+                "non_processed_event_id",
+                "truncated_market1",
+                "market_1",
+                "desc1",
+                "2024-12-02",
+                "2024-12-03",
+                "outcome1",
+                "status1",
+                '{"key": "value"}',
+                "2000-12-02T14:30:00+00:00",
+                "2000-01-01T14:30:00+00:00",
+                "2000-01-02T14:30:00+00:00",
             ),
         ]
 
         scores = [
             ScoresModel(
-                event_id="exported_score_event_id",
+                event_id="processed_event_old",
                 miner_uid=1,
                 miner_hotkey="hk1",
                 prediction=0.75,
@@ -515,11 +602,27 @@ class TestDbOperationsPart2(TestDbOperationsBase):
                 spec_version=1,
             ),
             ScoresModel(
-                event_id="not_exported_score_event_id",
-                miner_uid=2,
-                miner_hotkey="hk12",
-                prediction=0.65,
-                event_score=0.80,
+                event_id="processed_event_old_non_exported_score_id",
+                miner_uid=1,
+                miner_hotkey="hk1",
+                prediction=0.75,
+                event_score=0.85,
+                spec_version=1,
+            ),
+            ScoresModel(
+                event_id="processed_event_new_id",
+                miner_uid=1,
+                miner_hotkey="hk1",
+                prediction=0.75,
+                event_score=0.85,
+                spec_version=1,
+            ),
+            ScoresModel(
+                event_id="non_processed_event_id",
+                miner_uid=1,
+                miner_hotkey="hk1",
+                prediction=0.75,
+                event_score=0.85,
                 spec_version=1,
             ),
         ]
@@ -527,7 +630,7 @@ class TestDbOperationsPart2(TestDbOperationsBase):
         await db_operations.upsert_events(events=events)
         await db_operations.insert_peer_scores(scores)
 
-        # Mark all events as processed but unprocessed and discarded ones
+        # Mark events as processed
         await db_client.update(
             """
                 UPDATE
@@ -535,14 +638,31 @@ class TestDbOperationsPart2(TestDbOperationsBase):
                 SET
                     processed = ?,
                     resolved_at = ?
+                WHERE
+                    event_id LIKE 'processed_event_%'
             """,
             [
                 True,
+                (datetime.now(timezone.utc) - timedelta(days=14, hours=1)).isoformat(),
+            ],
+        )
+
+        # Update resolved at for old processed events
+        await db_client.update(
+            """
+                UPDATE
+                    events
+                SET
+                    resolved_at = ?
+                WHERE
+                    event_id LIKE 'processed_event_old_%'
+            """,
+            [
                 (datetime.now(timezone.utc) - timedelta(days=15, hours=1)).isoformat(),
             ],
         )
 
-        # Mark all scores as exported but not exported one
+        # Mark scores exported
         await db_client.update(
             """
                 UPDATE
@@ -550,15 +670,16 @@ class TestDbOperationsPart2(TestDbOperationsBase):
                 SET
                     exported = ?
                 WHERE
-                    event_id NOT IN ('not_exported_score_event_id')
+                    event_id != ?
                 """,
-            [ScoresExportedStatus.EXPORTED],
+            [ScoresExportedStatus.EXPORTED, "processed_event_old_non_exported_score_id"],
         )
 
         # delete
         result = await db_operations.delete_scores(batch_size=100)
 
         assert len(result) == 1
+        # assert row id is returned
         assert result[0][0] == 1
 
         result = await db_client.many(
@@ -568,8 +689,10 @@ class TestDbOperationsPart2(TestDbOperationsBase):
         )
 
         # Should have unexported score left
-        assert len(result) == 1
-        assert result[0][0] == "not_exported_score_event_id"
+        assert len(result) == 3
+        assert result[0][0] == "processed_event_old_non_exported_score_id"
+        assert result[1][0] == "processed_event_new_id"
+        assert result[2][0] == "non_processed_event_id"
 
     async def test_delete_scores_batch_size(
         self, db_operations: DatabaseOperations, db_client: DatabaseClient
@@ -935,8 +1058,37 @@ class TestDbOperationsPart2(TestDbOperationsBase):
             [i * 0.01 for i in range(40, 50)]
         )
 
-        assert wa_predictions[unique_event_id_1] == expected_wa_prediction
-        assert wa_predictions[unique_event_id_2] == expected_wa_prediction
+        assert wa_predictions[unique_event_id_1] == pytest.approx(expected_wa_prediction)
+        assert wa_predictions[unique_event_id_2] == pytest.approx(expected_wa_prediction)
+
+        # check for metagraph scores all 0s
+        await db_client.update(
+            "UPDATE scores SET metagraph_score = 0.0",
+        )
+
+        predictions = [
+            (
+                unique_event_id_1,
+                f"hk{i}",
+                i,
+                "1",
+                12,  # interval_start_minutes
+                i * 0.01,
+                1,
+                i * 0.01,
+            )
+            for i in range(10)
+        ]
+        await db_operations.upsert_predictions(predictions=predictions)
+
+        wa_predictions = await db_operations.get_wa_predictions_events(
+            unique_event_ids=[unique_event_id_1],
+            interval_start_minutes=12,
+        )
+        assert len(wa_predictions) == 1
+
+        expected_simple_avg = sum([i * 0.01 for i in range(10)]) / 10
+        assert wa_predictions[unique_event_id_1] == pytest.approx(expected_simple_avg)
 
     async def test_get_wa_predictions_events_nulls(
         self, db_operations: DatabaseOperations, db_client: DatabaseClient

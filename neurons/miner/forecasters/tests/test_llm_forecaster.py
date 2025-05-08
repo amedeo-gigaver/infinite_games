@@ -29,21 +29,26 @@ async def test_llm_forecaster_successful_prediction(llm_forecaster):
     mock_report.prediction = 0.75
     llm_forecaster.bot.forecast_questions = AsyncMock(return_value=[mock_report])
 
-    result = await llm_forecaster._run()
+    probability, reasoning = await llm_forecaster._run()
 
-    assert isinstance(result, float)
-    assert result == 0.75
     assert llm_forecaster.bot.forecast_questions.called
+
+    assert isinstance(probability, float)
+    assert probability == 0.75
+
+    assert reasoning is None
 
 
 @pytest.mark.asyncio
 async def test_llm_forecaster_handles_exception(llm_forecaster):
     llm_forecaster.bot.forecast_questions = AsyncMock(side_effect=Exception("Error"))
 
-    result = await llm_forecaster._run()
+    probability, reasoning = await llm_forecaster._run()
 
-    assert isinstance(result, float)
-    assert result == 0.5
+    assert isinstance(probability, float)
+    assert probability == 0.5
+
+    assert reasoning is None
 
 
 @pytest.mark.asyncio
@@ -91,4 +96,4 @@ async def test_llm_forecaster_with_sn13_exception(llm_forecaster_with_sn13):
     )
 
     result = await llm_forecaster_with_sn13._run()
-    assert result == 0.5
+    assert result == (0.5, None)

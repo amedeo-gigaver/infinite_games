@@ -10,6 +10,7 @@ from bittensor.core.metagraph import MetagraphMixin
 
 from neurons.protocol import EventPredictionSynapse
 from neurons.validator.db.operations import DatabaseOperations
+from neurons.validator.models.reasoning import ReasoningModel
 from neurons.validator.scheduler.task import AbstractTask
 from neurons.validator.utils.common.converters import torch_or_numpy_to_int
 from neurons.validator.utils.common.interval import get_interval_start_minutes
@@ -24,6 +25,8 @@ class ExtendedAxonInfo(AxonInfo):
 
 AxonInfoByUidType = dict[int, ExtendedAxonInfo]
 SynapseResponseByUidType = dict[int, EventPredictionSynapse]
+
+REASONING_LENGTH_LIMIT = 10000
 
 
 class QueryMiners(AbstractTask):
@@ -105,7 +108,7 @@ class QueryMiners(AbstractTask):
         interval_start_minutes = get_interval_start_minutes()
 
         # Store predictions
-        await self.store_predictions(
+        await self.store_predictions_and_reasonings(
             block=block,
             interval_start_minutes=interval_start_minutes,
             neurons_predictions=predictions_synapses,
@@ -148,6 +151,7 @@ class QueryMiners(AbstractTask):
                 "event_id": event_id,
                 "market_type": market_type,
                 "probability": None,
+                "reasoning": None,
                 "miner_answered": False,
                 "description": description,
                 "cutoff": cutoff,
@@ -164,10 +168,11 @@ class QueryMiners(AbstractTask):
         interval_start_minutes: int,
         uid: int,
         neuron_predictions: EventPredictionSynapse,
-    ):
+    ) -> tuple[list, list[ReasoningModel]]:
         axon_hotkey = self.metagraph.axons[uid].hotkey
 
         predictions_to_insert = []
+        reasonings_to_insert: list[ReasoningModel] = []
 
         # Iterate over all event predictions
         for unique_event_id, event_prediction in neuron_predictions.events.items():
@@ -190,7 +195,22 @@ class QueryMiners(AbstractTask):
 
             predictions_to_insert.append(prediction)
 
-        return predictions_to_insert
+            reasoning = event_prediction.get("reasoning")
+
+            if reasoning is not None:
+                if len(reasoning) > REASONING_LENGTH_LIMIT:
+                    reasoning = reasoning[:REASONING_LENGTH_LIMIT] + "--TRUNCATED--"
+
+                reasoning_model = ReasoningModel(
+                    event_id=unique_event_id,
+                    miner_uid=uid,
+                    miner_hotkey=axon_hotkey,
+                    reasoning=reasoning,
+                )
+
+                reasonings_to_insert.append(reasoning_model)
+
+        return predictions_to_insert, reasonings_to_insert
 
     async def query_neurons(self, axons_by_uid: AxonInfoByUidType, synapse: EventPredictionSynapse):
         timeout = 120
@@ -252,13 +272,16 @@ class QueryMiners(AbstractTask):
 
         self.logger.debug("Miners stored", extra={"miners_count": len(miners)})
 
-    async def store_predictions(
+    async def store_predictions_and_reasonings(
         self, block: int, interval_start_minutes: int, neurons_predictions: SynapseResponseByUidType
     ):
         # For each neuron predictions
         for uid, neuron_predictions in neurons_predictions.items():
             # Parse neuron predictions for insert
-            parsed_neuron_predictions_for_insertion = self.parse_neuron_predictions(
+            (
+                parsed_neuron_predictions_for_insertion,
+                parsed_neuron_reasonings_for_insertion,
+            ) = self.parse_neuron_predictions(
                 block=block,
                 interval_start_minutes=interval_start_minutes,
                 uid=uid,
@@ -276,5 +299,19 @@ class QueryMiners(AbstractTask):
                     extra={
                         "neuron_uid": uid,
                         "predictions_count": len(parsed_neuron_predictions_for_insertion),
+                    },
+                )
+
+            if len(parsed_neuron_reasonings_for_insertion) > 0:
+                # Batch upsert neuron reasonings
+                await self.db_operations.upsert_reasonings(
+                    reasonings=parsed_neuron_reasonings_for_insertion
+                )
+
+                self.logger.debug(
+                    "Reasonings stored",
+                    extra={
+                        "neuron_uid": uid,
+                        "reasonings_count": len(parsed_neuron_reasonings_for_insertion),
                     },
                 )
