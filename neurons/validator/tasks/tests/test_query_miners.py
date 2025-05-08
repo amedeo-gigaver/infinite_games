@@ -15,7 +15,8 @@ from neurons.protocol import EventPredictionSynapse
 from neurons.validator.db.client import DatabaseClient
 from neurons.validator.db.operations import DatabaseOperations
 from neurons.validator.models.event import EventStatus
-from neurons.validator.tasks.query_miners import QueryMiners
+from neurons.validator.models.reasoning import ReasoningModel
+from neurons.validator.tasks.query_miners import REASONING_LENGTH_LIMIT, QueryMiners
 from neurons.validator.utils.logger.logger import InfiniteGamesLogger
 
 
@@ -155,11 +156,14 @@ class TestQueryMiners:
 
         event_data = synapse.events[expected_key]
 
+        assert len(event_data) == 10
+
         assert event_data["event_id"] == "event1"
         assert event_data["market_type"] == "acled"
         assert event_data["description"] == "Test match"
         assert event_data["cutoff"] == 1354458600
         assert event_data["probability"] is None
+        assert event_data["reasoning"] is None
         assert event_data["miner_answered"] is False
         assert event_data["starts"] is None
         assert event_data["resolve_date"] == 1354458600
@@ -172,11 +176,14 @@ class TestQueryMiners:
 
         event_data = synapse.events[expected_key]
 
+        assert len(event_data) == 10
+
         assert event_data["event_id"] == "event2"
         assert event_data["market_type"] == "azuro"
         assert event_data["description"] == "Test match 2"
         assert event_data["cutoff"] == 1354458600
         assert event_data["probability"] is None
+        assert event_data["reasoning"] is None
         assert event_data["miner_answered"] is False
         assert event_data["starts"] == 1354458600
         assert event_data["resolve_date"] == 1354458600
@@ -209,6 +216,7 @@ class TestQueryMiners:
                     "event_id": "event1",
                     "market_type": "acled",
                     "probability": 0.5,
+                    "reasoning": None,
                     "miner_answered": True,
                     "description": "Test match",
                     "cutoff": 1354458600,
@@ -220,6 +228,7 @@ class TestQueryMiners:
                     "event_id": "event2",
                     "market_type": "azuro",
                     "probability": 0.75,
+                    "reasoning": "s" * (REASONING_LENGTH_LIMIT * 2),
                     "miner_answered": False,
                     "description": "Test match 2",
                     "cutoff": 1354458600,
@@ -232,6 +241,7 @@ class TestQueryMiners:
                     "market_type": "azuro",
                     # None predictions are dropped
                     "probability": None,
+                    "reasoning": "Reasoning event 3",
                     "miner_answered": False,
                     "description": "Test match 2",
                     "cutoff": 1354458600,
@@ -242,14 +252,14 @@ class TestQueryMiners:
             }
         )
 
-        result = query_miners_task.parse_neuron_predictions(
+        predictions, reasonings = query_miners_task.parse_neuron_predictions(
             block=block,
             interval_start_minutes=interval_start_minutes,
             uid=uid,
             neuron_predictions=neuron_predictions,
         )
 
-        assert result == [
+        assert predictions == [
             (
                 "ifgames-event1",
                 query_miners_task.metagraph.axons[uid].hotkey,
@@ -270,6 +280,18 @@ class TestQueryMiners:
                 block,
                 0.75,
             ),
+        ]
+
+        assert reasonings == [
+            ReasoningModel(
+                event_id="ifgames-event2",
+                miner_uid=2,
+                miner_hotkey="hotkey2",
+                reasoning="s" * REASONING_LENGTH_LIMIT + "--TRUNCATED--",
+                created_at=None,
+                updated_at=None,
+                exported=False,
+            )
         ]
 
     async def test_query_neurons(self, query_miners_task: QueryMiners):
@@ -385,12 +407,14 @@ class TestQueryMiners:
         # Check that the registered_date is not anymore 2024-01-01T00:00:00
         assert result_2[1][4] != "2024-01-01T00:00:00"
 
-    async def test_store_predictions(self, query_miners_task: QueryMiners):
+    async def test_store_predictions_and_reasonings(self, query_miners_task: QueryMiners):
         # Set up mocks
         query_miners_task.db_operations.upsert_predictions = AsyncMock()
+        query_miners_task.db_operations.upsert_reasonings = AsyncMock()
+
         query_miners_task.metagraph.axons = {
-            "uid_1": MagicMock(hotkey="hotkey_1"),
-            "uid_2": MagicMock(hotkey="hotkey_2"),
+            "1": MagicMock(hotkey="hotkey_1"),
+            "2": MagicMock(hotkey="hotkey_2"),
         }
 
         interval_start_minutes = 12345
@@ -402,6 +426,7 @@ class TestQueryMiners:
                     "event_id": "event1",
                     "market_type": "acled",
                     "probability": 0.5,
+                    "reasoning": "Reasoning 1",
                     "miner_answered": True,
                     "description": "Test match",
                     "cutoff": 1354458600,
@@ -413,6 +438,7 @@ class TestQueryMiners:
                     "event_id": "event2",
                     "market_type": "azuro",
                     "probability": 0.75,
+                    "reasoning": "Reasoning 2",
                     "miner_answered": False,
                     "description": "Test match 2",
                     "cutoff": 1354458600,
@@ -423,9 +449,9 @@ class TestQueryMiners:
             }
         )
 
-        neurons_predictions = {"uid_1": synapse, "uid_2": synapse}
+        neurons_predictions = {"1": synapse, "2": synapse}
 
-        await query_miners_task.store_predictions(
+        await query_miners_task.store_predictions_and_reasonings(
             block=block,
             interval_start_minutes=interval_start_minutes,
             neurons_predictions=neurons_predictions,
@@ -440,7 +466,7 @@ class TestQueryMiners:
                     (
                         "acled-event1",
                         "hotkey_1",
-                        "uid_1",
+                        "1",
                         0.5,
                         interval_start_minutes,
                         0.5,
@@ -450,7 +476,7 @@ class TestQueryMiners:
                     (
                         "azuro-event2",
                         "hotkey_1",
-                        "uid_1",
+                        "1",
                         0.75,
                         interval_start_minutes,
                         0.75,
@@ -464,7 +490,7 @@ class TestQueryMiners:
                     (
                         "acled-event1",
                         "hotkey_2",
-                        "uid_2",
+                        "2",
                         0.5,
                         interval_start_minutes,
                         0.5,
@@ -474,12 +500,61 @@ class TestQueryMiners:
                     (
                         "azuro-event2",
                         "hotkey_2",
-                        "uid_2",
+                        "2",
                         0.75,
                         interval_start_minutes,
                         0.75,
                         block,
                         0.75,
+                    ),
+                ]
+            ),
+        ]
+
+        assert query_miners_task.db_operations.upsert_reasonings.await_count == 2
+
+        assert query_miners_task.db_operations.upsert_reasonings.await_args_list == [
+            call(
+                reasonings=[
+                    ReasoningModel(
+                        event_id="acled-event1",
+                        miner_uid=1,
+                        miner_hotkey="hotkey_1",
+                        reasoning="Reasoning 1",
+                        created_at=None,
+                        updated_at=None,
+                        exported=False,
+                    ),
+                    ReasoningModel(
+                        event_id="azuro-event2",
+                        miner_uid=1,
+                        miner_hotkey="hotkey_1",
+                        reasoning="Reasoning 2",
+                        created_at=None,
+                        updated_at=None,
+                        exported=False,
+                    ),
+                ]
+            ),
+            call(
+                reasonings=[
+                    ReasoningModel(
+                        event_id="acled-event1",
+                        miner_uid=2,
+                        miner_hotkey="hotkey_2",
+                        reasoning="Reasoning 1",
+                        created_at=None,
+                        updated_at=None,
+                        exported=False,
+                    ),
+                    ReasoningModel(
+                        event_id="azuro-event2",
+                        miner_uid=2,
+                        miner_hotkey="hotkey_2",
+                        reasoning="Reasoning 2",
+                        created_at=None,
+                        updated_at=None,
+                        exported=False,
                     ),
                 ]
             ),
@@ -565,6 +640,7 @@ class TestQueryMiners:
             # Add a fake probability to each event in synapse.events
             for _, event in synapse.events.items():
                 event["probability"] = 0.8
+                event["reasoning"] = "Test reasoning"
 
             # Build responses
             responses = [synapse for _ in axons]
@@ -679,6 +755,26 @@ class TestQueryMiners:
         assert len(miners) == 2
         assert miners[0] == ("0", "hotkey_1", True, True)
         assert miners[1] == ("1", "hotkey_2", False, False)
+
+        # Assert reasonings
+        reasonings = await db_client.many(
+            """
+                SELECT
+                    event_id,
+                    miner_uid,
+                    miner_hotkey,
+                    reasoning,
+                    exported
+                FROM
+                    reasoning
+                """
+        )
+
+        assert len(reasonings) == 4
+        assert reasonings[0] == ("ifgames-event1", 0, "hotkey_1", "Test reasoning", 0)
+        assert reasonings[1] == ("ifgames-event2", 0, "hotkey_1", "Test reasoning", 0)
+        assert reasonings[2] == ("ifgames-event1", 1, "hotkey_2", "Test reasoning", 0)
+        assert reasonings[3] == ("ifgames-event2", 1, "hotkey_2", "Test reasoning", 0)
 
     async def test_run_no_events_to_predict(self, query_miners_task: QueryMiners):
         # Set mocks

@@ -1,5 +1,8 @@
 # Release Notes
 
+## [1.4.7] - 2025-05-06
+- **Protocol**: Added reasoning field in subnet synapse
+
 ## [1.4.6] - 2025-04-29
 - **Scoring**: Improved metagraph scoring to correct for class imbalance by up-weighting less frequent YES outcomes
 - **Database**: Added task to delete processed old scores

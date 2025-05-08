@@ -39,7 +39,11 @@ events_predictions AS (
 )
 SELECT
 	unique_event_id,
-	SUM(metagraph_score*interval_agg_prediction)/SUM(metagraph_score)
+	-- prevent division by zero in testnet - return avg instead
+	CASE
+	  WHEN SUM(metagraph_score) = 0 THEN AVG(interval_agg_prediction)
+	  ELSE SUM(metagraph_score * interval_agg_prediction) / SUM(metagraph_score)
+	END
         AS weighted_average_prediction
 FROM events_predictions
 WHERE

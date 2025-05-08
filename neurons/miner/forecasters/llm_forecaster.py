@@ -26,7 +26,7 @@ class LLMForecaster(BaseForecaster):
         )
         return question
 
-    async def _run(self) -> float | int:
+    async def _run(self) -> tuple[float | int, str | None]:
         try:
             question = await self._get_question()
             reports = await self.bot.forecast_questions([question])
@@ -34,7 +34,8 @@ class LLMForecaster(BaseForecaster):
         except Exception as e:
             self.logger.error(f"Error forecasting question with llm: {e}")
             probability = 0.5
-        return probability
+
+        return probability, None
 
 
 class LLMForecasterWithSN13(LLMForecaster):
