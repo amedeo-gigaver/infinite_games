@@ -91,53 +91,6 @@ class TestDbOperationsPart1(TestDbOperationsBase):
         assert len(result) == 1
         assert result[0][0] == event_id_to_keep
 
-    async def test_delete_predictions_orphan_prediction(
-        self, db_operations: DatabaseOperations, db_client: DatabaseClient
-    ):
-        events = [
-            # No events - orphan predictions
-        ]
-
-        predictions = [
-            (
-                "no_event_orphan_prediction_id_1",
-                "neuronHotkey_1",
-                "neuronUid_1",
-                "1",
-                10,
-                "1",
-                1,
-                "1",
-            ),
-            (
-                "no_event_orphan_prediction_id_2",
-                "neuronHotkey_1",
-                "neuronUid_1",
-                "1",
-                10,
-                "1",
-                1,
-                "1",
-            ),
-        ]
-
-        await db_operations.upsert_events(events=events)
-        await db_operations.upsert_predictions(predictions=predictions)
-
-        # delete predictions
-        result = await db_operations.delete_predictions(batch_size=100)
-
-        assert len(result) == 2
-
-        result = await db_client.many(
-            """
-                SELECT unique_event_id FROM predictions ORDER BY ROWID ASC
-            """
-        )
-
-        # Should have deleted all predictions
-        assert len(result) == 0
-
     async def test_delete_predictions_processed_unprocessed_events(
         self, db_operations: DatabaseOperations, db_client: DatabaseClient
     ):

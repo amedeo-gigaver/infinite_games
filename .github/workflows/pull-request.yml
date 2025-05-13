@@ -80,3 +80,5 @@ jobs:
         run: |
           coverage run --source=./ --omit="tests/*,*/tests/*" -m pytest -v
           coverage report -m
+        env:
+          API_ACCESS_KEYS: ${{ secrets.API_ACCESS_KEYS }}

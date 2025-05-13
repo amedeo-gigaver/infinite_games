@@ -1,5 +1,8 @@
 # Release Notes
 
+## [1.4.8] - 2025-05-13
+- **API**: Responses now include a `community_prediction_lr` field alongside `community_prediction`, exposing the probability from a trained community prediction LogisticRegression model.
+
 ## [1.4.7] - 2025-05-06
 - **Protocol**: Added reasoning field in subnet synapse
 

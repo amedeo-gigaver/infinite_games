@@ -17,6 +17,7 @@ class GetEventResponse(EventsModel):
 class GetEventCommunityPrediction(BaseModel):
     event_id: str
     community_prediction: None | float
+    community_prediction_lr: None | float
 
 
 class GetEventsCommunityPredictions(BaseModel):

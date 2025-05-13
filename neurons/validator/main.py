@@ -21,6 +21,7 @@ from neurons.validator.tasks.pull_events import PullEvents
 from neurons.validator.tasks.query_miners import QueryMiners
 from neurons.validator.tasks.resolve_events import ResolveEvents
 from neurons.validator.tasks.set_weights import SetWeights
+from neurons.validator.tasks.train_cp_model import TrainCommunityPredictionModel
 from neurons.validator.utils.config import get_config
 from neurons.validator.utils.env import ENVIRONMENT_VARIABLES, assert_requirements
 from neurons.validator.utils.logger.logger import logger, set_bittensor_logger
@@ -58,6 +59,7 @@ async def main():
         host="0.0.0.0",
         port=8000,
         db_operations=db_operations,
+        env=ifgames_env,
         api_access_keys=ENVIRONMENT_VARIABLES.API_ACCESS_KEYS,
     )
 
@@ -138,6 +140,13 @@ async def main():
         wallet=bt_wallet,
     )
 
+    train_cp_model_task = TrainCommunityPredictionModel(
+        interval_seconds=14400.0,
+        db_operations=db_operations,
+        logger=logger,
+        env=ifgames_env,
+    )
+
     db_cleaner_task = DbCleaner(
         interval_seconds=53.0, db_operations=db_operations, batch_size=4000, logger=logger
     )
@@ -161,6 +170,7 @@ async def main():
     scheduler.add(task=metagraph_scoring_task)
     scheduler.add(task=export_scores_task)
     scheduler.add(task=set_weights_task)
+    scheduler.add(task=train_cp_model_task)
     scheduler.add(task=db_cleaner_task)
     scheduler.add(task=vacuum_task)
 

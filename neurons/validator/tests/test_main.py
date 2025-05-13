@@ -32,6 +32,7 @@ class TestValidatorMain:
             patch("neurons.validator.main.MetagraphScoring", spec=True),
             patch("neurons.validator.main.ExportScores", spec=True),
             patch("neurons.validator.main.SetWeights", spec=True),
+            patch("neurons.validator.main.TrainCommunityPredictionModel", spec=True),
             patch(
                 "neurons.validator.main.API",
                 spec=True,
@@ -86,7 +87,7 @@ class TestValidatorMain:
             mock_scheduler.start.assert_awaited_once()
 
             # Verify tasks
-            assert mock_scheduler.add.call_count == 11
+            assert mock_scheduler.add.call_count == 12
 
             # Verify logging
             mock_logger.info.assert_called_with(
