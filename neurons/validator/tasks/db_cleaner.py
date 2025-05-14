@@ -24,8 +24,12 @@ class DbCleaner(AbstractTask):
             raise TypeError("db_operations must be an instance of DatabaseOperations.")
 
         # Validate batch_size
-        if not isinstance(batch_size, int) or batch_size <= 0 or batch_size > 4000:
-            raise ValueError("batch_size must be a positive integer.")
+        max_batch_size = 4000
+
+        if not isinstance(batch_size, int) or batch_size <= 0 or batch_size > max_batch_size:
+            raise ValueError(
+                f"batch_size must be a positive integer equal or less than {max_batch_size}."
+            )
 
         # Validate logger
         if not isinstance(logger, InfiniteGamesLogger):

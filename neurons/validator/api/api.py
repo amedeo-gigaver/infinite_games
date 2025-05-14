@@ -1,4 +1,4 @@
-from fastapi import Depends, FastAPI, Request
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import Limiter
 from slowapi.middleware import SlowAPIMiddleware
@@ -6,11 +6,12 @@ from uvicorn import Config, Server
 
 from neurons.validator.api.middlewares import (
     APIKeyMiddleware,
-    DbOperationsMiddleware,
     LoggingAndErrorHandlingMiddleware,
+    StateMiddleware,
 )
 from neurons.validator.api.routes.root_router import router as root_router
 from neurons.validator.db.operations import DatabaseOperations
+from neurons.validator.utils.config import IfgamesEnvType
 from neurons.validator.utils.logger.logger import set_uvicorn_logger
 
 
@@ -20,9 +21,15 @@ class API:
     fast_api: FastAPI | None
     server: Server | None
     db_operations: DatabaseOperations
+    env: IfgamesEnvType
 
     def __init__(
-        self, host: str, port: int, db_operations: DatabaseOperations, api_access_keys: str | None
+        self,
+        host: str,
+        port: int,
+        db_operations: DatabaseOperations,
+        env: IfgamesEnvType,
+        api_access_keys: str | None,
     ):
         if not isinstance(host, str):
             raise ValueError("host must be a string")
@@ -36,16 +43,17 @@ class API:
         if api_access_keys is not None and not isinstance(api_access_keys, str):
             raise ValueError("api_access_keys must be a string or None")
 
+        if not isinstance(env, str):
+            raise ValueError("env must be a string")
+
         self.host = host
         self.port = port
         self.fast_api = None
         self.server = None
         self.db_operations = db_operations
+        self.env = env
         self.api_access_keys = api_access_keys
         self.api_key_header = "X-API-Key"
-
-    def _get_db_operations(self):
-        return self.db_operations
 
     def _get_rate_limiter_key(self, request: Request):
         return request.headers.get(self.api_key_header, "fallback-key")
@@ -73,7 +81,6 @@ class API:
         fast_api = FastAPI(
             title="SN6 Validator API",
             version="0.1.0",
-            dependencies=[Depends(self._get_db_operations)],
             redoc_url=None,
             docs_url=None,
             openapi_url="/api/openapi.json",
@@ -82,7 +89,7 @@ class API:
         limiter = Limiter(key_func=self._get_rate_limiter_key, application_limits=["4/1seconds"])
         fast_api.state.limiter = limiter
 
-        fast_api.add_middleware(DbOperationsMiddleware, db_operations=self.db_operations)
+        fast_api.add_middleware(StateMiddleware, db_operations=self.db_operations, env=self.env)
 
         fast_api.add_middleware(
             CORSMiddleware,

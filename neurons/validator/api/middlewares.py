@@ -7,16 +7,21 @@ from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from neurons.validator.db.operations import DatabaseOperations
+from neurons.validator.utils.config import IfgamesEnvType
 from neurons.validator.utils.logger.logger import api_logger
 
 
-class DbOperationsMiddleware(BaseHTTPMiddleware):
-    def __init__(self, app, db_operations: DatabaseOperations):
+class StateMiddleware(BaseHTTPMiddleware):
+    def __init__(self, app, db_operations: DatabaseOperations, env: IfgamesEnvType):
         super().__init__(app)
+
         self.db_operations = db_operations
+        self.env = env
 
     async def dispatch(self, request: Request, call_next: typing.Callable):
-        request.state.db_operations = self.db_operations  # Attach DB operations to request
+        # Attach state to the request state
+        request.state.db_operations = self.db_operations
+        request.state.env = self.env
 
         response = await call_next(request)
 

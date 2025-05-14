@@ -46,24 +46,23 @@ class DatabaseOperations:
                         p.ROWID
                     FROM
                         predictions p
-                    LEFT JOIN
-                        events e ON p.unique_event_id = e.unique_event_id
+                    JOIN
+                        events e ON e.unique_event_id = p.unique_event_id
                     WHERE
-                        -- Orphan predictions
-                        e.unique_event_id IS NULL
+                        p.exported = ?
 
+                    AND (
                         -- Predictions for processed events and older than X
-                        OR (
+                        (
                             e.processed = TRUE
                             AND datetime(e.resolved_at) < datetime(CURRENT_TIMESTAMP, '-4 day')
-                            AND p.exported = ?
                         )
 
                         -- Predictions for discarded events
-                        OR (
+                        OR  (
                             e.status = ?
-                            AND p.exported = ?
                         )
+                    )
                     ORDER BY
                         p.ROWID ASC
                     LIMIT ?
@@ -83,7 +82,6 @@ class DatabaseOperations:
             [
                 PredictionExportedStatus.EXPORTED,
                 EventStatus.DISCARDED,
-                PredictionExportedStatus.EXPORTED,
                 batch_size,
             ],
         )
@@ -840,3 +838,75 @@ class DatabaseOperations:
             )
             for unique_event_id, weighted_avg_prediction in rows
         }
+
+    async def get_community_train_dataset(self) -> list:
+        """
+        Retrieve the community train dataset
+        """
+        raw_sql = Path(SQL_FOLDER, "community_train_dataset.sql").read_text()
+
+        rows = await self.__db_client.many(
+            raw_sql,
+            use_row_factory=True,
+        )
+
+        return rows
+
+    async def save_community_predictions_model(
+        self, name: str, model_blob: str, other_data_json: str | None = None
+    ):
+        """
+        Save the community predictions model to the database
+        """
+        return await self.__db_client.insert(
+            """
+                INSERT INTO models (name, model_blob, other_data)
+                VALUES (?, ?, ?)
+            """,
+            parameters=[name, model_blob, other_data_json],
+        )
+
+    async def get_community_predictions_model(self, name: str) -> None | str:
+        """
+        Retrieve the last community predictions model from the database
+        """
+        row = await self.__db_client.one(
+            """
+                SELECT model_blob
+                FROM models
+                WHERE name = ?
+                ORDER BY created_at DESC
+                LIMIT 1
+            """,
+            parameters=[name],
+        )
+
+        if row is not None:
+            return row[0]
+
+    async def get_community_inference_dataset(
+        self, unique_event_ids: list, interval_start_minutes: int, top_n_ranks: int
+    ) -> list:
+        """
+        Retrieve the community inference dataset
+        """
+        raw_sql_template = Path(SQL_FOLDER, "community_predict_events.sql").read_text()
+
+        # Dynamically create named parameters for the IN clause
+        unique_event_params = {
+            f"unique_event_id_{i}": uid for i, uid in enumerate(unique_event_ids)
+        }
+        in_clause = ", ".join(f":unique_event_id_{i}" for i in range(len(unique_event_ids)))
+        raw_sql = raw_sql_template.replace(":unique_event_ids", in_clause)
+
+        rows = await self.__db_client.many(
+            raw_sql,
+            parameters={
+                **unique_event_params,
+                "interval_start_minutes": interval_start_minutes,
+                "top_n_ranks": top_n_ranks,
+            },
+            use_row_factory=True,
+        )
+
+        return rows
