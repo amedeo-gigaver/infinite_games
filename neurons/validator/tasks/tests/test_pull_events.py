@@ -80,6 +80,7 @@ class TestPullEventsTask:
             "answer": None,
             "market_type": "TYpe1",
             "cutoff": 1699996800,
+            "event_metadata": {"topics": [], "trigger_name": None},
         }
 
         pull_events_task = PullEvents(
@@ -106,10 +107,38 @@ class TestPullEventsTask:
         assert parsed_event.resolve_date is None  # resolve_date
         assert parsed_event.outcome is None  # outcome
         assert parsed_event.status == EventStatus.PENDING  # status
-        assert json.loads(parsed_event.metadata)["market_type"] == "type1"  # metadata
+        assert json.loads(parsed_event.metadata) == event["event_metadata"]  # metadata
         assert parsed_event.created_at == datetime.fromtimestamp(
             event["created_at"], tz=timezone.utc
         )  # created_at
+
+    def test_parse_event_no_metadata(self, db_operations_mock, api_client_mock):
+        # Arrange
+        event = {
+            "event_id": "123",
+            "title": "Test Event?",
+            "description": "This is a test.",
+            "start_date": 1700000000,
+            "end_date": 1700003600,
+            "created_at": 1699996400,
+            "answer": None,
+            "market_type": "TYpe1",
+            "cutoff": 1699996800,
+        }
+
+        pull_events_task = PullEvents(
+            interval_seconds=60.0,
+            db_operations=db_operations_mock,
+            api_client=api_client_mock,
+            page_size=100,
+        )
+
+        # Act
+        parsed_event = pull_events_task.parse_event(event)
+
+        # Assert
+
+        assert json.loads(parsed_event.metadata) == {}
 
     async def test_run_no_events(self, db_operations_mock, api_client_mock):
         """Test the run method when there are no events."""

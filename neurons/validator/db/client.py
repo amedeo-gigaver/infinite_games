@@ -42,6 +42,9 @@ class DatabaseClient:
         try:
             connection = await aiosqlite.connect(self.__db_path, timeout=90)
 
+            # Needed for each connection
+            await connection.execute("PRAGMA foreign_keys = ON")
+
             query_start_time = time.time()
 
             response = await operation(connection)

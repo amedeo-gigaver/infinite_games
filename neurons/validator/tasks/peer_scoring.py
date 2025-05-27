@@ -219,8 +219,6 @@ class PeerScoring(AbstractTask):
         predictions_df = pydantic_models_to_dataframe(predictions)
         predictions_df.rename(
             columns={
-                "minerUid": PSNames.miner_uid,
-                "minerHotkey": PSNames.miner_hotkey,
                 "interval_start_minutes": PSNames.interval_start,
             },
             inplace=True,
