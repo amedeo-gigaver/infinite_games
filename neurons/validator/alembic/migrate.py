@@ -1,6 +1,5 @@
 import os
 
-from alembic import command
 from alembic.config import Config
 from alembic.runtime.environment import EnvironmentContext
 from alembic.script import ScriptDirectory
@@ -28,17 +27,22 @@ def run_migrations(
         poolclass=None,
     )
 
+    def fn_run_migration(rev, context):
+        return script._upgrade_revs("head", rev)
+
     with connectable.connect() as connection:
         context = EnvironmentContext(
             config=alembic_cfg,
             script=script,
+            fn=fn_run_migration,
         )
 
         context.configure(
             connection=connection,
             target_metadata=None,
+            fn=fn_run_migration,
             transaction_per_migration=True,
         )
 
-        # Upgrade to head
-        command.upgrade(alembic_cfg, "head")
+        with context.begin_transaction():
+            context.run_migrations()

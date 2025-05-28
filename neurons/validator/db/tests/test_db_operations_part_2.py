@@ -974,6 +974,37 @@ class TestDbOperationsPart2(TestDbOperationsBase):
         # No predictions yet
         assert len(wa_predictions) == 0
 
+        events = [
+            EventsModel(
+                unique_event_id=unique_event_id_1,
+                event_id="event_id_1",
+                market_type="truncated_market",
+                event_type="market",
+                description="desc",
+                outcome="0",
+                status=3,
+                metadata='{"key": "value"}',
+                created_at="2024-12-02T14:30:00+00:00",
+                cutoff="2024-12-26T11:30:00+00:00",
+                resolved_at="2024-12-30T14:30:00+00:00",
+            ),
+            EventsModel(
+                unique_event_id=unique_event_id_2,
+                event_id="event_id_2",
+                market_type="truncated_market",
+                event_type="market",
+                description="desc",
+                outcome="0",
+                status=3,
+                metadata='{"key": "value"}',
+                created_at="2024-12-02T14:30:00+00:00",
+                cutoff="2024-12-26T11:30:00+00:00",
+                resolved_at="2024-12-30T14:30:00+00:00",
+            ),
+        ]
+
+        await db_operations.upsert_pydantic_events(events=events)
+
         scores = [
             ScoresModel(
                 event_id="event_id_1",
@@ -1008,10 +1039,8 @@ class TestDbOperationsPart2(TestDbOperationsBase):
                 unique_event_id_1,
                 f"hk{i}",
                 i,
-                "1",
+                1.0,
                 10,
-                i * 0.01,
-                1,
                 i * 0.01,
             )
             for i in range(100)
@@ -1020,10 +1049,8 @@ class TestDbOperationsPart2(TestDbOperationsBase):
                 unique_event_id_2,
                 f"hk{i}",
                 i,
-                "1",
+                1.0,
                 10,
-                i * 0.01,
-                1,
                 i * 0.01,
             )
             for i in range(100)
@@ -1034,7 +1061,7 @@ class TestDbOperationsPart2(TestDbOperationsBase):
         inserted_predictions = await db_client.many(
             "SELECT * FROM predictions", use_row_factory=True
         )
-        assert [int(p["minerUid"]) for p in inserted_predictions] == list(range(100)) * 2
+        assert [int(p["miner_uid"]) for p in inserted_predictions] == list(range(100)) * 2
         assert [p["interval_agg_prediction"] for p in inserted_predictions] == [
             i * 0.01 for i in range(100)
         ] * 2
@@ -1071,10 +1098,8 @@ class TestDbOperationsPart2(TestDbOperationsBase):
                 unique_event_id_1,
                 f"hk{i}",
                 i,
-                "1",
-                12,  # interval_start_minutes
-                i * 0.01,
                 1,
+                12,  # interval_start_minutes
                 i * 0.01,
             )
             for i in range(10)
@@ -1090,7 +1115,7 @@ class TestDbOperationsPart2(TestDbOperationsBase):
         expected_simple_avg = sum([i * 0.01 for i in range(10)]) / 10
         assert wa_predictions[unique_event_id_1] == pytest.approx(expected_simple_avg)
 
-    async def test_get_wa_predictions_events_nulls(
+    async def test_get_wa_predictions_events_no_predictions(
         self, db_operations: DatabaseOperations, db_client: DatabaseClient
     ):
         unique_event_id = "unique_event_id_1"
@@ -1114,27 +1139,9 @@ class TestDbOperationsPart2(TestDbOperationsBase):
             "UPDATE scores SET processed = 1, metagraph_score = miner_uid * 0.01",
         )
 
-        predictions = [
-            (
-                unique_event_id,
-                f"hk{i}",
-                i,
-                "1",
-                10,
-                # Set null interval_agg_prediction
-                None,
-                1,
-                i * 0.01,
-            )
-            for i in range(50)
-        ]
-
-        await db_operations.upsert_predictions(predictions=predictions)
-
         wa_predictions = await db_operations.get_wa_predictions_events(
             unique_event_ids=unique_event_ids,
             interval_start_minutes=10,
         )
 
-        assert len(wa_predictions) == 1
-        assert wa_predictions[unique_event_id] is None
+        assert len(wa_predictions) == 0

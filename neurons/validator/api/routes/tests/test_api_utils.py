@@ -10,6 +10,7 @@ from sklearn.linear_model import LogisticRegression
 from neurons.validator.api.routes.utils import get_lr_predictions_events
 from neurons.validator.db.client import DatabaseClient
 from neurons.validator.db.operations import DatabaseOperations
+from neurons.validator.models.event import EventsModel, EventStatus
 from neurons.validator.models.score import ScoresModel
 from neurons.validator.utils.logger.logger import InfiniteGamesLogger
 
@@ -113,16 +114,39 @@ async def test_get_lr_predictions_events(
             "UPDATE scores SET processed = 1, metagraph_score = miner_uid * 0.01",
         )
 
+        events = [
+            EventsModel(
+                unique_event_id=unique_event_id_1,
+                event_id=unique_event_id_1,
+                market_type="market_type",
+                event_type="event_type",
+                description="desc",
+                status=EventStatus.SETTLED,
+                metadata="{}",
+                created_at="2012-12-02T14:30:00Z",
+            ),
+            EventsModel(
+                unique_event_id=unique_event_id_2,
+                event_id=unique_event_id_2,
+                market_type="market_type",
+                event_type="event_type",
+                description="desc",
+                status=EventStatus.SETTLED,
+                metadata="{}",
+                created_at="2012-12-02T14:30:00Z",
+            ),
+        ]
+
+        await db_operations.upsert_pydantic_events(events=events)
+
         # insert predictions like 0.0, 0.01, 0.02, 0.03, ..., 0.99 for calculations
         predictions = [
             (
                 unique_event_id_1,
                 f"hk{i}",
                 i,
-                "1",
+                1.0,
                 10,
-                i * 0.01,
-                1,
                 i * 0.01,
             )
             for i in range(100)
@@ -131,10 +155,8 @@ async def test_get_lr_predictions_events(
                 unique_event_id_2,
                 f"hk{i}",
                 i,
-                "1",
+                1.0,
                 10,
-                i * 0.01,
-                1,
                 i * 0.01,
             )
             for i in range(100)

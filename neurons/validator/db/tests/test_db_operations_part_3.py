@@ -301,6 +301,37 @@ class TestDbOperationsPart3(TestDbOperationsBase):
         # No predictions yet
         assert len(inference_data) == 0
 
+        events = [
+            EventsModel(
+                unique_event_id=unique_event_id_1,
+                event_id="event_id_1",
+                market_type="truncated_market",
+                event_type="market",
+                description="desc",
+                outcome="0",
+                status=3,
+                metadata='{"key": "value"}',
+                created_at="2024-12-02T14:30:00+00:00",
+                cutoff="2024-12-26T11:30:00+00:00",
+                resolved_at="2024-12-30T14:30:00+00:00",
+            ),
+            EventsModel(
+                unique_event_id=unique_event_id_2,
+                event_id="event_id_2",
+                market_type="truncated_market",
+                event_type="market",
+                description="desc",
+                outcome="0",
+                status=3,
+                metadata='{"key": "value"}',
+                created_at="2024-12-02T14:30:00+00:00",
+                cutoff="2024-12-26T11:30:00+00:00",
+                resolved_at="2024-12-30T14:30:00+00:00",
+            ),
+        ]
+
+        await db_operations.upsert_pydantic_events(events=events)
+
         scores = [
             ScoresModel(
                 event_id="event_id_1",
@@ -335,10 +366,8 @@ class TestDbOperationsPart3(TestDbOperationsBase):
                 unique_event_id_1,
                 f"hk{i}",
                 i,
-                "1",
+                1.0,
                 10,
-                i * 0.01,
-                1,
                 i * 0.01,
             )
             for i in range(100)
@@ -347,10 +376,8 @@ class TestDbOperationsPart3(TestDbOperationsBase):
                 unique_event_id_2,
                 f"hk{i}",
                 i,
-                "1",
+                1.0,
                 10,
-                i * 0.01,
-                1,
                 i * 0.01,
             )
             for i in range(100)
@@ -389,10 +416,8 @@ class TestDbOperationsPart3(TestDbOperationsBase):
                 unique_event_id_1,
                 f"hk{i}",
                 i,
-                "1",
+                1.0,
                 12,  # interval_start_minutes
-                i * 0.01,
-                1,
                 i * 0.01,
             )
             for i in range(10)

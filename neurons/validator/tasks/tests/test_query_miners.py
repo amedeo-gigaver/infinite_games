@@ -119,28 +119,24 @@ class TestQueryMiners:
             (
                 "event1",  # event_id
                 "ifgames",  # market_type
+                "LLM",  # event_type
                 "Test match",  # description
                 "2012-12-02T14:30:00+00:00",  # cutoff
                 "2012-12-02T14:30:00+00:00",  # resolve_date
                 "2012-12-03T14:30:00+00:00",  # end_date
                 json.dumps(
-                    {
-                        "market_type": "acled",
-                    }
+                    {"topics": ["topic_1", "topic_2"], "trigger_name": "trigger"}
                 ),  # metadata
             ),
             (
                 "event2",  # event_id
                 "ifgames",  # market_type
+                "aZuro",  # event_type
                 "Test match 2",  # description
                 "2012-12-02T14:30:00+00:00",  # cutoff
                 "2012-12-02T14:30:00+00:00",  # resolve_date
                 "2012-12-03T14:30:00+00:00",  # end_date
-                json.dumps(
-                    {
-                        "market_type": "azuro",
-                    }
-                ),  # metadata
+                json.dumps({"topics": [], "trigger_name": None}),  # metadata
             ),
         ]
 
@@ -156,18 +152,19 @@ class TestQueryMiners:
 
         event_data = synapse.events[expected_key]
 
-        assert len(event_data) == 10
-
-        assert event_data["event_id"] == "event1"
-        assert event_data["market_type"] == "acled"
-        assert event_data["description"] == "Test match"
-        assert event_data["cutoff"] == 1354458600
-        assert event_data["probability"] is None
-        assert event_data["reasoning"] is None
-        assert event_data["miner_answered"] is False
-        assert event_data["starts"] is None
-        assert event_data["resolve_date"] == 1354458600
-        assert event_data["end_date"] == 1354545000
+        assert event_data == {
+            "cutoff": 1354458600,
+            "description": "Test match",
+            "end_date": 1354545000,
+            "event_id": "event1",
+            "market_type": "LLM",
+            "metadata": {"topics": ["topic_1", "topic_2"], "trigger_name": "trigger"},
+            "miner_answered": False,
+            "probability": None,
+            "reasoning": None,
+            "resolve_date": 1354458600,
+            "starts": None,
+        }
 
         # Assert event 2
         expected_key = "ifgames-event2"
@@ -176,18 +173,19 @@ class TestQueryMiners:
 
         event_data = synapse.events[expected_key]
 
-        assert len(event_data) == 10
-
-        assert event_data["event_id"] == "event2"
-        assert event_data["market_type"] == "azuro"
-        assert event_data["description"] == "Test match 2"
-        assert event_data["cutoff"] == 1354458600
-        assert event_data["probability"] is None
-        assert event_data["reasoning"] is None
-        assert event_data["miner_answered"] is False
-        assert event_data["starts"] == 1354458600
-        assert event_data["resolve_date"] == 1354458600
-        assert event_data["end_date"] == 1354545000
+        assert event_data == {
+            "cutoff": 1354458600,
+            "description": "Test match 2",
+            "end_date": 1354545000,
+            "event_id": "event2",
+            "market_type": "aZuro",
+            "metadata": {"topics": [], "trigger_name": None},
+            "miner_answered": False,
+            "probability": None,
+            "reasoning": None,
+            "resolve_date": 1354458600,
+            "starts": 1354458600,
+        }
 
     def test_make_predictions_synapse_empty_events(self, query_miners_task: QueryMiners):
         """Test handling of empty events"""
@@ -207,7 +205,6 @@ class TestQueryMiners:
         }
 
         interval_start_minutes = 12345
-        block = 54321
         uid = 2
 
         neuron_predictions = EventPredictionSynapse(
@@ -223,6 +220,7 @@ class TestQueryMiners:
                     "starts": None,
                     "resolve_date": 1354458600,
                     "end_date": 1354545000,
+                    "metadata": {"topics": ["topic_1", "topic_2"], "trigger_name": "trigger"},
                 },
                 "ifgames-event2": {
                     "event_id": "event2",
@@ -235,6 +233,12 @@ class TestQueryMiners:
                     "starts": 1354458600,
                     "resolve_date": 1354458600,
                     "end_date": 1354545000,
+                    "metadata": {
+                        "topics": [
+                            "topic_10",
+                        ],
+                        "trigger_name": None,
+                    },
                 },
                 "ifgames-event3": {
                     "event_id": "event3",
@@ -248,12 +252,12 @@ class TestQueryMiners:
                     "starts": 1354458600,
                     "resolve_date": 1354458600,
                     "end_date": 1354545000,
+                    "metadata": {},
                 },
             }
         )
 
         predictions, reasonings = query_miners_task.parse_neuron_predictions(
-            block=block,
             interval_start_minutes=interval_start_minutes,
             uid=uid,
             neuron_predictions=neuron_predictions,
@@ -267,8 +271,6 @@ class TestQueryMiners:
                 0.5,
                 interval_start_minutes,
                 0.5,
-                block,
-                0.5,
             ),
             (
                 "ifgames-event2",
@@ -276,8 +278,6 @@ class TestQueryMiners:
                 uid,
                 0.75,
                 interval_start_minutes,
-                0.75,
-                block,
                 0.75,
             ),
         ]
@@ -418,7 +418,6 @@ class TestQueryMiners:
         }
 
         interval_start_minutes = 12345
-        block = 54321
 
         synapse = EventPredictionSynapse(
             events={
@@ -452,7 +451,6 @@ class TestQueryMiners:
         neurons_predictions = {"1": synapse, "2": synapse}
 
         await query_miners_task.store_predictions_and_reasonings(
-            block=block,
             interval_start_minutes=interval_start_minutes,
             neurons_predictions=neurons_predictions,
         )
@@ -470,8 +468,6 @@ class TestQueryMiners:
                         0.5,
                         interval_start_minutes,
                         0.5,
-                        block,
-                        0.5,
                     ),
                     (
                         "azuro-event2",
@@ -479,8 +475,6 @@ class TestQueryMiners:
                         "1",
                         0.75,
                         interval_start_minutes,
-                        0.75,
-                        block,
                         0.75,
                     ),
                 ]
@@ -494,8 +488,6 @@ class TestQueryMiners:
                         0.5,
                         interval_start_minutes,
                         0.5,
-                        block,
-                        0.5,
                     ),
                     (
                         "azuro-event2",
@@ -503,8 +495,6 @@ class TestQueryMiners:
                         "2",
                         0.75,
                         interval_start_minutes,
-                        0.75,
-                        block,
                         0.75,
                     ),
                 ]
@@ -571,7 +561,7 @@ class TestQueryMiners:
 
         events = [
             (
-                "unique1",
+                "ifgames-event1",
                 "event1",
                 "ifgames",
                 "sports",
@@ -586,7 +576,7 @@ class TestQueryMiners:
                 "2000-12-31T14:30:00+00:00",
             ),
             (
-                "unique2",
+                "ifgames-event2",
                 "event2",
                 "ifgames",
                 "acled",
@@ -673,16 +663,12 @@ class TestQueryMiners:
             (
                 # unique_event_id
                 "ifgames-event1",
-                # minerHotkey
+                # miner_uid
+                0,
+                # miner_hotkey
                 "hotkey_1",
-                # minerUid
-                "0",
-                # predictedOutcome
-                "0.8",
-                # canOverwrite
-                None,
-                # outcome
-                None,
+                # prediction
+                0.8,
                 # interval_start_minutes
                 mocked_interval_start_minutes,
                 # interval_agg_prediction
@@ -691,51 +677,45 @@ class TestQueryMiners:
                 1,
                 # submitted
                 ANY,
-                # blocktime
-                block,
+                # updated_at
+                ANY,
                 # exported
                 0,
             ),
             (
                 "ifgames-event2",
+                0,
                 "hotkey_1",
-                "0",
-                "0.8",
-                None,
-                None,
+                0.8,
                 mocked_interval_start_minutes,
                 0.8,
                 1,
                 ANY,
-                block,
+                ANY,
                 0,
             ),
             (
                 "ifgames-event1",
+                1,
                 "hotkey_2",
-                "1",
-                "0.8",
-                None,
-                None,
+                0.8,
                 mocked_interval_start_minutes,
                 0.8,
                 1,
                 ANY,
-                block,
+                ANY,
                 0,
             ),
             (
                 "ifgames-event2",
+                1,
                 "hotkey_2",
-                "1",
-                "0.8",
-                None,
-                None,
+                0.8,
                 mocked_interval_start_minutes,
                 0.8,
                 1,
                 ANY,
-                block,
+                ANY,
                 0,
             ),
         ]

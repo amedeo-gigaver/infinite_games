@@ -1,3 +1,4 @@
+import sqlite3
 from pathlib import Path
 from typing import Iterable
 
@@ -181,6 +182,7 @@ class DatabaseOperations:
                 SELECT
                     event_id,
                     market_type,
+                    event_type,
                     description,
                     cutoff,
                     resolve_date,
@@ -220,10 +222,10 @@ class DatabaseOperations:
                 SELECT
                     p.ROWID,
                     p.unique_event_id,
-                    p.minerHotkey,
-                    p.minerUid,
+                    p.miner_uid,
+                    p.miner_hotkey,
                     e.event_type,
-                    p.predictedOutcome,
+                    p.latest_prediction,
                     p.interval_start_minutes,
                     p.interval_agg_prediction,
                     p.interval_count,
@@ -367,37 +369,49 @@ class DatabaseOperations:
         )
 
     async def upsert_predictions(self, predictions: list[list[any]]):
-        return await self.__db_client.insert_many(
-            """
-                INSERT INTO predictions (
-                    unique_event_id,
-                    minerHotkey,
-                    minerUid,
-                    predictedOutcome,
-                    interval_start_minutes,
-                    interval_agg_prediction,
-                    blocktime,
-                    interval_count,
-                    submitted
+        try:
+            await self.__db_client.insert_many(
+                """
+                    INSERT INTO predictions (
+                        unique_event_id,
+                        miner_hotkey,
+                        miner_uid,
+                        latest_prediction,
+                        interval_start_minutes,
+                        interval_agg_prediction,
+                        interval_count
+                    )
+                    VALUES (
+                        ?,
+                        ?,
+                        ?,
+                        ?,
+                        ?,
+                        ?,
+                        1
+                    )
+                    ON CONFLICT(unique_event_id, miner_uid, miner_hotkey, interval_start_minutes)
+                    DO UPDATE SET
+                        latest_prediction = excluded.latest_prediction,
+                        interval_agg_prediction = (interval_agg_prediction * interval_count + excluded.interval_agg_prediction) / (interval_count + 1),
+                        interval_count = interval_count + 1,
+                        updated_at = CURRENT_TIMESTAMP
+                """,
+                predictions,
+            )
+        except sqlite3.IntegrityError as e:
+            # It's possible that predictions' event was deleted in the background
+            if str(e) == "FOREIGN KEY constraint failed":
+                self.logger.warning(
+                    "FK constrain error in upsert_predictions",
+                    extra={
+                        "miner_hotkey": predictions[0][1],
+                        "miner_uid": predictions[0][2],
+                        "len_predictions": len(predictions),
+                    },
                 )
-                VALUES (
-                    ?,
-                    ?,
-                    ?,
-                    ?,
-                    ?,
-                    ?,
-                    ?,
-                    1,
-                    CURRENT_TIMESTAMP
-                )
-                ON CONFLICT(unique_event_id,  interval_start_minutes, minerUid)
-                DO UPDATE SET
-                    interval_agg_prediction = (interval_agg_prediction * interval_count + ?) / (interval_count + 1),
-                    interval_count = interval_count + 1
-            """,
-            predictions,
-        )
+            else:
+                raise e
 
     async def upsert_pydantic_events(self, events: list[EventsModel]) -> None:
         """Same as upsert_events but with pydantic models"""
@@ -505,8 +519,8 @@ class DatabaseOperations:
                     unique_event_id = ?
                     AND interval_start_minutes = ?
                 ORDER BY
-                    CAST(minerUid AS INTEGER) ASC,
-                    minerHotkey ASC
+                    miner_uid ASC,
+                    miner_hotkey ASC
             """,
             parameters=[unique_event_id, interval_start_minutes],
             use_row_factory=True,

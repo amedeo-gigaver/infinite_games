@@ -317,16 +317,13 @@ class TestPeerScoring:
     def test_prepare_predictions_df_no_valid_miner(self, peer_scoring_task: PeerScoring):
         prediction = PredictionsModel(
             unique_event_id="ev1",
-            minerHotkey="hotkey3",
-            minerUid="3",
-            predictedOutcome="1",
-            canOverwrite=None,
-            outcome="1",
+            miner_hotkey="hotkey3",
+            miner_uid=3,
+            latest_prediction=1,
             interval_start_minutes=100,
             interval_agg_prediction=0.5,
             interval_count=1,
             submitted=datetime(2025, 1, 1, 0, 0, 0, tzinfo=timezone.utc),
-            blocktime=12345,
             exported=False,
         )
         predictions = [prediction]
@@ -346,17 +343,14 @@ class TestPeerScoring:
     def test_prepare_predictions_df_with_valid_miners(self, peer_scoring_task: PeerScoring):
         prediction = PredictionsModel(
             unique_event_id="ev1",
-            minerHotkey="hotkey1",
-            minerUid="1",
-            predictedOutcome="1",
-            canOverwrite=None,
-            outcome="1",
+            miner_hotkey="hotkey1",
+            miner_uid=1,
+            latest_prediction=1,
             interval_start_minutes=100,
             # Use a value that may require clipping;
             interval_agg_prediction=0.005,
             interval_count=1,
             submitted=datetime(2025, 1, 1, 0, 0, 0, tzinfo=timezone.utc),
-            blocktime=12345,
             exported=False,
         )
         predictions = [prediction]
@@ -1180,16 +1174,13 @@ class TestPeerScoring:
         # Create a dummy prediction.
         prediction = PredictionsModel(
             unique_event_id="evt_normal",
-            minerHotkey="hotkey1",
-            minerUid="1",
-            predictedOutcome="1",
-            canOverwrite=None,
-            outcome="1",
+            miner_hotkey="hotkey1",
+            miner_uid=1,
+            latest_prediction=1.0,
             interval_start_minutes=align_to_interval(minutes_since_epoch(event.cutoff)),
             interval_agg_prediction=0.8,
             interval_count=1,
             submitted=datetime(2025, 1, 1, 0, 0, tzinfo=timezone.utc),
-            blocktime=12345,
             exported=False,
         )
         predictions = [prediction]
@@ -1507,42 +1498,34 @@ class TestPeerScoring:
             (
                 "event2",
                 "hotkey1",
-                "1",
-                None,
+                1,
+                1.0,
                 519840,
-                "1",
-                519840,
-                "1",
+                1.0,
             ),
             (
                 "event2",
                 "hotkey2",
-                "2",
-                None,
+                2,
+                1.0,
                 519840,
-                "1",
-                519840,
-                "1",
+                1.0,
             ),
             (
                 expected_event_id,
                 "hotkey2",
-                "2",
-                None,
+                2,
+                1.0,
                 519840,
-                "1",
-                519840,
-                "1",
+                1.0,
             ),
             (
                 expected_event_id,
                 "hotkey3",
-                "3",
-                None,
+                3,
+                1.0,
                 519840,
-                "1",
-                519840,
-                "1",
+                1.0,
             ),
         ]
         await db_ops.upsert_predictions(predictions)

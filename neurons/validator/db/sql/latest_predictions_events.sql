@@ -31,8 +31,8 @@ events_predictions AS (
 		ROW_NUMBER() OVER (PARTITION BY pr.unique_event_id ORDER BY lms.metagraph_score DESC) AS rn
 	FROM latest_metagraph_scores lms
 	INNER JOIN predictions pr
-		ON pr.minerUid = lms.miner_uid
-		AND pr.minerHotkey = lms.miner_hotkey
+		ON pr.miner_uid = lms.miner_uid
+		AND pr.miner_hotkey = lms.miner_hotkey
 	WHERE
 		pr.unique_event_id IN (:unique_event_ids)
 		AND interval_start_minutes = :interval_start_minutes

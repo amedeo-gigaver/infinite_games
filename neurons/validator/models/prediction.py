@@ -12,16 +12,14 @@ class PredictionExportedStatus(IntEnum):
 
 class PredictionsModel(BaseModel):
     unique_event_id: str
-    minerHotkey: Optional[str] = None
-    minerUid: str
-    predictedOutcome: Optional[str] = None
-    canOverwrite: Optional[Any] = None
-    outcome: Optional[str] = None
+    miner_uid: int
+    miner_hotkey: str
+    latest_prediction: float
     interval_start_minutes: int
     interval_agg_prediction: float
     interval_count: int = 1
     submitted: Optional[datetime] = None
-    blocktime: Optional[int] = None
+    updated_at: Optional[datetime] = None
     exported: Optional[bool] = False
     model_config = {"arbitrary_types_allowed": True}
 
@@ -29,8 +27,9 @@ class PredictionsModel(BaseModel):
     def primary_key(self):
         return [
             "unique_event_id",
+            "miner_uid",
+            "miner_hotkey",
             "interval_start_minutes",
-            "minerUid",
         ]
 
     @field_validator("exported", mode="before")

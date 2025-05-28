@@ -14,6 +14,7 @@ class EventPredictionSynapse(Synapse):
         #     "cutoff",
         #     "starts",
         #     "resolve_date",
-        #     "end_date"
+        #     "end_date",
+        #     "metadata"
         # }
     }

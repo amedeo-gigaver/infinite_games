@@ -66,15 +66,14 @@ class TestExportPredictions:
         )
 
     def test_parse_predictions_for_exporting(self, export_predictions_task: ExportPredictions):
-        # Test with a single prediction
         predictions = [
             (
                 1,  # ROWID (unused in function)
                 "event123",  # unique_event_id
+                11,  # miner_uid
                 "miner_key_1",  # miner_hotkey
-                "miner_uid_1",  # miner_uid
                 "weather",  # event_type
-                0.75,  # predicted_outcome
+                0.75,  # prediction
                 120,  # interval_start_minutes
                 0.8,  # interval_agg_prediction
                 5,  # interval_count
@@ -97,7 +96,7 @@ class TestExportPredictions:
         assert submission["interval_agg_prediction"] == 0.8
         assert submission["interval_agg_count"] == 5
         assert submission["miner_hotkey"] == "miner_key_1"
-        assert submission["miner_uid"] == "miner_uid_1"
+        assert submission["miner_uid"] == 11
         assert submission["validator_hotkey"] == "validator_hotkey_test"
         assert submission["validator_uid"] == 0
         assert submission["title"] is None
@@ -188,32 +187,26 @@ class TestExportPredictions:
             (
                 "unique_event_id_1",
                 "neuronHotkey_1",
-                "neuronUid_1",
-                "1",
-                previous_interval_minutes,
-                "1",
                 1,
-                "1",
+                1.0,
+                previous_interval_minutes,
+                1.0,
             ),
             (
                 "unique_event_id_2",
                 "neuronHotkey_2",
-                "neuronUid_2",
-                "1",
+                2,
+                1.0,
                 previous_interval_minutes,
-                "1",
-                1,
-                "1",
+                1.0,
             ),
             (
                 "unique_event_id_3",
                 "neuronHotkey_3",
-                "neuronUid_3",
-                "1",
+                3,
+                1.0,
                 current_interval_minutes,
-                "1",
-                1,
-                "1",
+                1.0,
             ),
         ]
 
@@ -246,7 +239,7 @@ class TestExportPredictions:
                         {
                             "unique_event_id": "unique_event_id_1",
                             "provider_type": "market_1",
-                            "prediction": "1",
+                            "prediction": 1.0,
                             "interval_start_minutes": previous_interval_minutes,
                             "interval_agg_prediction": 1.0,
                             "interval_agg_count": 1,
@@ -254,7 +247,7 @@ class TestExportPredictions:
                                 previous_interval_minutes
                             ),
                             "miner_hotkey": "neuronHotkey_1",
-                            "miner_uid": "neuronUid_1",
+                            "miner_uid": 1,
                             "validator_hotkey": "validator_hotkey_test",
                             "validator_uid": 0,
                             "title": None,
@@ -274,7 +267,7 @@ class TestExportPredictions:
                         {
                             "unique_event_id": "unique_event_id_2",
                             "provider_type": "market_2",
-                            "prediction": "1",
+                            "prediction": 1.0,
                             "interval_start_minutes": previous_interval_minutes,
                             "interval_agg_prediction": 1.0,
                             "interval_agg_count": 1,
@@ -282,7 +275,7 @@ class TestExportPredictions:
                                 previous_interval_minutes
                             ),
                             "miner_hotkey": "neuronHotkey_2",
-                            "miner_uid": "neuronUid_2",
+                            "miner_uid": 2,
                             "validator_hotkey": "validator_hotkey_test",
                             "validator_uid": 0,
                             "title": None,

@@ -109,7 +109,6 @@ class QueryMiners(AbstractTask):
 
         # Store predictions
         await self.store_predictions_and_reasonings(
-            block=block,
             interval_start_minutes=interval_start_minutes,
             neurons_predictions=predictions_synapses,
         )
@@ -140,31 +139,31 @@ class QueryMiners(AbstractTask):
         for event in events:
             event_id = event[0]
             truncated_market_type = event[1]
-            description = event[2]
-            cutoff = int(datetime.fromisoformat(event[3]).timestamp()) if event[3] else None
-            resolve_date = int(datetime.fromisoformat(event[4]).timestamp()) if event[4] else None
-            end_date = int(datetime.fromisoformat(event[5]).timestamp()) if event[5] else None
-            metadata = {**json.loads(event[6])}
-            market_type = (metadata.get("market_type", event[1])).lower()
+            event_type = event[2]
+            description = event[3]
+            cutoff = int(datetime.fromisoformat(event[4]).timestamp()) if event[4] else None
+            resolve_date = int(datetime.fromisoformat(event[5]).timestamp()) if event[5] else None
+            end_date = int(datetime.fromisoformat(event[6]).timestamp()) if event[6] else None
+            metadata = {**json.loads(event[7])}
 
             compiled_events[f"{truncated_market_type}-{event_id}"] = {
                 "event_id": event_id,
-                "market_type": market_type,
+                "market_type": event_type,
                 "probability": None,
                 "reasoning": None,
                 "miner_answered": False,
                 "description": description,
                 "cutoff": cutoff,
-                "starts": cutoff if (cutoff and market_type == "azuro") else None,
+                "starts": cutoff if (cutoff and event_type.lower() == "azuro") else None,
                 "resolve_date": resolve_date,
                 "end_date": end_date,
+                "metadata": metadata,
             }
 
         return EventPredictionSynapse(events=compiled_events)
 
     def parse_neuron_predictions(
         self,
-        block: int,
         interval_start_minutes: int,
         uid: int,
         neuron_predictions: EventPredictionSynapse,
@@ -188,8 +187,6 @@ class QueryMiners(AbstractTask):
                 uid,
                 answer,
                 interval_start_minutes,
-                answer,
-                block,
                 answer,
             )
 
@@ -273,7 +270,7 @@ class QueryMiners(AbstractTask):
         self.logger.debug("Miners stored", extra={"miners_count": len(miners)})
 
     async def store_predictions_and_reasonings(
-        self, block: int, interval_start_minutes: int, neurons_predictions: SynapseResponseByUidType
+        self, interval_start_minutes: int, neurons_predictions: SynapseResponseByUidType
     ):
         # For each neuron predictions
         for uid, neuron_predictions in neurons_predictions.items():
@@ -282,7 +279,6 @@ class QueryMiners(AbstractTask):
                 parsed_neuron_predictions_for_insertion,
                 parsed_neuron_reasonings_for_insertion,
             ) = self.parse_neuron_predictions(
-                block=block,
                 interval_start_minutes=interval_start_minutes,
                 uid=uid,
                 neuron_predictions=neuron_predictions,

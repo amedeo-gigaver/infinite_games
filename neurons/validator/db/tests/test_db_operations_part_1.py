@@ -1,3 +1,4 @@
+import asyncio
 import json
 import tempfile
 from datetime import datetime, timedelta, timezone
@@ -131,23 +132,12 @@ class TestDbOperationsPart1(TestDbOperationsBase):
             (
                 "processed_event_prediction_id",
                 "neuronHotkey_2",
-                "neuronUid_2",
-                "1",
-                10,
-                "1",
+                2,
                 1,
-                "1",
-            ),
-            (
-                "unprocessed_event_prediction_id",
-                "neuronHotkey_2",
-                "neuronUid_2",
-                "1",
                 10,
-                "1",
                 1,
-                "1",
             ),
+            ("unprocessed_event_prediction_id", "neuronHotkey_2", 2, 1, 10, 1),
         ]
 
         await db_operations.upsert_events(events=events)
@@ -238,22 +228,18 @@ class TestDbOperationsPart1(TestDbOperationsBase):
             (
                 "discarded_event_prediction_id",
                 "neuronHotkey_2",
-                "neuronUid_2",
-                "1",
-                10,
-                "1",
+                2,
                 1,
-                "1",
+                10,
+                1,
             ),
             (
                 "pending_event_prediction_id",
                 "neuronHotkey_2",
-                "neuronUid_2",
-                "1",
-                10,
-                "1",
+                2,
                 1,
-                "1",
+                10,
+                1,
             ),
         ]
 
@@ -326,22 +312,18 @@ class TestDbOperationsPart1(TestDbOperationsBase):
             (
                 "exported_prediction_event_id",
                 "neuronHotkey_1",
-                "neuronUid_1",
-                "1",
-                10,
-                "1",
                 1,
-                "1",
+                1,
+                10,
+                1,
             ),
             (
                 "not_exported_prediction_event_id",
                 "neuronHotkey_2",
-                "neuronUid_2",
-                "1",
-                10,
-                "1",
+                2,
                 1,
-                "1",
+                10,
+                1,
             ),
         ]
 
@@ -444,35 +426,15 @@ class TestDbOperationsPart1(TestDbOperationsBase):
         ]
 
         predictions = [
-            (
-                "event_id_1",
-                "neuronHotkey_1",
-                "neuronUid_1",
-                "1",
-                10,
-                "1",
-                1,
-                "1",
-            ),
-            (
-                "event_id_2",
-                "neuronHotkey_2",
-                "neuronUid_2",
-                "1",
-                10,
-                "1",
-                1,
-                "1",
-            ),
+            ("event_id_1", "neuronHotkey_1", 1, 1, 10, 1),
+            ("event_id_2", "neuronHotkey_2", 2, 1, 10, 1),
             (
                 "event_id_3",
                 "neuronHotkey_2",
-                "neuronUid_2",
-                "1",
-                10,
-                "1",
+                2,
                 1,
-                "1",
+                10,
+                1,
             ),
         ]
 
@@ -815,80 +777,86 @@ class TestDbOperationsPart1(TestDbOperationsBase):
         assert result[0][0] == event_to_predict_id
 
     async def test_get_predictions_for_event(self, db_operations: DatabaseOperations):
-        unique_event_id = "unique_event_id_1"
+        unique_event_id_1 = "unique_event_id_1"
+        unique_event_id_2 = "unique_event_id_2"
+
         current_interval = 10
 
+        events = [
+            EventsModel(
+                unique_event_id=unique_event_id_1,
+                event_id=unique_event_id_1,
+                market_type="truncated_market1",
+                event_type="market1",
+                description="desc1",
+                starts="2024-12-02",
+                resolve_date="2024-12-03",
+                outcome="outcome1",
+                status=EventStatus.SETTLED,
+                metadata='{"key": "value"}',
+                created_at="2000-12-02T14:30:00+00:00",
+                cutoff="2000-12-30T14:30:00+00:00",
+                end_date="2000-12-31T14:30:00+00:00",
+            ),
+            EventsModel(
+                unique_event_id=unique_event_id_2,
+                event_id=unique_event_id_2,
+                market_type="truncated_market1",
+                event_type="market1",
+                description="desc1",
+                starts="2024-12-02",
+                resolve_date="2024-12-03",
+                outcome="outcome1",
+                status=EventStatus.SETTLED,
+                metadata='{"key": "value"}',
+                created_at="2000-12-02T14:30:00+00:00",
+                cutoff="2000-12-30T14:30:00+00:00",
+                end_date="2000-12-31T14:30:00+00:00",
+            ),
+        ]
+
+        await db_operations.upsert_pydantic_events(events=events)
+
         predictions = [
+            (unique_event_id_1, "neuronHotkey_99", 99, 1, current_interval, 1),
+            (unique_event_id_2, "neuronHotkey_2", 2, 1, current_interval, 1),
             (
-                unique_event_id,
-                "neuronHotkey_99",
-                "99",
-                "1",
-                current_interval,
-                "1",
-                1,
-                "1",
-            ),
-            (
-                "unique_event_id_2",
-                "neuronHotkey_2",
-                "2",
-                "1",
-                current_interval,
-                "1",
-                1,
-                "1",
-            ),
-            (
-                unique_event_id,
+                unique_event_id_1,
                 "neuronHotkey_248",
-                "248",
-                "0.5",
+                248,
+                0.5,
                 current_interval,
-                "1",
                 1,
-                "1",
             ),
             (
-                unique_event_id,
+                unique_event_id_1,
                 "neuronHotkey_0",
-                "0",
-                "0.5",
+                0,
+                0.5,
                 current_interval,
-                "1",
                 1,
-                "1",
             ),
-            (
-                unique_event_id,
-                "neuronHotkey_0",
-                "0",
-                "0.5",
-                current_interval - 1,
-                "1",
-                1,
-                "1",
-            ),
+            (unique_event_id_1, "neuronHotkey_0", 0, 0.5, current_interval - 1, 1),
         ]
 
         await db_operations.upsert_predictions(predictions)
 
         result = await db_operations.get_predictions_for_event(
-            unique_event_id=unique_event_id, interval_start_minutes=current_interval
+            unique_event_id=unique_event_id_1, interval_start_minutes=current_interval
         )
 
         assert len(result) == 3
         assert result[0].unique_event_id == "unique_event_id_1"
-        assert result[0].minerUid == "0"
-        assert result[0].predictedOutcome == "0.5"
+        assert result[0].miner_uid == 0
+        assert result[0].latest_prediction == 0.5
 
         assert result[1].unique_event_id == "unique_event_id_1"
-        assert result[1].minerUid == "99"
-        assert result[1].predictedOutcome == "1"
+        assert result[1].miner_uid == 99
+        assert result[1].latest_prediction == 1
 
         assert result[2].unique_event_id == "unique_event_id_1"
-        assert result[2].minerUid == "248"
-        assert result[2].predictedOutcome == "0.5"
+        assert result[2].miner_uid == 248
+        assert result[2].latest_prediction == 0.5
 
     async def test_get_predictions_for_event_predictions(self, db_operations: DatabaseOperations):
         unique_event_id = "unique_event_id_1"
@@ -970,47 +938,39 @@ class TestDbOperationsPart1(TestDbOperationsBase):
             (
                 "unique_event_id_1",
                 "neuronHotkey_1",
-                "neuronUid_1",
-                "1",
+                1,
+                1.0,
                 # interval_start_minutes
                 10,
-                "1",
-                1,
-                "1",
+                1.0,
             ),
             (
                 "unique_event_id_2",
                 "neuronHotkey_2",
-                "neuronUid_2",
-                "1",
+                2,
+                1.0,
                 # interval_start_minutes
                 10,
-                "1",
-                1,
-                "1",
+                1.0,
             ),
             (
                 "unique_event_id_3",
                 "neuronHotkey_3",
-                "neuronUid_3",
-                "1",
+                3,
+                1.0,
                 # interval_start_minutes
                 10,
-                "1",
-                1,
-                "1",
+                1.0,
             ),
             (
                 "unique_event_id_4",
                 "neuronHotkey_4",
-                "neuronUid_4",
-                "1",
+                4,
+                1.0,
                 # interval_start_minutes
                 # This prediction wont be ready to be exported
                 11,
-                "1",
-                1,
-                "1",
+                1.0,
             ),
         ]
 
@@ -1044,37 +1004,60 @@ class TestDbOperationsPart1(TestDbOperationsBase):
     async def test_mark_predictions_as_exported(
         self, db_client: DatabaseClient, db_operations: DatabaseOperations
     ):
+        events = [
+            EventsModel(
+                unique_event_id="unique_event_id_1",
+                event_id="unique_event_id_1",
+                market_type="truncated_market1",
+                event_type="market1",
+                description="desc1",
+                starts="2024-12-02",
+                resolve_date="2024-12-03",
+                outcome="outcome1",
+                status=EventStatus.SETTLED,
+                metadata='{"key": "value"}',
+                created_at="2000-12-02T14:30:00+00:00",
+                cutoff="2000-12-30T14:30:00+00:00",
+                end_date="2000-12-31T14:30:00+00:00",
+            ),
+            EventsModel(
+                unique_event_id="unique_event_id_2",
+                event_id="unique_event_id_2",
+                market_type="truncated_market1",
+                event_type="market1",
+                description="desc1",
+                starts="2024-12-02",
+                resolve_date="2024-12-03",
+                outcome="outcome1",
+                status=EventStatus.SETTLED,
+                metadata='{"key": "value"}',
+                created_at="2000-12-02T14:30:00+00:00",
+                cutoff="2000-12-30T14:30:00+00:00",
+                end_date="2000-12-31T14:30:00+00:00",
+            ),
+            EventsModel(
+                unique_event_id="unique_event_id_3",
+                event_id="unique_event_id_3",
+                market_type="truncated_market1",
+                event_type="market1",
+                description="desc1",
+                starts="2024-12-02",
+                resolve_date="2024-12-03",
+                outcome="outcome1",
+                status=EventStatus.SETTLED,
+                metadata='{"key": "value"}',
+                created_at="2000-12-02T14:30:00+00:00",
+                cutoff="2000-12-30T14:30:00+00:00",
+                end_date="2000-12-31T14:30:00+00:00",
+            ),
+        ]
+
+        await db_operations.upsert_pydantic_events(events=events)
+
         predictions = [
-            (
-                "unique_event_id_1",
-                "neuronHotkey_1",
-                "neuronUid_1",
-                "1",
-                10,
-                "1",
-                1,
-                "1",
-            ),
-            (
-                "unique_event_id_2",
-                "neuronHotkey_2",
-                "neuronUid_2",
-                "1",
-                10,
-                "1",
-                1,
-                "1",
-            ),
-            (
-                "unique_event_id_3",
-                "neuronHotkey_3",
-                "neuronUid_3",
-                "1",
-                10,
-                "1",
-                1,
-                "1",
-            ),
+            ("unique_event_id_1", "neuronHotkey_1", 1, 1.0, 10, 1.0),
+            ("unique_event_id_2", "neuronHotkey_2", 2, 1.0, 10, 1.0),
+            ("unique_event_id_3", "neuronHotkey_3", 3, 1.0, 10, 1.0),
         ]
 
         await db_operations.upsert_predictions(predictions=predictions)
@@ -1379,75 +1362,208 @@ class TestDbOperationsPart1(TestDbOperationsBase):
         self, db_operations: DatabaseOperations, db_client: DatabaseClient
     ):
         interval_start_minutes = 5
-        block = 1
 
         neuron_1_answer = "1"
         neuron_2_answer = "0.5"
 
+        events = [
+            EventsModel(
+                unique_event_id="unique_event_id_1",
+                event_id="unique_event_id_1",
+                market_type="truncated_market1",
+                event_type="market1",
+                description="desc1",
+                starts="2024-12-02",
+                resolve_date="2024-12-03",
+                outcome="outcome1",
+                status=EventStatus.SETTLED,
+                metadata='{"key": "value"}',
+                created_at="2000-12-02T14:30:00+00:00",
+                cutoff="2000-12-30T14:30:00+00:00",
+                end_date="2000-12-31T14:30:00+00:00",
+            ),
+            EventsModel(
+                unique_event_id="unique_event_id_2",
+                event_id="unique_event_id_2",
+                market_type="truncated_market1",
+                event_type="market1",
+                description="desc1",
+                starts="2024-12-02",
+                resolve_date="2024-12-03",
+                outcome="outcome1",
+                status=EventStatus.SETTLED,
+                metadata='{"key": "value"}',
+                created_at="2000-12-02T14:30:00+00:00",
+                cutoff="2000-12-30T14:30:00+00:00",
+                end_date="2000-12-31T14:30:00+00:00",
+            ),
+        ]
+
+        await db_operations.upsert_pydantic_events(events=events)
+
         predictions = [
-            (
+            [
                 "unique_event_id_1",
                 "neuronHotkey_1",
-                "neuronUid_1",
+                1,
                 neuron_1_answer,
                 interval_start_minutes,
                 neuron_1_answer,
-                block,
-                neuron_1_answer,
-            ),
-            (
+            ],
+            [
                 "unique_event_id_2",
                 "neuronHotkey_2",
-                "neuronUid_2",
+                2,
                 neuron_2_answer,
                 interval_start_minutes,
                 neuron_2_answer,
-                block,
-                neuron_2_answer,
-            ),
+            ],
         ]
 
         # Insert
         await db_operations.upsert_predictions(predictions)
 
-        result = await db_client.many(
+        result_1 = await db_client.many(
             """
-                SELECT unique_event_id, minerHotkey, interval_agg_prediction, interval_count  FROM predictions
+                SELECT
+                    unique_event_id,
+                    miner_uid,
+                    miner_hotkey,
+                    latest_prediction,
+                    interval_agg_prediction,
+                    interval_count,
+                    submitted,
+                    updated_at
+                FROM
+                    predictions
             """
         )
 
-        assert len(result) == 2
+        assert len(result_1) == 2
 
         # Assert event id
-        assert result[0][0] == predictions[0][0]
-        assert result[1][0] == predictions[1][0]
+        assert result_1[0][0] == predictions[0][0]
+        assert result_1[1][0] == predictions[1][0]
+
+        # Assert neuron uid
+        assert result_1[0][1] == predictions[0][2]
+        assert result_1[1][1] == predictions[1][2]
 
         # Assert neuron hotkey
-        assert result[0][1] == predictions[0][1]
-        assert result[1][1] == predictions[1][1]
+        assert result_1[0][2] == predictions[0][1]
+        assert result_1[1][2] == predictions[1][1]
+
+        # Assert prediction
+        assert result_1[0][3] == float(neuron_1_answer)
+        assert result_1[1][3] == float(neuron_2_answer)
 
         # Assert interval_agg_prediction
-        assert result[0][2] == float(neuron_1_answer)
-        assert result[1][2] == float(neuron_2_answer)
+        assert result_1[0][4] == float(neuron_1_answer)
+        assert result_1[1][4] == float(neuron_2_answer)
 
         # Assert interval_count
-        assert result[0][3] == 1
-        assert result[1][3] == 1
+        assert result_1[0][5] == 1
+        assert result_1[1][5] == 1
+
+        # Assert submitted
+        assert result_1[0][6] == ANY
+        assert result_1[1][6] == ANY
+
+        # Assert updated_at
+        assert result_1[0][6] == result_1[0][7]
+        assert result_1[1][6] == result_1[1][7]
+
+        # Change predictions
+        predictions[0][3] = float(neuron_1_answer) * 3
+        predictions[1][3] = float(neuron_2_answer) * 3
+
+        # Change interval_agg_prediction
+        predictions[0][5] = float(neuron_1_answer) * 3
+        predictions[1][5] = float(neuron_2_answer) * 3
+
+        # wait 1s for updated at to change
+        await asyncio.sleep(1)
 
         # Upsert
         await db_operations.upsert_predictions(predictions)
 
-        result = await db_client.many(
+        result_2 = await db_client.many(
             """
-                SELECT interval_count FROM predictions
+                SELECT
+                    unique_event_id,
+                    miner_uid,
+                    miner_hotkey,
+                    latest_prediction,
+                    interval_agg_prediction,
+                    interval_count,
+                    submitted,
+                    updated_at
+                FROM
+                    predictions
             """
         )
 
-        assert len(result) == 2
+        assert len(result_2) == 2
+
+        # Assert event id
+        assert result_2[0][0] == result_1[0][0]
+        assert result_2[1][0] == result_1[1][0]
+
+        # Assert neuron uid
+        assert result_2[0][1] == result_1[0][1]
+        assert result_2[1][1] == result_1[1][1]
+
+        # Assert neuron hotkey
+        assert result_2[0][2] == result_1[0][2]
+        assert result_2[1][2] == result_1[1][2]
+
+        # Assert prediction
+        assert result_2[0][3] == float(neuron_1_answer) * 3
+        assert result_2[1][3] == float(neuron_2_answer) * 3
+
+        # Assert interval_agg_prediction
+        assert result_2[0][4] == float(neuron_1_answer) * 2
+        assert result_2[1][4] == float(neuron_2_answer) * 2
 
         # Assert interval_count
-        assert result[0][0] == 2
-        assert result[1][0] == 2
+        assert result_2[0][5] == 2
+        assert result_2[1][5] == 2
+
+        # Assert submitted
+        assert result_2[0][6] == result_1[0][6]
+        assert result_2[1][6] == result_1[1][6]
+
+        # Assert updated_at gets updated
+        assert result_2[0][7] != result_1[0][7]
+        assert result_2[1][7] != result_1[1][7]
+
+    async def test_upsert_predictions_fk_constraint(
+        self, db_operations: DatabaseOperations, db_client: DatabaseClient
+    ):
+        predictions = [
+            [
+                "unique_event_id_1",
+                "neuronHotkey_1",
+                10,
+                0.5,
+                5,
+                0.5,
+            ],
+        ]
+
+        # Insert
+        await db_operations.upsert_predictions(predictions=predictions)
+
+        result = await db_client.many(
+            """
+                SELECT
+                    *
+                FROM
+                    predictions
+            """
+        )
+
+        assert len(result) == 0
 
     async def test_get_events_for_scoring(self, db_operations: DatabaseOperations):
         expected_event_id = "event1"
@@ -1498,27 +1614,51 @@ class TestDbOperationsPart1(TestDbOperationsBase):
     ):
         expected_event_id = "_event1"
 
+        events = [
+            EventsModel(
+                unique_event_id="unique_event_id_1",
+                event_id="unique_event_id_1",
+                market_type="truncated_market1",
+                event_type="market1",
+                description="desc1",
+                starts="2024-12-02",
+                resolve_date="2024-12-03",
+                outcome="outcome1",
+                status=EventStatus.SETTLED,
+                metadata='{"key": "value"}',
+                created_at="2000-12-02T14:30:00+00:00",
+                cutoff="2000-12-30T14:30:00+00:00",
+                end_date="2000-12-31T14:30:00+00:00",
+            ),
+            EventsModel(
+                unique_event_id=expected_event_id,
+                event_id=expected_event_id,
+                market_type="truncated_market1",
+                event_type="market1",
+                description="desc1",
+                starts="2024-12-02",
+                resolve_date="2024-12-03",
+                outcome="outcome1",
+                status=EventStatus.SETTLED,
+                metadata='{"key": "value"}',
+                created_at="2000-12-02T14:30:00+00:00",
+                cutoff="2000-12-30T14:30:00+00:00",
+                end_date="2000-12-31T14:30:00+00:00",
+            ),
+        ]
+
+        await db_operations.upsert_pydantic_events(events=events)
+
         predictions = [
             (
                 "unique_event_id_1",
                 "neuronHotkey_1",
-                "neuronUid_1",
-                "1",
-                10,
-                "1",
                 1,
-                "1",
-            ),
-            (
-                expected_event_id,
-                "neuronHotkey_2",
-                "neuronUid_2",
-                "1",
+                1.0,
                 10,
-                "1",
-                1,
-                "1",
+                1.0,
             ),
+            (expected_event_id, "neuronHotkey_2", 2, 1.0, 10, 1.0),
         ]
 
         await db_operations.upsert_predictions(predictions)
