@@ -434,3 +434,202 @@ class TestDbOperationsPart3(TestDbOperationsBase):
             assert row["prev_batch_miner_rank"] == i + 1
             assert row["metagraph_score"] == 0.0
             assert row["agg_prediction"] == pytest.approx(i * 0.01)
+
+    async def test_delete_reasonings_orphan(
+        self, db_operations: DatabaseOperations, db_client: DatabaseClient
+    ):
+        reasonings = [
+            ReasoningModel(
+                event_id="non_existent_event_1",
+                miner_uid=1,
+                miner_hotkey="hotkey1",
+                reasoning="Test reasoning 1",
+                # Not exported
+                exported=False,
+            ),
+            ReasoningModel(
+                event_id="non_existent_event_2",
+                miner_uid=2,
+                miner_hotkey="hotkey2",
+                reasoning="Test reasoning 2",
+                exported=True,
+            ),
+        ]
+
+        await db_operations.upsert_reasonings(reasonings)
+
+        result = await db_client.one("SELECT COUNT(*) FROM reasoning")
+        assert result[0] == 2
+
+        # Delete orphan reasonings
+        deleted = await db_operations.delete_reasonings(batch_size=100)
+
+        # Deleted in order
+        assert deleted == [(1,), (2,)]
+
+        result = await db_client.one("SELECT COUNT(*) FROM reasoning")
+
+        assert result[0] == 0
+
+    async def test_delete_reasonings_resolved_old(
+        self, db_operations: DatabaseOperations, db_client: DatabaseClient
+    ):
+        old_date = (datetime.now(timezone.utc) - timedelta(days=8)).isoformat()
+
+        new_date = (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()
+
+        events = [
+            EventsModel(
+                unique_event_id="old_event",
+                event_id="old_event",
+                market_type="market_type",
+                event_type="type",
+                description="Old event",
+                outcome="1",
+                status=EventStatus.SETTLED,
+                metadata='{"key": "value"}',
+                resolved_at=old_date,
+                processed=True,
+            ),
+            EventsModel(
+                unique_event_id="new_event",
+                event_id="new_event",
+                market_type="market_type",
+                event_type="type",
+                description="New event",
+                outcome="1",
+                status=EventStatus.SETTLED,
+                metadata='{"key": "value"}',
+                resolved_at=new_date,
+                processed=True,
+            ),
+        ]
+
+        await db_operations.upsert_pydantic_events(events)
+
+        reasonings = [
+            ReasoningModel(
+                event_id="old_event",
+                miner_uid=1,
+                miner_hotkey="hotkey1",
+                reasoning="Test reasoning 1",
+                exported=False,
+            ),
+            ReasoningModel(
+                event_id="new_event",
+                miner_uid=2,
+                miner_hotkey="hotkey2",
+                reasoning="Test reasoning 2",
+                exported=False,
+            ),
+        ]
+
+        await db_operations.upsert_reasonings(reasonings)
+
+        result = await db_client.one("SELECT COUNT(*) FROM reasoning")
+        assert result[0] == 2
+
+        # Delete old reasonings
+        deleted = await db_operations.delete_reasonings(batch_size=100)
+
+        # Deleted in order
+        assert deleted == [(1,)]
+
+        # Verify reasoning for new_event remains
+        result = await db_client.one("SELECT event_id FROM reasoning")
+        assert result[0] == "new_event"
+
+    async def test_delete_reasonings_discarded(
+        self, db_operations: DatabaseOperations, db_client: DatabaseClient
+    ):
+        event = EventsModel(
+            unique_event_id="discarded_event",
+            event_id="discarded_event",
+            market_type="market_type",
+            event_type="type",
+            description="Discarded event",
+            outcome=None,
+            status=EventStatus.DISCARDED,
+            metadata='{"key": "value"}',
+            resolved_at=None,
+        )
+
+        await db_operations.upsert_pydantic_events([event])
+
+        # Insert reasonings for the discarded event
+        reasonings = [
+            ReasoningModel(
+                event_id="discarded_event",
+                miner_uid=1,
+                miner_hotkey="hotkey1",
+                reasoning="Test reasoning 1",
+                exported=False,
+            ),
+            ReasoningModel(
+                event_id="discarded_event",
+                miner_uid=2,
+                miner_hotkey="hotkey2",
+                reasoning="Test reasoning 2",
+                exported=False,
+            ),
+        ]
+
+        await db_operations.upsert_reasonings(reasonings)
+
+        result = await db_client.one("SELECT COUNT(*) FROM reasoning")
+
+        assert result[0] == 2
+
+        # Delete discarded reasonings
+        deleted = await db_operations.delete_reasonings(batch_size=100)
+
+        # Deleted in order
+        assert deleted == [(1,), (2,)]
+
+        result = await db_client.one("SELECT COUNT(*) FROM reasoning")
+        assert result[0] == 0
+
+    async def test_delete_reasonings_no_results(
+        self, db_operations: DatabaseOperations, db_client: DatabaseClient
+    ):
+        resolved_at_recently = (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()
+
+        event = EventsModel(
+            unique_event_id="recent_event",
+            event_id="recent_event",
+            market_type="market_type",
+            event_type="type",
+            description="Recent event",
+            outcome="1",
+            status=EventStatus.PENDING,
+            metadata='{"key": "value"}',
+            resolved_at=resolved_at_recently,
+            processed=True,
+        )
+        await db_operations.upsert_pydantic_events([event])
+
+        reasonings = [
+            ReasoningModel(
+                event_id="recent_event",
+                miner_uid=1,
+                miner_hotkey="hotkey1",
+                reasoning="Test reasoning 1",
+                exported=False,
+            ),
+        ]
+        await db_operations.upsert_reasonings(reasonings)
+
+        # Verify reasonings were inserted
+        result = await db_client.one("SELECT COUNT(*) FROM reasoning")
+
+        assert result[0] == 1
+
+        # Try to delete reasonings (should not delete any as they're too recent)
+        deleted = await db_operations.delete_reasonings(batch_size=100)
+
+        assert len(deleted) == 0
+
+        # Verify reasonings were not deleted
+        result = await db_client.one("SELECT COUNT(*) FROM reasoning")
+
+        assert result[0] == 1

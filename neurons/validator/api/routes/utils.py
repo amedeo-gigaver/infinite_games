@@ -33,7 +33,7 @@ async def get_lr_predictions_events(
     )
 
     if not raw_predictions:
-        api_logger.error("No data to make predictions.")
+        api_logger.warning("No data to make predictions.")
         return {}
 
     df = pd.DataFrame.from_records(raw_predictions, columns=raw_predictions[0].keys())

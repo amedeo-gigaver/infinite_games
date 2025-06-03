@@ -81,8 +81,8 @@ async def test_get_lr_predictions_events(
             top_n_ranks=100,
             db_operations=db_operations,
         )
-        logger.error.assert_called_with("No data to make predictions.")
-        logger.error.reset_mock()
+        logger.warning.assert_called_with("No data to make predictions.")
+        logger.warning.reset_mock()
         assert predictions == {}
 
         # insert data

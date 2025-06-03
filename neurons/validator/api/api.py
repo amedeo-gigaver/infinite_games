@@ -69,9 +69,6 @@ class API:
             }
         }
 
-        # Remove health endpoint
-        app.openapi_schema["paths"].pop("/api/health", None)
-
         for path, path_value in app.openapi_schema["paths"].items():
             for method in path_value:
                 path_value[method]["security"] = [{"APIKeyHeader": []}]
