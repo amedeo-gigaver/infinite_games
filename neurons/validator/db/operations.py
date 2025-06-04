@@ -137,6 +137,52 @@ class DatabaseOperations:
             ],
         )
 
+    async def delete_reasonings(self, batch_size: int) -> Iterable[tuple[int]]:
+        return await self.__db_client.delete(
+            """
+                WITH reasonings_to_delete AS (
+                    SELECT
+                        r.ROWID
+                    FROM
+                        reasoning r
+                    LEFT JOIN
+                        events e ON r.event_id = e.event_id
+                    WHERE
+                        -- Orphan reasonings
+                        e.event_id IS NULL
+
+                        -- Reasonings for resolved events older than 7 days
+                        OR (
+                            e.processed = TRUE
+                            AND datetime(e.resolved_at) < datetime(CURRENT_TIMESTAMP, '-7 day')
+                        )
+
+                        -- Reasonings for discarded events
+                        OR (
+                            e.status = ?
+                        )
+                    ORDER BY
+                        r.ROWID ASC
+                    LIMIT ?
+                )
+                DELETE FROM
+                    reasoning
+                WHERE
+                    ROWID IN (
+                        SELECT
+                            ROWID
+                        FROM
+                            reasonings_to_delete
+                    )
+                RETURNING
+                    ROWID
+            """,
+            [
+                EventStatus.DISCARDED,
+                batch_size,
+            ],
+        )
+
     async def get_event(self, unique_event_id: str) -> None | EventsModel:
         result = await self.__db_client.one(
             f"""

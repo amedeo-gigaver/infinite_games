@@ -1,5 +1,9 @@
 # Release Notes
 
+## [1.5.0] - 2025-06-03
+- **Bittensor Upgrade**: Upgraded to Bittensor version 9.7.0
+- **Database**: Added task to delete old reasonings
+
 ## [1.4.9] - 2025-05-27
 - **Bittensor Upgrade**: Upgraded to Bittensor version 9.6.1
 - **Database**: Rebuilt the predictions table

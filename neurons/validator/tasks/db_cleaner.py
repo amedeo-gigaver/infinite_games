@@ -1,3 +1,5 @@
+import asyncio
+
 from neurons.validator.db.operations import DatabaseOperations
 from neurons.validator.scheduler.task import AbstractTask
 from neurons.validator.utils.logger.logger import InfiniteGamesLogger
@@ -57,8 +59,20 @@ class DbCleaner(AbstractTask):
                 "Predictions deleted", extra={"deleted_count": len(deleted_predictions)}
             )
 
+        await asyncio.sleep(1)
+
         # Delete scores
         deleted_scores = await self.db_operations.delete_scores(self.batch_size)
 
         if len(deleted_scores) > 0:
             self.logger.debug("Scores deleted", extra={"deleted_count": len(deleted_scores)})
+
+        await asyncio.sleep(1)
+
+        # Delete reasonings
+        deleted_reasonings = await self.db_operations.delete_reasonings(self.batch_size)
+
+        if len(deleted_reasonings) > 0:
+            self.logger.debug(
+                "Reasonings deleted", extra={"deleted_count": len(deleted_reasonings)}
+            )

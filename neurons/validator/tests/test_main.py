@@ -83,8 +83,11 @@ class TestValidatorMain:
             # Verify migrate() was called
             mock_db_client.migrate.assert_awaited_once()
 
-            # Verify start() was called
+            # Verify scheduler was started
             mock_scheduler.start.assert_awaited_once()
+
+            # Verify API was started
+            mock_api.start.assert_awaited_once()
 
             # Verify tasks
             assert mock_scheduler.add.call_count == 12
