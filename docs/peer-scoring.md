@@ -53,19 +53,33 @@ Given our weights ($w_{q,t}$) and the miner's time series $(p_{m,q,t})$ we compu
 
 $$S_{m,q} = \frac{\sum_t w_{q,t}S(p_{m,q,t}, o_q)}{\sum_t w_{q,t}}$$
 
-## Moving average and extremisation
+## Class Balance Weights
 
-We build a moving average $L_{m,q} = \sum_q S_{m,q}$ where $q$ ranges over the last $N$ questions. The parameter $N$ is chosen to be proportional to the number of questions generated and resolved during an immunity period.
+We build a weighted moving average 
+
+$$L_m = \frac{1}{\sum_{q \in W} w_{q}} \sum_{q \in W} S_{m,q}\,w_{q}$$ 
+
+where $q$ ranges over the set $W$ of the last $N$ questions. The parameter $N$ is chosen to be proportional to the number of questions generated and resolved during an immunity period. 
+
+The weights are class balance weights whereby if $k = \sum_{q \in W} 1_{\{\text{outcome}(q)=1\}}$ is the number of events which resolved positively, we define 
+$w_{1} = \frac{1}{q_Y}$ and $w_{0} = \frac{1}{1 - q_Y}$
+
+where $q_Y = \frac{k + 1}{N + 2}$.
+
+We then have $w_q = w_1$ if the outcome of $q$ is $1$ and vice versa.
+
+
+## Extremisation
 
 Next, to better distinguish consistently strong predictors from those who do not contribute meaningful signal, we transform this moving average using an extremisation step:
 
-$$R_{m,q} = \max\bigl(L_{m,q}, 0\bigr)^2$$.
+$$R_m = \max\bigl(L_m, 0\bigr)^2$$.
 
 This step rewards miners with positive performance by squaring their average score, while effectively filtering out miners with non-positive averages.
 
 Finally, each miner's weight is determined by normalizing these extremised scores:
 
-$$W_{m,q} = \frac{R_{m,q}}{\sum_{m' \neq m} R_{m',q}}$$.
+$$W_m = \frac{R_m}{\sum_{m' \neq m} R_{m'}}$$.
 
 This normalized weight is used to reflect each miner's relative performance.
 
@@ -73,4 +87,5 @@ This normalized weight is used to reflect each miner's relative performance.
 ## New miners
 
 When a miner registers at a time $t$ on the subnet they will send predictions for questions $q$ that already opened at a time $t_{q,0} < t$. When this happens we give the new miner a score of $0$ which corresponds to the baseline, i.e when a miner is neither bringing new information compared to the aggregate nor is penalized. We will also give them a score of $0$ on the questions in the moving average which resolved before the miner registered.
+
 
