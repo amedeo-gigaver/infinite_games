@@ -442,7 +442,7 @@ class TestDbOperationsPart2(TestDbOperationsBase):
 
         assert len(result) == 0
 
-    async def test_delete_scores_discarded_event(
+    async def test_delete_scores_discarded_events(
         self, db_operations: DatabaseOperations, db_client: DatabaseClient
     ):
         events = [
@@ -515,7 +515,119 @@ class TestDbOperationsPart2(TestDbOperationsBase):
         result = await db_operations.delete_scores(batch_size=100)
 
         assert len(result) == 1
-        assert result[0][0] == 1
+        assert result == [(1,)]
+
+        result = await db_client.many(
+            """
+                SELECT event_id FROM scores ORDER BY ROWID ASC
+            """
+        )
+
+        assert len(result) == 1
+        assert result[0][0] == "pending_event_id"
+
+    async def test_delete_scores_deleted_events(
+        self, db_operations: DatabaseOperations, db_client: DatabaseClient
+    ):
+        events = [
+            (
+                "deleted_event_id_1",
+                "deleted_event_id_1",
+                "truncated_market1",
+                "market_1",
+                "desc1",
+                "2024-12-02",
+                "2024-12-03",
+                "outcome1",
+                EventStatus.DELETED,
+                '{"key": "value"}',
+                "2000-12-02T14:30:00+00:00",
+                "2000-01-01T14:30:00+00:00",
+                "2000-01-02T14:30:00+00:00",
+            ),
+            (
+                "deleted_event_id_2",
+                "deleted_event_id_2",
+                "truncated_market1",
+                "market_1",
+                "desc1",
+                "2024-12-02",
+                "2024-12-03",
+                "outcome1",
+                EventStatus.DELETED,
+                '{"key": "value"}',
+                "2000-12-02T14:30:00+00:00",
+                "2000-01-01T14:30:00+00:00",
+                "2000-01-02T14:30:00+00:00",
+            ),
+            (
+                "pending_event_id",
+                "pending_event_id",
+                "truncated_market2",
+                "market_2",
+                "desc2",
+                "2024-12-03",
+                "2024-12-04",
+                "outcome2",
+                EventStatus.PENDING,
+                '{"key": "value"}',
+                "2012-12-02T14:30:00+00:00",
+                "2001-01-01T14:30:00+00:00",
+                "2001-01-02T14:30:00+00:00",
+            ),
+        ]
+
+        scores = [
+            ScoresModel(
+                event_id="deleted_event_id_1",
+                miner_uid=1,
+                miner_hotkey="hk1",
+                prediction=0.75,
+                event_score=0.85,
+                spec_version=1,
+            ),
+            ScoresModel(
+                event_id="pending_event_id",
+                miner_uid=2,
+                miner_hotkey="hk2",
+                prediction=0.65,
+                event_score=0.80,
+                spec_version=1,
+            ),
+        ]
+
+        await db_operations.upsert_events(events=events)
+        await db_operations.insert_peer_scores(scores=scores)
+
+        # Mark all scores as exported
+        await db_client.update(
+            """
+                UPDATE
+                    scores
+                SET
+                    exported = ?
+                """,
+            [ScoresExportedStatus.EXPORTED],
+        )
+
+        scores_not_exported = [
+            ScoresModel(
+                event_id="deleted_event_id_2",
+                miner_uid=1,
+                miner_hotkey="hk1",
+                prediction=0.75,
+                event_score=0.85,
+                spec_version=1,
+            )
+        ]
+
+        await db_operations.insert_peer_scores(scores=scores_not_exported)
+
+        # delete
+        result = await db_operations.delete_scores(batch_size=100)
+
+        assert len(result) == 2
+        assert result == [(1,), (3,)]
 
         result = await db_client.many(
             """

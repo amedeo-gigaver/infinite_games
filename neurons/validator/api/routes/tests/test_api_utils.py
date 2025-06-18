@@ -167,10 +167,26 @@ async def test_get_lr_predictions_events(
         predictions = await get_lr_predictions_events(
             unique_event_ids=unique_event_ids,
             interval_start_minutes=10,
+            top_n_ranks=105,
+            db_operations=db_operations,
+        )
+        logger.error.assert_not_called()
+        logger.warning.assert_called_with(
+            "Error pivoting data for community predictions",
+            exc_info=True,
+        )
+        logger.warning.reset_mock()
+        assert predictions == {}
+
+        predictions = await get_lr_predictions_events(
+            unique_event_ids=unique_event_ids,
+            interval_start_minutes=10,
             top_n_ranks=100,
             db_operations=db_operations,
         )
         logger.error.assert_not_called()
+        logger.warning.assert_not_called()
+
         assert len(predictions) == 2
         assert predictions[unique_event_id_1] == pytest.approx(0.88, abs=1e-1)
         assert predictions[unique_event_id_2] == pytest.approx(0.88, abs=1e-1)

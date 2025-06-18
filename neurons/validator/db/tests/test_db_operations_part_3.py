@@ -539,22 +539,35 @@ class TestDbOperationsPart3(TestDbOperationsBase):
         result = await db_client.one("SELECT event_id FROM reasoning")
         assert result[0] == "new_event"
 
-    async def test_delete_reasonings_discarded(
+    async def test_delete_reasonings_discarded_and_deleted_events(
         self, db_operations: DatabaseOperations, db_client: DatabaseClient
     ):
-        event = EventsModel(
-            unique_event_id="discarded_event",
-            event_id="discarded_event",
-            market_type="market_type",
-            event_type="type",
-            description="Discarded event",
-            outcome=None,
-            status=EventStatus.DISCARDED,
-            metadata='{"key": "value"}',
-            resolved_at=None,
-        )
+        events = [
+            EventsModel(
+                unique_event_id="discarded_event",
+                event_id="discarded_event",
+                market_type="market_type",
+                event_type="type",
+                description="Discarded event",
+                outcome=None,
+                status=EventStatus.DISCARDED,
+                metadata='{"key": "value"}',
+                resolved_at=None,
+            ),
+            EventsModel(
+                unique_event_id="deleted_event",
+                event_id="deleted_event",
+                market_type="market_type",
+                event_type="type",
+                description="Deleted event",
+                outcome=None,
+                status=EventStatus.DELETED,
+                metadata='{"key": "value"}',
+                resolved_at=None,
+            ),
+        ]
 
-        await db_operations.upsert_pydantic_events([event])
+        await db_operations.upsert_pydantic_events(events=events)
 
         # Insert reasonings for the discarded event
         reasonings = [
@@ -572,19 +585,26 @@ class TestDbOperationsPart3(TestDbOperationsBase):
                 reasoning="Test reasoning 2",
                 exported=False,
             ),
+            ReasoningModel(
+                event_id="deleted_event",
+                miner_uid=2,
+                miner_hotkey="hotkey2",
+                reasoning="Test reasoning 3",
+                exported=False,
+            ),
         ]
 
-        await db_operations.upsert_reasonings(reasonings)
+        await db_operations.upsert_reasonings(reasonings=reasonings)
 
         result = await db_client.one("SELECT COUNT(*) FROM reasoning")
 
-        assert result[0] == 2
+        assert result[0] == 3
 
         # Delete discarded reasonings
         deleted = await db_operations.delete_reasonings(batch_size=100)
 
         # Deleted in order
-        assert deleted == [(1,), (2,)]
+        assert deleted == [(1,), (2,), (3,)]
 
         result = await db_client.one("SELECT COUNT(*) FROM reasoning")
         assert result[0] == 0
@@ -633,3 +653,55 @@ class TestDbOperationsPart3(TestDbOperationsBase):
         result = await db_client.one("SELECT COUNT(*) FROM reasoning")
 
         assert result[0] == 1
+
+    async def test_get_events_last_deleted_at(self, db_operations: DatabaseOperations):
+        events = [
+            EventsModel(
+                unique_event_id="unique1",
+                event_id="event1",
+                market_type="market_type",
+                event_type="type",
+                description="Recent event",
+                outcome="1",
+                status=EventStatus.PENDING,
+                metadata='{"key": "value"}',
+            ),
+            EventsModel(
+                unique_event_id="unique2",
+                event_id="event2",
+                market_type="market_type",
+                event_type="type",
+                description="Recent event",
+                outcome="1",
+                status=EventStatus.PENDING,
+                metadata='{"key": "value"}',
+            ),
+            EventsModel(
+                unique_event_id="unique3",
+                event_id="event3",
+                market_type="market_type",
+                event_type="type",
+                description="Recent event",
+                outcome="1",
+                status=EventStatus.PENDING,
+                metadata='{"key": "value"}',
+            ),
+        ]
+
+        current_time = datetime.now(timezone.utc)
+        future_time = current_time + timedelta(days=1)
+
+        await db_operations.upsert_pydantic_events(events=events)
+
+        # Delete events 1 and 3
+        await db_operations.delete_event(event_id="event1", deleted_at=current_time)
+        await db_operations.delete_event(event_id="event3", deleted_at=future_time)
+
+        result = await db_operations.get_events_last_deleted_at()
+
+        assert result == future_time.isoformat().replace("T", " ")
+
+    async def test_get_events_last_deleted_at_no_events(self, db_operations: DatabaseOperations):
+        result = await db_operations.get_events_last_deleted_at()
+
+        assert result is None

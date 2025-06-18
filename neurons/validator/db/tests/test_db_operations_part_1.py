@@ -53,7 +53,7 @@ class TestDbOperationsPart1(TestDbOperationsBase):
                 "2024-12-02",
                 "2024-12-03",
                 "outcome1",
-                "status1",
+                EventStatus.SETTLED,
                 '{"key": "value"}',
                 "2000-12-02T14:30:00+00:00",
                 "2000-12-02T14:30:00+00:00",
@@ -68,7 +68,7 @@ class TestDbOperationsPart1(TestDbOperationsBase):
                 "2024-12-02",
                 "2024-12-03",
                 "outcome1",
-                "status1",
+                EventStatus.PENDING,
                 '{"key": "value"}',
                 "2000-12-02T14:30:00+00:00",
                 "2000-12-02T14:30:00+00:00",
@@ -76,21 +76,43 @@ class TestDbOperationsPart1(TestDbOperationsBase):
             ),
         ]
 
+        deleted_at = datetime.now(timezone.utc).isoformat()
+
         await db_operations.upsert_events(events)
 
-        result = await db_operations.delete_event(event_id=event_id_to_delete)
+        # Set local updated at null to check it is updated by the delete operation
+        await db_client.update(
+            """
+                UPDATE events SET local_updated_at = NULL
+            """
+        )
+
+        result = await db_operations.delete_event(
+            event_id=event_id_to_delete, deleted_at=deleted_at
+        )
 
         assert len(result) == 1
         assert result[0][0] == event_id_to_delete
 
+        # Verify the event still exists but is marked as DELETED and has deleted_at set
         result = await db_client.many(
             """
-                SELECT event_id FROM events
+                SELECT event_id, status, deleted_at, local_updated_at FROM events
             """
         )
 
-        assert len(result) == 1
+        assert len(result) == 2
         assert result[0][0] == event_id_to_keep
+        assert result[0][1] == str(EventStatus.SETTLED.value)
+        assert result[0][2] is None  # deleted_at should be None for non-deleted event
+        assert result[0][3] is None
+
+        assert result[1][0] == event_id_to_delete
+        assert result[1][1] == str(EventStatus.DELETED.value)
+        assert result[1][2] == deleted_at.replace(
+            "Z", "+00:00"
+        )  # deleted_at should be set for deleted event
+        assert isinstance(result[1][3], str) is True
 
     async def test_delete_predictions_processed_unprocessed_events(
         self, db_operations: DatabaseOperations, db_client: DatabaseClient
@@ -188,7 +210,7 @@ class TestDbOperationsPart1(TestDbOperationsBase):
         assert len(result) == 1
         assert result[0][0] == "unprocessed_event_prediction_id"
 
-    async def test_delete_predictions_discarded_event(
+    async def test_delete_predictions_discarded_and_deleted_events(
         self, db_operations: DatabaseOperations, db_client: DatabaseClient
     ):
         events = [
@@ -202,6 +224,21 @@ class TestDbOperationsPart1(TestDbOperationsBase):
                 "2024-12-04",
                 "outcome3",
                 EventStatus.DISCARDED,
+                '{"key": "value"}',
+                "2012-12-02T14:30:00+00:00",
+                "2001-01-01T14:30:00+00:00",
+                "2001-01-02T14:30:00+00:00",
+            ),
+            (
+                "deleted_event_prediction_id",
+                "event3",
+                "truncated_market3",
+                "market_3",
+                "desc2",
+                "2024-12-03",
+                "2024-12-04",
+                "outcome3",
+                EventStatus.DELETED,
                 '{"key": "value"}',
                 "2012-12-02T14:30:00+00:00",
                 "2001-01-01T14:30:00+00:00",
@@ -227,6 +264,14 @@ class TestDbOperationsPart1(TestDbOperationsBase):
         predictions = [
             (
                 "discarded_event_prediction_id",
+                "neuronHotkey_2",
+                2,
+                1,
+                10,
+                1,
+            ),
+            (
+                "deleted_event_prediction_id",
                 "neuronHotkey_2",
                 2,
                 1,
@@ -260,8 +305,8 @@ class TestDbOperationsPart1(TestDbOperationsBase):
         # delete
         result = await db_operations.delete_predictions(batch_size=100)
 
-        assert len(result) == 1
-        assert result[0][0] == 1
+        assert len(result) == 2
+        assert result == [(1,), (2,)]
 
         result = await db_client.many(
             """

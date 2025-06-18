@@ -52,11 +52,17 @@ async def get_lr_predictions_events(
         }
     )
 
-    wide_df = TrainCommunityPredictionModel.pivot_top_n(
-        df=df,
-        n=top_n_ranks,
-        train=False,
-    )
+    try:
+        wide_df = TrainCommunityPredictionModel.pivot_top_n(
+            df=df,
+            n=top_n_ranks,
+            train=False,
+        )
+    except ValueError:
+        api_logger.warning("Error pivoting data for community predictions", exc_info=True)
+
+        return {}
+
     X = wide_df.drop(columns=["event_id", "batch_rank"])
 
     predictions = lr_model.predict_proba(X)[:, 1]
