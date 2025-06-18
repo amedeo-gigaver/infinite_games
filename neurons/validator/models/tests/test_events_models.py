@@ -17,12 +17,12 @@ class TestEventsModel:
             starts="2024-12-03T00:00:00Z",
             resolve_date="2024-12-04T00:00:00Z",
             outcome="outcome1",
-            status=EventStatus.PENDING,
+            status=EventStatus.DISCARDED,
             metadata='{"key": "value"}',
             created_at="2012-12-02T14:30:00+00:00",
             cutoff="2000-12-30T14:30:00+00:00",
         )
-        assert event.status == EventStatus.PENDING
+        assert event.status == EventStatus.DISCARDED
         assert isinstance(event.created_at, datetime)
         assert isinstance(event.cutoff, datetime)
 
@@ -91,7 +91,7 @@ class TestEventsModel:
             market_type="truncated_market5",
             event_type="market5",
             description="desc5",
-            status=EventStatus.PENDING,
+            status=EventStatus.DELETED,
             metadata="{}",
             created_at="2012-12-02T14:30:00Z",
             # Omitting starts, resolve_date, outcome, cutoff, local_updated_at, processed, exported

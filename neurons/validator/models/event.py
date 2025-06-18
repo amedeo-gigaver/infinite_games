@@ -11,6 +11,7 @@ class EventStatus(IntEnum):
     DISCARDED = 1
     PENDING = 2
     SETTLED = 3
+    DELETED = 4
 
 
 class EventsModel(BaseModel):
@@ -36,6 +37,7 @@ class EventsModel(BaseModel):
     end_date: Optional[datetime] = None
     resolved_at: Optional[datetime] = None
     event_type: Optional[str] = None
+    deleted_at: Optional[datetime] = None
 
     @property
     def primary_key(self):

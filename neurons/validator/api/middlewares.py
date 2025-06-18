@@ -80,7 +80,7 @@ class LoggingAndErrorHandlingMiddleware(BaseHTTPMiddleware):
             "request": {
                 "method": request.method,
                 "url": request.url.path,
-                "client_ip": request.client.host,
+                "client_ip": request.client.host if request.client else None,
                 "client_key": f"{request.headers.get(self.api_key_header, '')[:4]}*",
             },
         }

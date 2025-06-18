@@ -99,7 +99,7 @@ class TestDeleteEventsTask:
         # Assert
         api_client_mock.get_events_deleted.assert_not_called()
 
-    async def test_resolve_events(
+    async def test_delete_events(
         self,
         db_client: DatabaseClient,
         db_operations: DatabaseOperations,
@@ -256,17 +256,18 @@ class TestDeleteEventsTask:
             # Assert
             response = await db_client.many(
                 """
-                    SELECT event_id from events
+                    SELECT event_id, status, deleted_at from events
                 """
             )
 
-            # Event 3 and 4 are deleted, events 1 and 2 are left
-            assert len(response) == 2
-            assert response[0][0] == events[0][1]
-            assert response[1][0] == events[1][1]
-
-            # Assert last deleted at is correctly set
-            assert delete_events_task.last_deleted_at == "2024-09-11T20:43:02Z"
+            # Event 3 and 4 are soft deleted, events 1 and 2 are left
+            assert len(response) == 4
+            assert response == [
+                (events[0][1], str(EventStatus.PENDING.value), None),
+                (events[1][1], str(EventStatus.PENDING.value), None),
+                (events[2][1], str(EventStatus.DELETED.value), "2024-09-11 20:43:02+00:00"),
+                (events[3][1], str(EventStatus.DELETED.value), "2012-09-10 20:43:02+00:00"),
+            ]
 
             # Act run again
             await delete_events_task.run()
@@ -274,13 +275,15 @@ class TestDeleteEventsTask:
             # Assert
             response = await db_client.many(
                 """
-                    SELECT event_id from events
+                    SELECT event_id, status, deleted_at from events
                 """
             )
 
-            # Event 2 is deleted, event 1 is left
-            assert len(response) == 1
-            assert response[0][0] == events[0][1]
-
-            # Assert last deleted at is correctly set
-            assert delete_events_task.last_deleted_at == "2024-09-05T20:43:02Z"
+            # Event 2 is soft deleted too, event 1 is left
+            assert len(response) == 4
+            assert response == [
+                (events[0][1], str(EventStatus.PENDING.value), None),
+                (events[1][1], str(EventStatus.DELETED.value), "2024-09-05 20:43:02+00:00"),
+                (events[2][1], str(EventStatus.DELETED.value), "2024-09-11 20:43:02+00:00"),
+                (events[3][1], str(EventStatus.DELETED.value), "2012-09-10 20:43:02+00:00"),
+            ]

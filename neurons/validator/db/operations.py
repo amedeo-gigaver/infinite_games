@@ -31,12 +31,19 @@ class DatabaseOperations:
         self.__db_client = db_client
         self.logger = logger
 
-    async def delete_event(self, event_id: str) -> Iterable[tuple[str]]:
-        return await self.__db_client.delete(
+    async def delete_event(self, event_id: str, deleted_at: str) -> Iterable[tuple[str]]:
+        return await self.__db_client.update(
             """
-                DELETE FROM events WHERE event_id = ? RETURNING event_id
+                UPDATE
+                    events
+                SET
+                    status = ?,
+                    deleted_at = ?,
+                    local_updated_at = CURRENT_TIMESTAMP
+                WHERE event_id = ?
+                RETURNING event_id
             """,
-            [event_id],
+            [EventStatus.DELETED, deleted_at, event_id],
         )
 
     async def delete_predictions(self, batch_size: int) -> Iterable[tuple[int]]:
@@ -59,9 +66,9 @@ class DatabaseOperations:
                             AND datetime(e.resolved_at) < datetime(CURRENT_TIMESTAMP, '-4 day')
                         )
 
-                        -- Predictions for discarded events
+                        -- Predictions for discarded or deleted events
                         OR  (
-                            e.status = ?
+                            e.status IN (?, ?)
                         )
                     )
                     ORDER BY
@@ -83,6 +90,7 @@ class DatabaseOperations:
             [
                 PredictionExportedStatus.EXPORTED,
                 EventStatus.DISCARDED,
+                EventStatus.DELETED,
                 batch_size,
             ],
         )
@@ -113,6 +121,11 @@ class DatabaseOperations:
                             e.status = ?
                             AND s.exported = ?
                         )
+
+                        -- Scores for deleted events
+                        OR (
+                            e.status = ?
+                        )
                     ORDER BY
                         s.ROWID ASC
                     LIMIT ?
@@ -133,6 +146,7 @@ class DatabaseOperations:
                 ScoresExportedStatus.EXPORTED,
                 EventStatus.DISCARDED,
                 ScoresExportedStatus.EXPORTED,
+                EventStatus.DELETED,
                 batch_size,
             ],
         )
@@ -157,9 +171,9 @@ class DatabaseOperations:
                             AND datetime(e.resolved_at) < datetime(CURRENT_TIMESTAMP, '-7 day')
                         )
 
-                        -- Reasonings for discarded events
+                        -- Reasonings for discarded or deleted events
                         OR (
-                            e.status = ?
+                            e.status IN (?, ?)
                         )
                     ORDER BY
                         r.ROWID ASC
@@ -179,6 +193,7 @@ class DatabaseOperations:
             """,
             [
                 EventStatus.DISCARDED,
+                EventStatus.DELETED,
                 batch_size,
             ],
         )
@@ -200,6 +215,16 @@ class DatabaseOperations:
             return None
 
         return EventsModel(**dict(result))
+
+    async def get_events_last_deleted_at(self) -> str | None:
+        row = await self.__db_client.one(
+            """
+                SELECT MAX(deleted_at) FROM events
+            """
+        )
+
+        if row is not None:
+            return row[0]
 
     async def get_events_last_resolved_at(self) -> str | None:
         row = await self.__db_client.one(

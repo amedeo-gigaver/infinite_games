@@ -1,5 +1,8 @@
 # Release Notes
 
+## [1.5.1] - 2025-06-17
+- **Database**: Pre soft delete events prior to hard delete
+
 ## [1.5.0] - 2025-06-03
 - **Bittensor Upgrade**: Upgraded to Bittensor version 9.7.0
 - **Database**: Added task to delete old reasonings
