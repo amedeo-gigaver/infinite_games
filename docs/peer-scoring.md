@@ -22,10 +22,14 @@ In other words, this score reflects the difference between the logarithm of mine
 
 To avoid problems with extreme predictions such as a miner confidently predicting $1$ when the outcome is $0$, which would yield a score of $-\infty$, we clip all predictions to the range $(0.01, 0.99)$.
 
-Furthermore, to incentivise miners to submit forecasts for every time step and every question, if a miner does not submit a prediction, we assign them the worst possible score:
+## Penalty for not submitting a forecast
 
-$$S(0_{m,q,t}, 1) = \log(0.01) - \frac{1}{n}\sum_{j \neq m} \log(p_{j,q,t})$$.
+Unresponsive miners are penalised by imputing missing predictions as the value at 1/3 of the distance between the worst prediction and the mean prediction (closer to the worst).
 
+$$S(0_{m,q,t}, o_E) = S(\text{imputed_prediction}, o_E)$$ 
+
+where $(\text{imputed_prediction} = (\text{mean_prediction} + \frac{1}{3}\times (\text{worst_prediction} - \text{mean_prediction}) )$
+and $\text{mean_prediction}$ is the average prediction among the miners who submitted a prediction.
 
 
 ## Weights
@@ -53,7 +57,7 @@ Given our weights ($w_{q,t}$) and the miner's time series $(p_{m,q,t})$ we compu
 
 $$S_{m,q} = \frac{\sum_t w_{q,t}S(p_{m,q,t}, o_q)}{\sum_t w_{q,t}}$$
 
-## Class Balance Weights
+## Class Balanced Weights
 
 We build a weighted moving average 
 
@@ -61,7 +65,7 @@ $$L_m = \frac{1}{\sum_{q \in W} w_{q}} \sum_{q \in W} S_{m,q}\,w_{q}$$
 
 where $q$ ranges over the set $W$ of the last $N$ questions. The parameter $N$ is chosen to be proportional to the number of questions generated and resolved during an immunity period. 
 
-The weights are class balance weights whereby if $k = \sum_{q \in W} 1_{\{\text{outcome}(q)=1\}}$ is the number of events which resolved positively, we define 
+The weights are class balanced weights whereby if $k = \sum_{q \in W} 1_{\{\text{outcome}(q)=1\}}$ is the number of events which resolved positively, we define 
 $w_{1} = \frac{1}{q_Y}$ and $w_{0} = \frac{1}{1 - q_Y}$
 
 where $q_Y = \frac{k + 1}{N + 2}$.
