@@ -142,9 +142,7 @@ class QueryMiners(AbstractTask):
             event_type = event[2]
             description = event[3]
             cutoff = int(datetime.fromisoformat(event[4]).timestamp()) if event[4] else None
-            resolve_date = int(datetime.fromisoformat(event[5]).timestamp()) if event[5] else None
-            end_date = int(datetime.fromisoformat(event[6]).timestamp()) if event[6] else None
-            metadata = {**json.loads(event[7])}
+            metadata = {**json.loads(event[5])}
 
             compiled_events[f"{truncated_market_type}-{event_id}"] = {
                 "event_id": event_id,
@@ -154,9 +152,6 @@ class QueryMiners(AbstractTask):
                 "miner_answered": False,
                 "description": description,
                 "cutoff": cutoff,
-                "starts": cutoff if (cutoff and event_type.lower() == "azuro") else None,
-                "resolve_date": resolve_date,
-                "end_date": end_date,
                 "metadata": metadata,
             }
 

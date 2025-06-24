@@ -11,11 +11,10 @@ from freezegun import freeze_time
 from neurons.validator.db.client import DatabaseClient
 from neurons.validator.db.operations import DatabaseOperations
 from neurons.validator.if_games.client import IfGamesClient
-from neurons.validator.models.backend_models import MinerEventResult, MinerEventResultItems
+from neurons.validator.models.backend_models import MinerScore, PostScores
 from neurons.validator.models.event import EventsModel, EventStatus
 from neurons.validator.models.score import ScoresModel
 from neurons.validator.tasks.export_scores import ExportScores
-from neurons.validator.tasks.pull_events import TITLE_SEPARATOR
 from neurons.validator.utils.logger.logger import InfiniteGamesLogger
 
 
@@ -60,10 +59,7 @@ class TestExportScores:
             market_type="test_market",
             event_type="test_type",
             registered_date=datetime(2025, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
-            description="""This is a test event description that is longer than 500 characters."""
-            * 10,
-            starts=datetime(2025, 1, 2, 1, 0, 0, tzinfo=timezone.utc),
-            resolve_date=datetime(2025, 1, 2, 2, 0, 0, tzinfo=timezone.utc),
+            description="""This is a test event description""",
             outcome="1",
             metadata='{"market_type": "test_real_market"}',
             status=EventStatus.SETTLED,
@@ -71,7 +67,6 @@ class TestExportScores:
             exported=False,
             created_at=datetime(2025, 1, 2, 3, 0, 0, tzinfo=timezone.utc),
             cutoff=datetime(2025, 1, 2, 4, 0, 0, tzinfo=timezone.utc),
-            end_date=None,
             resolved_at=None,
         )
 
@@ -124,10 +119,6 @@ class TestExportScores:
             spec_version=1,
             created_at=now,
         )
-        expected_metadata = {
-            "market_type": "test_real_market",
-            "other_data": {"extra": "data"},
-        }
 
         payload = export_scores_task.prepare_scores_payload(event, [score])
         # ensure the payload is serializable
@@ -142,16 +133,6 @@ class TestExportScores:
         assert len(results) == 1
         result = results[0]
         assert result["event_id"] == event.event_id
-        # should not be the real market type - should be ifgames
-        assert result["provider_type"] != json.loads(event.metadata)["market_type"]
-        assert result["provider_type"] == event.market_type
-        assert result["title"] == event.description[:500]
-        assert result["description"] == event.description
-        assert result["category"] == "event"
-        assert isoparse(result["start_date"]) == isoparse(event.starts.isoformat())
-        assert isoparse(result["end_date"]) == isoparse(event.resolve_date.isoformat())
-        assert isoparse(result["resolve_date"]) == isoparse(event.resolve_date.isoformat())
-        assert isoparse(result["settle_date"]) == isoparse(event.cutoff.isoformat())
         assert result["prediction"] == score.prediction
         assert result["answer"] == float(event.outcome)
         assert result["miner_hotkey"] == score.miner_hotkey
@@ -160,46 +141,24 @@ class TestExportScores:
         assert result["miner_effective_score"] == score.metagraph_score
         assert result["validator_hotkey"] == export_scores_task.validator_hotkey
         assert result["validator_uid"] == export_scores_task.validator_uid
-        assert result["metadata"] == expected_metadata
         assert result["spec_version"] == "1039"
         assert isoparse(result["registered_date"]) == isoparse(event.registered_date.isoformat())
         assert isoparse(result["scored_at"]) == isoparse(score.created_at.isoformat())
 
         # score.other_data is not included in the payload; also dates nullified
         score.other_data = None
-        event.starts = None
-        event.resolve_date = None
         score.spec_version = 1040
 
         payload = export_scores_task.prepare_scores_payload(event, [score])
         assert json.loads(json.dumps(payload)) == payload
         assert payload is not None
+
         result = payload["results"][0]
-        assert "other_data" not in result["metadata"]
-        assert result["metadata"] == {
-            "market_type": "test_real_market",
-        }
-        assert result["start_date"] is None
-        assert result["end_date"] is None
-        assert result["resolve_date"] is None
         assert result["spec_version"] == "1040"
 
-        # check title-description split
-        event.description = event.description.replace("500 characters.", TITLE_SEPARATOR)
         payload = export_scores_task.prepare_scores_payload(event, [score])
         assert json.loads(json.dumps(payload)) == payload
         assert payload is not None
-        result = payload["results"][0]
-        assert result["title"] == event.description.split(TITLE_SEPARATOR)[0][:500]
-        assert result["title"] == "This is a test event description that is longer than "
-        assert result["description"] == event.description
-        event.description = TITLE_SEPARATOR
-        payload = export_scores_task.prepare_scores_payload(event, [score])
-        assert json.loads(json.dumps(payload)) == payload
-        assert payload is not None
-        result = payload["results"][0]
-        assert result["title"] == ""
-        assert result["description"] == TITLE_SEPARATOR
 
     def test_prepare_scores_payload_failure(
         self, export_scores_task: ExportScores, sample_event: EventsModel
@@ -218,7 +177,7 @@ class TestExportScores:
             created_at=now,
         )
 
-        with patch.object(MinerEventResult, "__init__", side_effect=Exception("Simulated failure")):
+        with patch.object(MinerScore, "__init__", side_effect=Exception("Simulated failure")):
             payload = export_scores_task.prepare_scores_payload(event, [score])
             assert payload is None
             export_scores_task.logger.exception.assert_called()
@@ -233,9 +192,7 @@ class TestExportScores:
         export_scores_task.logger.exception.reset_mock()
         export_scores_task.errors_count = 0
 
-        with patch.object(
-            MinerEventResultItems, "__init__", side_effect=Exception("Simulated failure")
-        ):
+        with patch.object(PostScores, "__init__", side_effect=Exception("Simulated failure")):
             payload = export_scores_task.prepare_scores_payload(event, [score])
             assert payload is None
             export_scores_task.logger.exception.assert_called()

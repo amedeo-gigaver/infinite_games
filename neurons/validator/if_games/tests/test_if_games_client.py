@@ -194,7 +194,6 @@ class TestIfGamesClient:
                         "Resolution source: NASDAQ official data."
                     ),
                     "market_type": "BINARY",
-                    "start_date": 1733600000,
                     "created_at": 1733200000,
                     "end_date": 1733620000,
                     "answer": None,
@@ -208,7 +207,6 @@ class TestIfGamesClient:
                         "announce that AI has surpassed general human intelligence before December 31, 2030."
                     ),
                     "market_type": "POLYMARKET",
-                    "start_date": 1733610000,
                     "created_at": 1733210000,
                     "end_date": 1733621000,
                     "answer": None,

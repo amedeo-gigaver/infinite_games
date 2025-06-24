@@ -12,9 +12,6 @@ class EventPredictionSynapse(Synapse):
         #     "miner_answered",
         #     "description",
         #     "cutoff",
-        #     "starts",
-        #     "resolve_date",
-        #     "end_date",
         #     "metadata"
         # }
     }

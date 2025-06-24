@@ -122,8 +122,6 @@ class TestQueryMiners:
                 "LLM",  # event_type
                 "Test match",  # description
                 "2012-12-02T14:30:00+00:00",  # cutoff
-                "2012-12-02T14:30:00+00:00",  # resolve_date
-                "2012-12-03T14:30:00+00:00",  # end_date
                 json.dumps(
                     {"topics": ["topic_1", "topic_2"], "trigger_name": "trigger"}
                 ),  # metadata
@@ -134,8 +132,6 @@ class TestQueryMiners:
                 "aZuro",  # event_type
                 "Test match 2",  # description
                 "2012-12-02T14:30:00+00:00",  # cutoff
-                "2012-12-02T14:30:00+00:00",  # resolve_date
-                "2012-12-03T14:30:00+00:00",  # end_date
                 json.dumps({"topics": [], "trigger_name": None}),  # metadata
             ),
         ]
@@ -155,15 +151,12 @@ class TestQueryMiners:
         assert event_data == {
             "cutoff": 1354458600,
             "description": "Test match",
-            "end_date": 1354545000,
             "event_id": "event1",
             "market_type": "LLM",
             "metadata": {"topics": ["topic_1", "topic_2"], "trigger_name": "trigger"},
             "miner_answered": False,
             "probability": None,
             "reasoning": None,
-            "resolve_date": 1354458600,
-            "starts": None,
         }
 
         # Assert event 2
@@ -176,15 +169,12 @@ class TestQueryMiners:
         assert event_data == {
             "cutoff": 1354458600,
             "description": "Test match 2",
-            "end_date": 1354545000,
             "event_id": "event2",
             "market_type": "aZuro",
             "metadata": {"topics": [], "trigger_name": None},
             "miner_answered": False,
             "probability": None,
             "reasoning": None,
-            "resolve_date": 1354458600,
-            "starts": 1354458600,
         }
 
     def test_make_predictions_synapse_empty_events(self, query_miners_task: QueryMiners):
@@ -217,9 +207,6 @@ class TestQueryMiners:
                     "miner_answered": True,
                     "description": "Test match",
                     "cutoff": 1354458600,
-                    "starts": None,
-                    "resolve_date": 1354458600,
-                    "end_date": 1354545000,
                     "metadata": {"topics": ["topic_1", "topic_2"], "trigger_name": "trigger"},
                 },
                 "ifgames-event2": {
@@ -230,9 +217,6 @@ class TestQueryMiners:
                     "miner_answered": False,
                     "description": "Test match 2",
                     "cutoff": 1354458600,
-                    "starts": 1354458600,
-                    "resolve_date": 1354458600,
-                    "end_date": 1354545000,
                     "metadata": {
                         "topics": [
                             "topic_10",
@@ -249,9 +233,6 @@ class TestQueryMiners:
                     "miner_answered": False,
                     "description": "Test match 2",
                     "cutoff": 1354458600,
-                    "starts": 1354458600,
-                    "resolve_date": 1354458600,
-                    "end_date": 1354545000,
                     "metadata": {},
                 },
             }
@@ -429,9 +410,6 @@ class TestQueryMiners:
                     "miner_answered": True,
                     "description": "Test match",
                     "cutoff": 1354458600,
-                    "starts": None,
-                    "resolve_date": 1354458600,
-                    "end_date": 1354545000,
                 },
                 "azuro-event2": {
                     "event_id": "event2",
@@ -441,9 +419,6 @@ class TestQueryMiners:
                     "miner_answered": False,
                     "description": "Test match 2",
                     "cutoff": 1354458600,
-                    "starts": 1354458600,
-                    "resolve_date": 1354458600,
-                    "end_date": 1354545000,
                 },
             }
         )
@@ -566,14 +541,11 @@ class TestQueryMiners:
                 "ifgames",
                 "sports",
                 "desc1",
-                "2024-12-03",
-                "2024-12-04",
                 "outcome2",
                 EventStatus.PENDING,
                 json.dumps({"market_type": "sports"}),
                 "2012-12-02T14:30:00+00:00",
                 cutoff_future,
-                "2000-12-31T14:30:00+00:00",
             ),
             (
                 "ifgames-event2",
@@ -581,14 +553,11 @@ class TestQueryMiners:
                 "ifgames",
                 "acled",
                 "desc2",
-                "2024-12-03",
-                "2024-12-04",
                 "outcome2",
                 EventStatus.PENDING,
                 json.dumps({"market_type": "acled"}),
                 "2012-12-02T14:30:00+00:00",
                 cutoff_future,
-                "2000-12-31T14:30:00+00:00",
             ),
         ]
 
@@ -784,14 +753,11 @@ class TestQueryMiners:
                 "ifgames",
                 "sports",
                 "desc1",
-                "2024-12-03",
-                "2024-12-04",
                 "outcome2",
                 EventStatus.PENDING,
                 json.dumps({"market_type": "sports"}),
                 "2012-12-02T14:30:00+00:00",
                 (datetime.now(timezone.utc) + timedelta(seconds=2)).isoformat(),
-                "2000-12-31T14:30:00+00:00",
             ),
         ]
 

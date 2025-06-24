@@ -111,14 +111,11 @@ class TestResolveEventsTask:
                 "truncated_market1",
                 "market_1",
                 "desc1",
-                "2024-12-02",
-                "2024-12-03",
                 None,
                 EventStatus.PENDING,
                 '{"key": "value"}',
                 "2000-12-02T14:30:00+00:00",
                 "2000-12-30T14:30:00+00:00",
-                "2000-12-31T14:30:00+00:00",
             ),
             (
                 "unique_2",
@@ -126,14 +123,11 @@ class TestResolveEventsTask:
                 "truncated_market1",
                 "market_1",
                 "desc1",
-                "2024-12-02",
-                "2024-12-03",
                 None,
                 EventStatus.PENDING,
                 '{"key": "value"}',
                 "2000-12-02T14:30:00+00:00",
                 "2000-12-30T14:30:00+00:00",
-                "2000-12-31T14:30:00+00:00",
             ),
         ]
 
@@ -183,15 +177,12 @@ class TestResolveEventsTask:
                 "truncated_market1",
                 "market_1",
                 "desc1",
-                "2024-12-02",
-                "2024-12-03",
                 None,
                 EventStatus.PENDING,
                 '{"key": "value"}',
                 # created_at
                 "2000-12-02T14:30:00+00:00",
                 "2000-12-30T14:30:00+00:00",
-                "2000-12-31T14:30:00+00:00",
             ),
             (
                 "unique_2",
@@ -199,15 +190,12 @@ class TestResolveEventsTask:
                 "truncated_market1",
                 "market_1",
                 "desc1",
-                "2024-12-02",
-                "2024-12-03",
                 None,
                 EventStatus.PENDING,
                 '{"key": "value"}',
                 # created_at
                 "1512-12-02T14:30:00+00:00",
                 "2000-12-30T14:30:00+00:00",
-                "2000-12-31T14:30:00+00:00",
             ),
         ]
 
@@ -218,7 +206,7 @@ class TestResolveEventsTask:
         # Mock API response
         with aioresponses() as mocked:
             backdated_resolved_since = (
-                (datetime.fromisoformat(events[1][10]) - timedelta(hours=1))
+                (datetime.fromisoformat(events[1][8]) - timedelta(hours=1))
                 .isoformat()
                 .replace("+00:00", "Z")
             )
@@ -252,14 +240,11 @@ class TestResolveEventsTask:
                 "truncated_market1",
                 "market_1",
                 "desc1",
-                "2024-12-02",
-                "2024-12-03",
                 None,
                 EventStatus.PENDING,
                 '{"key": "value"}',
                 "2000-12-02T14:30:00+00:00",
                 "2000-12-30T14:30:00+00:00",
-                "2000-12-31T14:30:00+00:00",
             ),
             (
                 "unique_2",
@@ -267,14 +252,11 @@ class TestResolveEventsTask:
                 "truncated_market1",
                 "market_1",
                 "desc1",
-                "2024-12-02",
-                "2024-12-03",
                 None,
                 EventStatus.PENDING,
                 '{"key": "value"}',
                 "1900-12-02T14:30:00+00:00",
                 "2000-12-30T14:30:00+00:00",
-                "2000-12-31T14:30:00+00:00",
             ),
             (
                 "unique_3",
@@ -282,14 +264,11 @@ class TestResolveEventsTask:
                 "truncated_market1",
                 "market_1",
                 "desc1",
-                "2024-12-02",
-                "2024-12-03",
                 None,
                 EventStatus.PENDING,
                 '{"key": "value"}',
                 "2000-12-02T14:30:00+00:00",
                 "2000-12-30T14:30:00+00:00",
-                "2000-12-31T14:30:00+00:00",
             ),
             (
                 "unique_4",
@@ -297,14 +276,11 @@ class TestResolveEventsTask:
                 "truncated_market1",
                 "market_1",
                 "desc1",
-                "2024-12-02",
-                "2024-12-03",
                 None,
                 EventStatus.PENDING,
                 '{"key": "value"}',
                 "2000-12-02T14:30:00+00:00",
                 "2000-12-30T14:30:00+00:00",
-                "2000-12-31T14:30:00+00:00",
             ),
         ]
 
@@ -363,7 +339,7 @@ class TestResolveEventsTask:
                     .replace("+00:00", "Z")
                 )
 
-            first_request_resolved_since = backdate(events[1][10])
+            first_request_resolved_since = backdate(events[1][8])
 
             second_request_resolved_since = backdate("2024-09-11T20:43:02+00:00")
 

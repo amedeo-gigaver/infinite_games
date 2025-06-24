@@ -1,4 +1,5 @@
 import argparse
+from pathlib import Path
 from typing import Literal
 from unittest.mock import ANY
 
@@ -29,6 +30,12 @@ def get_config():
     parser.add_argument(
         "--ifgames.env", type=str, help="IFGames env", choices=["prod", "test"], required=False
     )
+    parser.add_argument(
+        "--db.directory",
+        type=str,
+        help="Directory where the database file is located (default: ./). This must be an absolute directory path that exists",
+        required=False,
+    )
     Subtensor.add_args(parser=parser)
     LoggingMachine.add_args(parser=parser)
     Wallet.add_args(parser=parser)
@@ -38,6 +45,8 @@ def get_config():
     netuid = args.__getattribute__("netuid")
     network = args.__getattribute__("subtensor.network")
     ifgames_env = args.__getattribute__("ifgames.env")
+    # Set default, __getattribute__ doesn't return arguments defaults
+    db_directory = args.__getattribute__("db.directory") or str(Path.cwd())
 
     # Validate network config
     if not any(
@@ -56,8 +65,13 @@ def get_config():
             )
         )
 
+    # Validate db directory
+    if not Path(db_directory).is_absolute():
+        raise ValueError(f"Invalid db.directory '{db_directory}' must be an absolute path.")
+
     config = Config(parser=parser, strict=True)
     env = "prod" if netuid == 6 else "test"
-    db_path = "validator.db" if env == "prod" else "validator_test.db"
+    db_filename = "validator.db" if env == "prod" else "validator_test.db"
+    db_path = str(Path(db_directory) / db_filename)
 
     return config, env, db_path

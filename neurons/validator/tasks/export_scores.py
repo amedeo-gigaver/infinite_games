@@ -2,11 +2,10 @@ import json
 
 from neurons.validator.db.operations import DatabaseOperations
 from neurons.validator.if_games.client import IfGamesClient
-from neurons.validator.models.backend_models import MinerEventResult, MinerEventResultItems
+from neurons.validator.models.backend_models import MinerScore, PostScores
 from neurons.validator.models.event import EventsModel
 from neurons.validator.models.score import ScoresModel
 from neurons.validator.scheduler.task import AbstractTask
-from neurons.validator.tasks.pull_events import TITLE_SEPARATOR
 from neurons.validator.utils.logger.logger import InfiniteGamesLogger
 
 
@@ -57,25 +56,15 @@ class ExportScores(AbstractTask):
     def prepare_scores_payload(self, event: EventsModel, scores: list[ScoresModel]) -> list[dict]:
         results = []
         failures = 0
-        metadata = json.loads(event.metadata)
+
         for score in scores:
             try:
-                score_metadata = metadata.copy()
-                if score.other_data:
-                    score_metadata["other_data"] = json.loads(score.other_data)
                 # override the spec version to be at least 1039 - peer scoring start
                 # also backend expects a string
                 backend_spec_version = str(max(score.spec_version, 1039))
-                result = MinerEventResult(
+
+                result = MinerScore(
                     event_id=score.event_id,  # awful: backend reconstructs unique_event_id
-                    provider_type=event.market_type,  # leave as it was in the original code
-                    title=event.description.split(TITLE_SEPARATOR)[0][:500],  # max 500 chars title
-                    description=event.description,
-                    category="event",  # as in the original code
-                    start_date=event.starts.isoformat() if event.starts else None,
-                    end_date=event.resolve_date.isoformat() if event.resolve_date else None,
-                    resolve_date=event.resolve_date.isoformat() if event.resolve_date else None,
-                    settle_date=event.cutoff.isoformat(),  # as in the original code
                     prediction=score.prediction,
                     answer=float(event.outcome),
                     miner_hotkey=score.miner_hotkey,
@@ -84,7 +73,6 @@ class ExportScores(AbstractTask):
                     miner_effective_score=score.metagraph_score,
                     validator_hotkey=self.validator_hotkey,
                     validator_uid=self.validator_uid,
-                    metadata=score_metadata,
                     spec_version=backend_spec_version,
                     registered_date=event.registered_date.isoformat(),
                     scored_at=score.created_at.isoformat(),
@@ -102,7 +90,7 @@ class ExportScores(AbstractTask):
             return None
 
         try:
-            payload = MinerEventResultItems(results=results).model_dump_json()
+            payload = PostScores(results=results).model_dump_json()
             return json.loads(payload)
         except Exception:
             self.errors_count += 1

@@ -1,22 +1,14 @@
 # THIS SHOULD BE KEPT IN SYNC WITH BACKEND MODELS
-# https://github.com/infinite-mech/infinite_games_events/blob/develop/event_generator/models/provider_events.py
+# https://github.com/infinite-mech/infinite_games_events/blob/develop/event_api/api_models/validator.py
 
 import datetime
 import typing
 
-from pydantic import BaseModel, ConfigDict, Field, conlist
+from pydantic import BaseModel, ConfigDict, Field
 
 
-class MinerEventResult(BaseModel):
+class MinerScore(BaseModel):
     event_id: str
-    provider_type: str
-    title: typing.Optional[str]
-    description: typing.Optional[str]
-    category: str
-    start_date: typing.Optional[datetime.datetime]
-    end_date: typing.Optional[datetime.datetime]
-    resolve_date: typing.Optional[datetime.datetime]
-    settle_date: datetime.datetime
     prediction: float
     answer: float = Field(..., json_schema_extra={"ge": 0, "le": 1})
     miner_hotkey: str
@@ -25,13 +17,12 @@ class MinerEventResult(BaseModel):
     miner_effective_score: float
     validator_hotkey: str
     validator_uid: int
-    metadata: typing.Dict[str, typing.Any]
     spec_version: typing.Optional[str] = "0.0.0"
     registered_date: typing.Optional[datetime.datetime]
     scored_at: typing.Optional[datetime.datetime]
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, extra="forbid")
 
 
-class MinerEventResultItems(BaseModel):
-    results: conlist(MinerEventResult, min_length=1)  # type: ignore
+class PostScores(BaseModel):
+    results: typing.List[MinerScore] = Field(..., min_length=1)

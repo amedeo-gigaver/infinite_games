@@ -256,8 +256,6 @@ class DatabaseOperations:
                     event_type,
                     description,
                     cutoff,
-                    resolve_date,
-                    end_date,
                     metadata
                 FROM
                     events
@@ -364,22 +362,16 @@ class DatabaseOperations:
                         market_type,
                         event_type,
                         description,
-                        starts,
-                        resolve_date,
                         outcome,
                         status,
                         metadata,
                         created_at,
                         cutoff,
-                        end_date,
                         registered_date,
                         local_updated_at
                     )
                 VALUES
                     (
-                        ?,
-                        ?,
-                        ?,
                         ?,
                         ?,
                         ?,

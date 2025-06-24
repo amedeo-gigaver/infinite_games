@@ -87,9 +87,7 @@ class PullEvents(AbstractTask):
         truncated_market_type = "ifgames"
 
         created_at = datetime.fromtimestamp(event.get("created_at"), tz=timezone.utc)
-        start_date = datetime.fromtimestamp(event.get("start_date"), tz=timezone.utc)
         cutoff = datetime.fromtimestamp(event.get("cutoff"), tz=timezone.utc)
-        end_date = datetime.fromtimestamp(event.get("end_date"), tz=timezone.utc)
 
         event_type = event.get("market_type", "").lower()
 
@@ -101,12 +99,9 @@ class PullEvents(AbstractTask):
             market_type=truncated_market_type,
             event_type=event_type,
             description=event.get("title", "") + TITLE_SEPARATOR + event.get("description", ""),
-            starts=start_date,
-            resolve_date=None,
             outcome=event["answer"],
             status=status,
             metadata=json.dumps(metadata),
             created_at=created_at,
             cutoff=cutoff,
-            end_date=end_date,
         )

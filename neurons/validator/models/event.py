@@ -17,15 +17,13 @@ class EventStatus(IntEnum):
 class EventsModel(BaseModel):
     """Events model: keep it 1:1 with the DB table"""
 
-    model_config = {"arbitrary_types_allowed": True}
+    model_config = {"arbitrary_types_allowed": True, "extra": "forbid"}
     unique_event_id: str
     event_id: str
     market_type: str
     event_type: str
     registered_date: Optional[datetime] = None
     description: str
-    starts: Optional[datetime] = None
-    resolve_date: Optional[datetime] = None
     outcome: Optional[str] = None
     local_updated_at: Optional[datetime] = None
     status: EventStatus
@@ -34,7 +32,6 @@ class EventsModel(BaseModel):
     exported: Optional[bool] = False
     created_at: Optional[datetime] = None
     cutoff: Optional[datetime] = None
-    end_date: Optional[datetime] = None
     resolved_at: Optional[datetime] = None
     event_type: Optional[str] = None
     deleted_at: Optional[datetime] = None
