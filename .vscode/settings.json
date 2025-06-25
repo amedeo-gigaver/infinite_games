@@ -4,6 +4,7 @@
     "ainit",
     "aioresponses",
     "allclose",
+    "ASGI",
     "asyncio",
     "azuro",
     "bittensor",

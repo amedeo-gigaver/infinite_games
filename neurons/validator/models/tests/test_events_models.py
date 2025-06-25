@@ -14,8 +14,6 @@ class TestEventsModel:
             market_type="truncated_market1",
             event_type="market1",
             description="desc1",
-            starts="2024-12-03T00:00:00Z",
-            resolve_date="2024-12-04T00:00:00Z",
             outcome="outcome1",
             status=EventStatus.DISCARDED,
             metadata='{"key": "value"}',
@@ -34,8 +32,6 @@ class TestEventsModel:
             market_type="truncated_market2",
             event_type="market2",
             description="desc2",
-            starts="2024-12-03",
-            resolve_date="2024-12-04",
             outcome="outcome2",
             status=2,
             metadata='{"key": "value"}',
@@ -53,8 +49,6 @@ class TestEventsModel:
                 market_type="truncated_market3",
                 event_type="market3",
                 description="desc3",
-                starts=None,
-                resolve_date=None,
                 outcome=None,
                 status=99,  # invalid
                 metadata="{}",
@@ -71,8 +65,6 @@ class TestEventsModel:
             market_type="truncated_market4",
             event_type="market4",
             description="desc4",
-            starts=None,
-            resolve_date=None,
             outcome=None,
             status=EventStatus.SETTLED,
             metadata="{}",
@@ -94,10 +86,9 @@ class TestEventsModel:
             status=EventStatus.DELETED,
             metadata="{}",
             created_at="2012-12-02T14:30:00Z",
-            # Omitting starts, resolve_date, outcome, cutoff, local_updated_at, processed, exported
+            # Omitting outcome, cutoff, local_updated_at, processed, exported
         )
-        assert event.starts is None
-        assert event.resolve_date is None
+
         assert event.outcome is None
         assert event.cutoff is None
         assert event.local_updated_at is None

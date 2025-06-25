@@ -92,4 +92,3 @@ This normalized weight is used to reflect each miner's relative performance.
 
 When a miner registers at a time $t$ on the subnet they will send predictions for questions $q$ that already opened at a time $t_{q,0} < t$. When this happens we give the new miner a score of $0$ which corresponds to the baseline, i.e when a miner is neither bringing new information compared to the aggregate nor is penalized. We will also give them a score of $0$ on the questions in the moving average which resolved before the miner registered.
 
-

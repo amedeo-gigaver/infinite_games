@@ -721,14 +721,11 @@ class TestMetagraphScoring:
                         market_type="unit_test",
                         event_type="unit_test",
                         description=f"stub for {eid}",
-                        starts="2100-01-01",
-                        resolve_date="2100-01-02",
                         outcome=outcome,
                         status=EventStatus.SETTLED,
                         metadata="{}",
                         created_at="2100-01-01T00:00:00+00:00",
                         cutoff="2100-01-01T00:00:00+00:00",
-                        end_date="2100-01-02T00:00:00+00:00",
                     )
                 )
 

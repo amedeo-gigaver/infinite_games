@@ -53,9 +53,9 @@ async def main():
     # Components
     db_client = DatabaseClient(db_path=db_path, logger=logger)
     db_operations = DatabaseOperations(db_client=db_client, logger=logger)
-    api_client = IfGamesClient(env=ifgames_env, logger=logger, bt_wallet=bt_wallet)
+    ifgames_api_client = IfGamesClient(env=ifgames_env, logger=logger, bt_wallet=bt_wallet)
 
-    api = API(
+    validator_api = API(
         host="0.0.0.0",
         port=8000,
         db_operations=db_operations,
@@ -68,13 +68,16 @@ async def main():
 
     # Tasks
     pull_events_task = PullEvents(
-        interval_seconds=50.0, page_size=50, db_operations=db_operations, api_client=api_client
+        interval_seconds=50.0,
+        page_size=50,
+        db_operations=db_operations,
+        api_client=ifgames_api_client,
     )
 
     resolve_events_task = ResolveEvents(
         interval_seconds=1800.0,
         db_operations=db_operations,
-        api_client=api_client,
+        api_client=ifgames_api_client,
         page_size=100,
         logger=logger,
     )
@@ -82,7 +85,7 @@ async def main():
     delete_events_task = DeleteEvents(
         interval_seconds=1800.0,
         db_operations=db_operations,
-        api_client=api_client,
+        api_client=ifgames_api_client,
         page_size=100,
         logger=logger,
     )
@@ -98,7 +101,7 @@ async def main():
     export_predictions_task = ExportPredictions(
         interval_seconds=180.0,
         db_operations=db_operations,
-        api_client=api_client,
+        api_client=ifgames_api_client,
         batch_size=300,
         validator_uid=validator_uid,
         validator_hotkey=validator_hotkey,
@@ -124,7 +127,7 @@ async def main():
         interval_seconds=373.0,
         page_size=500,
         db_operations=db_operations,
-        api_client=api_client,
+        api_client=ifgames_api_client,
         logger=logger,
         validator_uid=validator_uid,
         validator_hotkey=validator_hotkey,
@@ -174,8 +177,8 @@ async def main():
     scheduler.add(task=db_cleaner_task)
     scheduler.add(task=vacuum_task)
 
-    # Start API
-    api_task = asyncio.create_task(api.start())
+    # Start Validator API
+    validator_api_task = asyncio.create_task(validator_api.start())
 
     # Start scheduler
     scheduler_task = asyncio.create_task(scheduler.start())
@@ -194,4 +197,4 @@ async def main():
         },
     )
 
-    await asyncio.gather(scheduler_task, api_task)
+    await asyncio.gather(scheduler_task, validator_api_task)

@@ -1,5 +1,11 @@
 # Release Notes
 
+## [1.5.2] - 2025-06-24
+- **Data Exporting**: Clean up fields in export scores
+- **Protocol**: Drop deprecated fields - starts, resolve_date, end_date
+- **Validator Options**: Added --db.directory command option to allow to set db file directory
+
+
 ## [1.5.1] - 2025-06-17
 - **Database**: Pre soft delete events prior to hard delete
 

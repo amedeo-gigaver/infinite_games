@@ -74,7 +74,6 @@ class TestPullEventsTask:
             "event_id": "123",
             "title": "Test Event?",
             "description": "This is a test.",
-            "start_date": 1700000000,
             "end_date": 1700003600,
             "created_at": 1699996400,
             "answer": None,
@@ -101,10 +100,6 @@ class TestPullEventsTask:
         assert (
             parsed_event.description == "Test Event?" + TITLE_SEPARATOR + "This is a test."
         )  # description
-        assert parsed_event.starts == datetime.fromtimestamp(
-            event["start_date"], tz=timezone.utc
-        )  # starts
-        assert parsed_event.resolve_date is None  # resolve_date
         assert parsed_event.outcome is None  # outcome
         assert parsed_event.status == EventStatus.PENDING  # status
         assert json.loads(parsed_event.metadata) == event["event_metadata"]  # metadata
@@ -118,7 +113,6 @@ class TestPullEventsTask:
             "event_id": "123",
             "title": "Test Event?",
             "description": "This is a test.",
-            "start_date": 1700000000,
             "end_date": 1700003600,
             "created_at": 1699996400,
             "answer": None,
@@ -179,7 +173,6 @@ class TestPullEventsTask:
                         "Resolution source: NASDAQ official data."
                     ),
                     "market_type": "BINARY",
-                    "start_date": 1733600000,
                     "created_at": 1733200000,
                     "end_date": 1733620000,
                     "answer": None,
@@ -199,7 +192,6 @@ class TestPullEventsTask:
                         "announce that AI has surpassed general human intelligence before December 31, 2030."
                     ),
                     "market_type": "POLYMARKET",
-                    "start_date": 1733610000,
                     "created_at": 1733210000,
                     "end_date": 1733621000,
                     "answer": None,
@@ -262,7 +254,6 @@ class TestPullEventsTask:
                         "Resolution source: NASDAQ official data."
                     ),
                     "market_type": "BINARY",
-                    "start_date": 1733600000,
                     "created_at": 1733200000,
                     "end_date": 1733620000,
                     "answer": None,
@@ -287,7 +278,6 @@ class TestPullEventsTask:
                         "announce that AI has surpassed general human intelligence before December 31, 2030."
                     ),
                     "market_type": "POLYMARKET",
-                    "start_date": 1733610000,
                     "created_at": 1733210000,
                     "end_date": 1733621000,
                     "answer": None,
