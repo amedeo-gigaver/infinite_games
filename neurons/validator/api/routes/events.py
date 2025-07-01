@@ -88,7 +88,7 @@ async def get_events_community_predictions(
 
     if len(event_ids) > 20:
         raise HTTPException(
-            status_code=400,
+            status_code=422,
             detail="Maximum 20 events ids allowed",
         )
 
@@ -130,6 +130,12 @@ async def get_predictions(event_id: str, request: ApiRequest) -> GetEventPredict
     db_operations: DatabaseOperations = request.state.db_operations
 
     unique_event_id = f"ifgames-{event_id}"
+
+    event = await db_operations.get_event(unique_event_id=unique_event_id)
+
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+
     current_interval = get_interval_start_minutes()
 
     predictions = await db_operations.get_predictions_for_event(

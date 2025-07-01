@@ -110,10 +110,26 @@ class LoggingAndErrorHandlingMiddleware(BaseHTTPMiddleware):
             logger_method(message)
 
             return response
-        except Exception:
+        except Exception as e:
             elapsed_time_ms = round((time.time() - start_time) * 1000)
-            api_logger.add_context({"elapsed_time": elapsed_time_ms, "response_status": 500})
 
-            api_logger.exception("API request errored")
+            logger_method = api_logger.exception
+            log_message = "API request errored"
 
-            return JSONResponse(content={"detail": "Internal Server Error"}, status_code=500)
+            response_message = "Internal Server Error"
+            status_code = 500
+
+            if str(e) == "No response returned." and await request.is_disconnected():
+                logger_method = api_logger.warning
+                log_message = "API request disconnected"
+
+                response_message = "Request Disconnected"
+                status_code = 499
+
+            api_logger.add_context(
+                {"elapsed_time": elapsed_time_ms, "response_status": status_code}
+            )
+
+            logger_method(log_message)
+
+            return JSONResponse(content={"detail": response_message}, status_code=status_code)

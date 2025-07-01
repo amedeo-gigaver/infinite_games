@@ -95,6 +95,7 @@ async def main():
         db_operations=db_operations,
         dendrite=bt_dendrite,
         metagraph=bt_metagraph,
+        env=ifgames_env,
         logger=logger,
     )
 

@@ -14,6 +14,7 @@ from neurons.validator.models.reasoning import ReasoningModel
 from neurons.validator.scheduler.task import AbstractTask
 from neurons.validator.utils.common.converters import torch_or_numpy_to_int
 from neurons.validator.utils.common.interval import get_interval_start_minutes
+from neurons.validator.utils.config import IfgamesEnvType
 from neurons.validator.utils.logger.logger import InfiniteGamesLogger
 
 
@@ -34,6 +35,7 @@ class QueryMiners(AbstractTask):
     db_operations: DatabaseOperations
     dendrite: DendriteMixin
     metagraph: MetagraphMixin
+    env: IfgamesEnvType
     logger: InfiniteGamesLogger
 
     def __init__(
@@ -42,6 +44,7 @@ class QueryMiners(AbstractTask):
         db_operations: DatabaseOperations,
         dendrite: DendriteMixin,
         metagraph: MetagraphMixin,
+        env: IfgamesEnvType,
         logger: InfiniteGamesLogger,
     ):
         if not isinstance(interval_seconds, float) or interval_seconds <= 0:
@@ -59,6 +62,10 @@ class QueryMiners(AbstractTask):
         if not isinstance(metagraph, MetagraphMixin):
             raise TypeError("metagraph must be an instance of MetagraphMixin.")
 
+        # Validate env
+        if not isinstance(env, str):
+            raise TypeError("env must be an instance of str.")
+
         # Validate logger
         if not isinstance(logger, InfiniteGamesLogger):
             raise TypeError("logger must be an instance of InfiniteGamesLogger.")
@@ -67,6 +74,7 @@ class QueryMiners(AbstractTask):
         self.db_operations = db_operations
         self.dendrite = dendrite
         self.metagraph = metagraph
+        self.env = env
         self.logger = logger
 
     @property
@@ -115,13 +123,22 @@ class QueryMiners(AbstractTask):
 
     def get_axons(self) -> AxonInfoByUidType:
         axons: AxonInfoByUidType = {}
+        seen_cold_keys: set[str] = set()
 
         for uid in self.metagraph.uids:
             int_uid = torch_or_numpy_to_int(uid)
-
             axon = self.metagraph.axons[int_uid]
 
-            if axon is not None and axon.is_serving is True:
+            if axon is not None and axon.is_serving:
+                # Only allow unique cold keys
+                if self.env == "prod" and axon.coldkey in seen_cold_keys:
+                    self.logger.debug(
+                        "Duplicate axon cold key found",
+                        extra={"uid": int_uid, "coldkey": axon.coldkey},
+                    )
+
+                    continue
+
                 is_validating = True if self.metagraph.validator_trust[uid].float() > 0.0 else False
                 validator_permit = torch_or_numpy_to_int(self.metagraph.validator_permit[uid]) > 0
 
@@ -130,6 +147,7 @@ class QueryMiners(AbstractTask):
                 )
 
                 axons[int_uid] = extended_axon
+                seen_cold_keys.add(axon.coldkey)
 
         return axons
 

@@ -53,6 +53,8 @@ class TestQueryMiners:
             db_operations=db_operations,
             dendrite=dendrite,
             metagraph=metagraph,
+            # We set it to 'prod' to test prod miner filtering logic
+            env="prod",
             logger=logger,
         )
 
@@ -64,14 +66,17 @@ class TestQueryMiners:
         query_miners_task.metagraph.uids = np.array([0, 1, 2, 3])  # UIDs in the metagraph
         query_miners_task.metagraph.axons = (
             AxonInfo(
-                hotkey="hotkey1", coldkey="coldkey", version=1, ip="ip1", port=1, ip_type=1
+                hotkey="hotkey1", coldkey="coldkey1", version=1, ip="ip1", port=1, ip_type=1
             ),  # Serving axon
             AxonInfo(
-                hotkey="hotkey2", coldkey="coldkey", version=1, ip="ip1", port=1, ip_type=1
+                hotkey="hotkey2", coldkey="coldkey2", version=1, ip="ip1", port=1, ip_type=1
             ),  # Serving axon
             AxonInfo(
-                hotkey="hotkey3", coldkey="coldkey", version=1, ip="0.0.0.0", port=1, ip_type=1
+                hotkey="hotkey3", coldkey="coldkey3", version=1, ip="0.0.0.0", port=1, ip_type=1
             ),  # Not serving axon
+            AxonInfo(
+                hotkey="hotkey4", coldkey="coldkey1", version=1, ip="0.0.0.0", port=1, ip_type=1
+            ),  # Serving axon but duplicate cold key
             None,  # No axon at this UID
         )
         query_miners_task.metagraph.validator_trust = torch.nn.Parameter(
@@ -570,16 +575,20 @@ class TestQueryMiners:
         query_miners_task.metagraph.block = torch.nn.Parameter(torch.tensor(block))
         query_miners_task.metagraph.axons = (
             AxonInfo(
-                hotkey="hotkey_1", coldkey="coldkey", version=1, ip="ip_1", port=1, ip_type=1
+                hotkey="hotkey_1", coldkey="coldkey1", version=1, ip="ip_1", port=1, ip_type=1
             ),  # Serving axon
             AxonInfo(
-                hotkey="hotkey_2", coldkey="coldkey", version=1, ip="ip_2", port=1, ip_type=1
+                hotkey="hotkey_2", coldkey="coldkey2", version=1, ip="ip_2", port=1, ip_type=1
             ),  # Serving axon
+            AxonInfo(
+                hotkey="hotkey_3", coldkey="coldkey1", version=1, ip="ip_2", port=1, ip_type=1
+            ),  # Serving axon duplicate cold key
         )
         query_miners_task.metagraph.validator_trust = torch.nn.Parameter(
             torch.tensor(
                 [
                     0.5,
+                    0.0,
                     0.0,
                 ]
             )
@@ -588,6 +597,7 @@ class TestQueryMiners:
             torch.tensor(
                 [
                     1.0,
+                    0.0,
                     0.0,
                 ]
             )

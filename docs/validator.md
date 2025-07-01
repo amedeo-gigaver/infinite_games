@@ -189,6 +189,11 @@ Provide the name of your wallet.
 
 Provide the wallet's hotkey.
 
+`--db.directory`
+
+**Optional**. Absolute path to the directory where the database file is located or will be created.
+Example: /workspace/db_directory
+
 ### Direct Run
 
 Run the following command inside the `infinite_games` directory:
