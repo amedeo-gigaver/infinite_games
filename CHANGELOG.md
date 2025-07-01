@@ -1,5 +1,9 @@
 # Release Notes
 
+## [1.5.3] - 2025-07-01
+- **API**: Explicitly handle disconnected API request
+- **Miners Querying**: Filter out duplicate cold key miners
+
 ## [1.5.2] - 2025-06-24
 - **Data Exporting**: Clean up fields in export scores
 - **Protocol**: Drop deprecated fields - starts, resolve_date, end_date
