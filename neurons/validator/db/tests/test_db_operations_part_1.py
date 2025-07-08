@@ -5,6 +5,7 @@ from datetime import datetime, timedelta, timezone
 from unittest.mock import ANY, MagicMock
 
 import pytest
+from aiosqlite import IntegrityError
 
 from neurons.validator.db.client import DatabaseClient
 from neurons.validator.db.operations import DatabaseOperations
@@ -1474,7 +1475,8 @@ class TestDbOperationsPart1(TestDbOperationsBase):
         ]
 
         # Insert
-        await db_operations.upsert_predictions(predictions=predictions)
+        with pytest.raises(IntegrityError):
+            await db_operations.upsert_predictions(predictions=predictions)
 
         result = await db_client.many(
             """

@@ -14,6 +14,10 @@ def mock_event():
         market_type="crypto",
         description="Some",
         cutoff=datetime.now(timezone.utc) + timedelta(days=1),
+        metadata={},
+        probability=None,
+        reasoning=None,
+        miner_answered=False,
         status=MinerEventStatus.UNRESOLVED,
     )
 

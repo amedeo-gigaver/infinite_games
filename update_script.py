@@ -1,5 +1,4 @@
-####pm2 start update_script.py --interpreter python3 -- --repo_path /your/repo/path --repo_url https://github.com/amedeo-gigaver/infinite_games.git --branch main --check_interval 600 --pm2_process_name miner or validator
-import os
+# pm2 start update_script.py --interpreter python3 -- --repo_path /your/repo/path --repo_url https://github.com/amedeo-gigaver/infinite_games.git --branch main --check_interval 600 --pm2_process_name miner or validator
 import subprocess
 import time
 from argparse import ArgumentParser
@@ -26,11 +25,11 @@ def check_for_updates(repo_path, branch, pm2_process_name):
     if local_commit != remote_commit:
         print("New updates found. Pulling changes...")
         # Ensure the working directory is clean before pulling
-        reset_output, reset_error = run_command(f"git reset --hard", cwd=repo_path)
+        reset_output, reset_error = run_command("git reset --hard", cwd=repo_path)
         if reset_error:
             print(f"Error during git reset: {reset_error}")
             return
-        pull_output, pull_error = run_command(f"git pull", cwd=repo_path)
+        pull_output, pull_error = run_command("git pull", cwd=repo_path)
         if pull_error:
             print(f"Error during git pull: {pull_error}")
         else:

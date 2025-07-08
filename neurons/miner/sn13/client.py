@@ -116,7 +116,7 @@ class Subnet13Client:
             data["keywords"] = keywords
 
         async with self.create_session({"Content-Type": "application/json"}) as session:
-            path = f"/api/v1/on_demand_data_request"
+            path = "/api/v1/on_demand_data_request"
             async with session.post(path, json=data) as response:
                 response.raise_for_status()
 
@@ -149,7 +149,7 @@ class Subnet13Client:
             keywords = response.choices[0].message.content.split("keywords: ")[1].split("\n")[0]
             keywords = keywords.strip("[]")
             keywords = [keyword.strip() for keyword in keywords.split(", ")]
-        except Exception as e:
+        except Exception:
             self.__logger.exception(f"Error getting keywords for event: {event.event_id}")
             raise
 

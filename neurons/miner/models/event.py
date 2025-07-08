@@ -1,8 +1,9 @@
 import enum
-import typing
 from datetime import datetime, timezone
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import Field, field_validator
+
+from neurons.protocol import EventPrediction
 
 
 class MinerEventStatus(enum.Enum):
@@ -16,19 +17,13 @@ class MinerEventStatus(enum.Enum):
         return self.name
 
 
-class MinerEvent(BaseModel):
-    event_id: str = Field(..., description="The ID of the event")
-    market_type: str = Field(..., description="The market the event belongs to")
-    probability: typing.Optional[float] = Field(
-        None, ge=0, le=1, description="The prediction of the event"
-    )
-    reasoning: typing.Optional[str] = Field(
-        None, description="The reasoning for the event prediction"
-    )
-    description: str = Field(..., description="The title and the description of the event")
-    cutoff: datetime = Field(..., description="The last date the event can be predicted")
+class MinerEvent(EventPrediction):
+    # Override cutoff type as datetime
+    cutoff: datetime = Field(..., description="Last datetime the event can be predicted")
+
+    # Miner-specific fields
     status: MinerEventStatus = Field(
-        MinerEventStatus.UNRESOLVED, description="The status of the event"
+        MinerEventStatus.UNRESOLVED, description="Status of the event prediction"
     )
 
     @field_validator("market_type")

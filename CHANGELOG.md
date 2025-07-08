@@ -1,5 +1,9 @@
 # Release Notes
 
+## [1.5.4] - 2025-07-08
+- **Database**: Added task to delete old soft deleted events
+- **Miners Querying**: Filter out duplicate IP miners
+
 ## [1.5.3] - 2025-07-01
 - **API**: Explicitly handle disconnected API request
 - **Miners Querying**: Filter out duplicate cold key miners
