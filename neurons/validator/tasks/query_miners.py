@@ -8,7 +8,7 @@ from bittensor.core.chain_data import AxonInfo
 from bittensor.core.dendrite import DendriteMixin
 from bittensor.core.metagraph import MetagraphMixin
 
-from neurons.protocol import EventPredictionSynapse
+from neurons.protocol import EventPrediction, EventPredictionSynapse
 from neurons.validator.db.operations import DatabaseOperations
 from neurons.validator.models.reasoning import ReasoningModel
 from neurons.validator.scheduler.task import AbstractTask
@@ -124,20 +124,31 @@ class QueryMiners(AbstractTask):
     def get_axons(self) -> AxonInfoByUidType:
         axons: AxonInfoByUidType = {}
         seen_cold_keys: set[str] = set()
+        seen_ips: set[str] = set()
 
         for uid in self.metagraph.uids:
             int_uid = torch_or_numpy_to_int(uid)
             axon = self.metagraph.axons[int_uid]
 
             if axon is not None and axon.is_serving:
-                # Only allow unique cold keys
-                if self.env == "prod" and axon.coldkey in seen_cold_keys:
-                    self.logger.debug(
-                        "Duplicate axon cold key found",
-                        extra={"uid": int_uid, "coldkey": axon.coldkey},
-                    )
+                if self.env == "prod":
+                    # Only allow unique cold keys
+                    if axon.coldkey in seen_cold_keys:
+                        self.logger.debug(
+                            "Duplicate axon cold key found",
+                            extra={"uid": int_uid, "coldkey": axon.coldkey},
+                        )
 
-                    continue
+                        continue
+
+                    # Only allow unique ips
+                    if axon.ip in seen_ips:
+                        self.logger.debug(
+                            "Duplicate axon IP found",
+                            extra={"uid": int_uid, "ip": axon.ip},
+                        )
+
+                        continue
 
                 is_validating = True if self.metagraph.validator_trust[uid].float() > 0.0 else False
                 validator_permit = torch_or_numpy_to_int(self.metagraph.validator_permit[uid]) > 0
@@ -147,12 +158,14 @@ class QueryMiners(AbstractTask):
                 )
 
                 axons[int_uid] = extended_axon
+
                 seen_cold_keys.add(axon.coldkey)
+                seen_ips.add(axon.ip)
 
         return axons
 
     def make_predictions_synapse(self, events: Iterable[tuple[any]]) -> EventPredictionSynapse:
-        compiled_events = {}
+        compiled_events: dict[str, EventPrediction] = {}
 
         for event in events:
             event_id = event[0]
@@ -162,16 +175,16 @@ class QueryMiners(AbstractTask):
             cutoff = int(datetime.fromisoformat(event[4]).timestamp()) if event[4] else None
             metadata = {**json.loads(event[5])}
 
-            compiled_events[f"{truncated_market_type}-{event_id}"] = {
-                "event_id": event_id,
-                "market_type": event_type,
-                "probability": None,
-                "reasoning": None,
-                "miner_answered": False,
-                "description": description,
-                "cutoff": cutoff,
-                "metadata": metadata,
-            }
+            compiled_events[f"{truncated_market_type}-{event_id}"] = EventPrediction(
+                event_id=event_id,
+                market_type=event_type,
+                probability=None,
+                reasoning=None,
+                miner_answered=False,
+                description=description,
+                cutoff=cutoff,
+                metadata=metadata,
+            )
 
         return EventPredictionSynapse(events=compiled_events)
 
@@ -188,7 +201,7 @@ class QueryMiners(AbstractTask):
 
         # Iterate over all event predictions
         for unique_event_id, event_prediction in neuron_predictions.events.items():
-            answer = event_prediction.get("probability")
+            answer = event_prediction.probability
 
             # Drop null predictions
             if answer is None:
@@ -205,7 +218,7 @@ class QueryMiners(AbstractTask):
 
             predictions_to_insert.append(prediction)
 
-            reasoning = event_prediction.get("reasoning")
+            reasoning = event_prediction.reasoning
 
             if reasoning is not None:
                 if len(reasoning) > REASONING_LENGTH_LIMIT:

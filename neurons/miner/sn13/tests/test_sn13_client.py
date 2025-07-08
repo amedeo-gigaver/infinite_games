@@ -1,5 +1,4 @@
 import asyncio
-import base64
 import json
 import os
 from datetime import datetime, timedelta, timezone
@@ -36,9 +35,12 @@ def mock_event():
     return MinerEvent(
         event_id="123",
         market_type="crypto",
-        probability=0.5,
         description="Some",
         cutoff=datetime.now(timezone.utc) + timedelta(days=1),
+        metadata={},
+        probability=0.5,
+        reasoning=None,
+        miner_answered=False,
         status=MinerEventStatus.UNRESOLVED,
     )
 

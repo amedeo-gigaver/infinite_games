@@ -58,45 +58,46 @@ class Miner(BaseMinerNeuron):
         """
         start_time = time.time()
 
-        current_time = datetime.now(timezone.utc)
         self.logger.info(
-            "[{}] Incoming Events {}, from {}".format(
-                current_time, len(synapse.events.items()), synapse.dendrite.hotkey
+            "Incoming Events {}, from {}".format(
+                len(synapse.events.items()), synapse.dendrite.hotkey
             )
         )
         count = 0
-        for event_id, market in synapse.events.items():
+        for event_key, validator_event in synapse.events.items():
             try:
-                event: MinerEvent | None = await self.storage.get(event_id)
+                event: MinerEvent | None = await self.storage.get(event_key)
                 if event is None:
-                    self.logger.info(f"Event {event_id} is a new event")
-                    event = MinerEvent.model_validate(market)
+                    self.logger.info(f"Event {event_key} is a new event")
+                    event = MinerEvent.model_validate(validator_event)
 
                     if event.cutoff > datetime.now(timezone.utc):
-                        await self.storage.set(event_id, event)
+                        await self.storage.set(event_key, event)
                     else:
                         continue
                 else:
-                    self.logger.debug(f"Event {event_id} is already in storage")
+                    self.logger.debug(f"Event {event_key} is already in storage")
             except Exception:
-                self.logger.error(f"Failed to get/create event {event_id}", exc_info=True)
+                self.logger.error(f"Failed to get/create event {event_key}", exc_info=True)
             else:
                 status = event.get_status()
                 if status == MinerEventStatus.UNRESOLVED:
                     forecaster = await self.assign_forecaster(event)
                     await self.task_executor.add_task(forecaster)
                     event.set_status(MinerEventStatus.PENDING)
-                    self.logger.info(f"Event {event_id} is pending resolution")
+                    self.logger.info(f"Event {event_key} is pending resolution")
                 elif status == MinerEventStatus.RESOLVED:
                     probability = event.get_probability()
-                    market["probability"] = probability
-                    market["miner_answered"] = probability is not None
+                    validator_event.probability = probability
+                    validator_event.miner_answered = probability is not None
 
                     reasoning = event.get_reasoning()
-                    market["reasoning"] = reasoning
+                    validator_event.reasoning = reasoning
 
                     count += probability is not None
-                    self.logger.info(f"Event {event_id} is resolved with probability {probability}")
+                    self.logger.info(
+                        f"Event {event_key} is resolved with probability {probability}"
+                    )
 
         self.logger.info(
             f"Miner answered on validator {synapse.dendrite.hotkey} in {time.time() - start_time:.2f} seconds "

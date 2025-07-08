@@ -705,3 +705,73 @@ class TestDbOperationsPart3(TestDbOperationsBase):
         result = await db_operations.get_events_last_deleted_at()
 
         assert result is None
+
+    async def test_delete_events_hard_delete(
+        self, db_operations: DatabaseOperations, db_client: DatabaseClient
+    ):
+        recent_deleted_datetime = datetime.now(timezone.utc) - timedelta(days=10)
+        old_deleted_datetime = datetime.now(timezone.utc) - timedelta(days=15)
+
+        events = [
+            EventsModel(
+                unique_event_id="unique1",
+                event_id="event1",
+                market_type="market_type",
+                event_type="type",
+                description="Pending event",
+                outcome="1",
+                status=EventStatus.PENDING,
+                metadata='{"key": "value"}',
+            ),
+            EventsModel(
+                unique_event_id="unique2",
+                event_id="event2",
+                market_type="market_type",
+                event_type="type",
+                description="Recent deleted event",
+                outcome="1",
+                status=EventStatus.DELETED,
+                metadata='{"key": "value"}',
+                deleted_at=recent_deleted_datetime,
+            ),
+            EventsModel(
+                unique_event_id="unique3",
+                event_id="event3",
+                market_type="market_type",
+                event_type="type",
+                description="Old deleted event",
+                outcome="1",
+                status=EventStatus.DELETED,
+                metadata='{"key": "value"}',
+                deleted_at=old_deleted_datetime,
+            ),
+            EventsModel(
+                unique_event_id="unique4",
+                event_id="event4",
+                market_type="market_type",
+                event_type="type",
+                description="Old deleted event",
+                outcome="1",
+                status=EventStatus.DELETED,
+                metadata='{"key": "value"}',
+                deleted_at=old_deleted_datetime,
+            ),
+        ]
+
+        await db_operations.upsert_pydantic_events(events=events)
+
+        # Test delete events - batch size 1
+        deleted = await db_operations.delete_events_hard_delete(batch_size=1)
+        assert deleted == [(3,)]
+
+        # Test delete remaining events
+        deleted = await db_operations.delete_events_hard_delete(batch_size=10)
+        assert deleted == [(4,)]
+
+        # Verify remaining events
+        remaining = await db_client.many("SELECT event_id FROM events")
+
+        assert remaining == [
+            ("event1",),
+            ("event2",),
+        ]

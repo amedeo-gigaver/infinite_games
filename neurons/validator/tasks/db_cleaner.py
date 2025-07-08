@@ -76,3 +76,11 @@ class DbCleaner(AbstractTask):
             self.logger.debug(
                 "Reasonings deleted", extra={"deleted_count": len(deleted_reasonings)}
             )
+
+        await asyncio.sleep(1)
+
+        # Delete events
+        deleted_events = await self.db_operations.delete_events_hard_delete(self.batch_size)
+
+        if len(deleted_events) > 0:
+            self.logger.debug("Events hard deleted", extra={"deleted_count": len(deleted_events)})

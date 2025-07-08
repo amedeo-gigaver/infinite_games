@@ -22,14 +22,19 @@ In other words, this score reflects the difference between the logarithm of mine
 
 To avoid problems with extreme predictions such as a miner confidently predicting $1$ when the outcome is $0$, which would yield a score of $-\infty$, we clip all predictions to the range $(0.01, 0.99)$.
 
+## New miners
+
+When a miner registers at a time $t$ on the subnet they will send predictions for questions $q$ that already opened at a time $t_{q,0} < t$. 
+
+When this happens we give the new miner a score of $0$ which corresponds to the baseline, i.e when a miner is not bringing any information to the aggregate. We also give them a score of $0$ on the questions in the moving average which resolved before the miner registered.
+
 ## Penalty for not submitting a forecast
 
-Unresponsive miners are penalised by imputing missing predictions as the value at 1/3 of the distance between the worst prediction and the mean prediction (closer to the worst).
+Unresponsive miners are penalised by imputing missing predictions as the value at 1/3 of the distance between the worst prediction and the average prediction. We denote the average prediction by $p_{q,t}^M$, the worst prediction by $p_{q,t}^W$, and the imputed prediction by $p_{q,t}^I$. We then have:
 
-$$S(0_{m,q,t}, o_E) = S(\text{imputed_prediction}, o_E)$$ 
+$$S(0_{m,q,t}, o_E) = S(p_{q,t}^I, o_E)$$ 
 
-where $(\text{imputed_prediction} = (\text{mean_prediction} + \frac{1}{3}\times (\text{worst_prediction} - \text{mean_prediction}) )$
-and $\text{mean_prediction}$ is the average prediction among the miners who submitted a prediction.
+where $p_{q,t}^I = (p_{q,t}^M + \frac{1}{3}\times (p_{q,t}^W - p_{q,t}^M)$.
 
 
 ## Weights
@@ -84,11 +89,4 @@ This step rewards miners with positive performance by squaring their average sco
 Finally, each miner's weight is determined by normalizing these extremised scores:
 
 $$W_m = \frac{R_m}{\sum_{m' \neq m} R_{m'}}$$.
-
-This normalized weight is used to reflect each miner's relative performance.
-
-
-## New miners
-
-When a miner registers at a time $t$ on the subnet they will send predictions for questions $q$ that already opened at a time $t_{q,0} < t$. When this happens we give the new miner a score of $0$ which corresponds to the baseline, i.e when a miner is neither bringing new information compared to the aggregate nor is penalized. We will also give them a score of $0$ on the questions in the moving average which resolved before the miner registered.
 

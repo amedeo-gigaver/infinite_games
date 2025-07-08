@@ -74,7 +74,7 @@ jobs:
 
       - name: Lint
         run: |
-          flake8 ./neurons/validator
+          flake8 .
 
       - name: Tests
         run: |

@@ -1,4 +1,3 @@
-import sqlite3
 from pathlib import Path
 from typing import Iterable
 
@@ -44,6 +43,36 @@ class DatabaseOperations:
                 RETURNING event_id
             """,
             [EventStatus.DELETED, deleted_at, event_id],
+        )
+
+    async def delete_events_hard_delete(self, batch_size: int) -> Iterable[tuple[str]]:
+        return await self.__db_client.delete(
+            """
+            WITH events_to_delete AS (
+                SELECT
+                    ROWID
+                FROM
+                    events
+                WHERE
+                    status = ?
+                    AND datetime(deleted_at) < datetime(CURRENT_TIMESTAMP, '-14 day')
+                ORDER BY
+                    ROWID ASC
+                LIMIT ?
+            )
+            DELETE FROM
+                events
+            WHERE
+                ROWID IN (
+                    SELECT
+                        ROWID
+                    FROM
+                        events_to_delete
+                )
+            RETURNING
+                ROWID
+            """,
+            [EventStatus.DELETED, batch_size],
         )
 
     async def delete_predictions(self, batch_size: int) -> Iterable[tuple[int]]:
@@ -432,9 +461,8 @@ class DatabaseOperations:
         )
 
     async def upsert_predictions(self, predictions: list[list[any]]):
-        try:
-            await self.__db_client.insert_many(
-                """
+        await self.__db_client.insert_many(
+            """
                     INSERT INTO predictions (
                         unique_event_id,
                         miner_hotkey,
@@ -460,21 +488,8 @@ class DatabaseOperations:
                         interval_count = interval_count + 1,
                         updated_at = CURRENT_TIMESTAMP
                 """,
-                predictions,
-            )
-        except sqlite3.IntegrityError as e:
-            # It's possible that predictions' event was deleted in the background
-            if str(e) == "FOREIGN KEY constraint failed":
-                self.logger.warning(
-                    "FK constrain error in upsert_predictions",
-                    extra={
-                        "miner_hotkey": predictions[0][1],
-                        "miner_uid": predictions[0][2],
-                        "len_predictions": len(predictions),
-                    },
-                )
-            else:
-                raise e
+            predictions,
+        )
 
     async def upsert_pydantic_events(self, events: list[EventsModel]) -> None:
         """Same as upsert_events but with pydantic models"""

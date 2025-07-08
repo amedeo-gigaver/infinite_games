@@ -11,7 +11,7 @@ from bittensor.core.chain_data import AxonInfo
 from bittensor.core.dendrite import DendriteMixin
 from bittensor.core.metagraph import MetagraphMixin
 
-from neurons.protocol import EventPredictionSynapse
+from neurons.protocol import EventPrediction, EventPredictionSynapse
 from neurons.validator.db.client import DatabaseClient
 from neurons.validator.db.operations import DatabaseOperations
 from neurons.validator.models.event import EventStatus
@@ -69,14 +69,11 @@ class TestQueryMiners:
                 hotkey="hotkey1", coldkey="coldkey1", version=1, ip="ip1", port=1, ip_type=1
             ),  # Serving axon
             AxonInfo(
-                hotkey="hotkey2", coldkey="coldkey2", version=1, ip="ip1", port=1, ip_type=1
+                hotkey="hotkey2", coldkey="coldkey2", version=1, ip="ip2", port=1, ip_type=1
             ),  # Serving axon
             AxonInfo(
                 hotkey="hotkey3", coldkey="coldkey3", version=1, ip="0.0.0.0", port=1, ip_type=1
             ),  # Not serving axon
-            AxonInfo(
-                hotkey="hotkey4", coldkey="coldkey1", version=1, ip="0.0.0.0", port=1, ip_type=1
-            ),  # Serving axon but duplicate cold key
             None,  # No axon at this UID
         )
         query_miners_task.metagraph.validator_trust = torch.nn.Parameter(
@@ -90,7 +87,7 @@ class TestQueryMiners:
         result = query_miners_task.get_axons()
 
         # Assertions
-        # Only UIDs 1 & 2 should be included because they are serving
+        # Only UIDs 0 & 1 should be included because they are serving
         assert len(result) == 2
 
         # Check hotkeys
@@ -104,6 +101,60 @@ class TestQueryMiners:
         # Check validator permit
         assert result[0].validator_permit is True
         assert result[1].validator_permit is True
+
+    def test_get_axons_unique_cold_keys(
+        self,
+        query_miners_task: QueryMiners,
+    ):
+        # Set up the mock attributes
+        query_miners_task.metagraph.uids = np.array([0, 1])  # UIDs in the metagraph
+        query_miners_task.metagraph.axons = (
+            AxonInfo(
+                hotkey="hotkey1", coldkey="coldkey1", version=1, ip="ip1", port=1, ip_type=1
+            ),  # Serving axon
+            AxonInfo(
+                hotkey="hotkey2", coldkey="coldkey1", version=1, ip="ip2", port=1, ip_type=1
+            ),  # Serving axon but duplicate cold key
+        )
+        query_miners_task.metagraph.validator_trust = torch.nn.Parameter(torch.tensor([0.5, 0.0]))
+        query_miners_task.metagraph.validator_permit = torch.nn.Parameter(torch.tensor([1.0, 1.0]))
+
+        # Call the method
+        result = query_miners_task.get_axons()
+
+        # Assertions
+        # Only UID 0 should be included because it is serving and has unique cold key
+        assert len(result) == 1
+
+        # Check correct axon is returned
+        assert result[0].hotkey == "hotkey1"
+
+    def test_get_axons_unique_ips(
+        self,
+        query_miners_task: QueryMiners,
+    ):
+        # Set up the mock attributes
+        query_miners_task.metagraph.uids = np.array([0, 1])  # UIDs in the metagraph
+        query_miners_task.metagraph.axons = (
+            AxonInfo(
+                hotkey="hotkey1", coldkey="coldkey1", version=1, ip="ip1", port=1, ip_type=1
+            ),  # Serving axon
+            AxonInfo(
+                hotkey="hotkey2", coldkey="coldkey2", version=1, ip="ip1", port=1, ip_type=1
+            ),  # Serving axon but duplicate ip
+        )
+        query_miners_task.metagraph.validator_trust = torch.nn.Parameter(torch.tensor([0.5, 0.0]))
+        query_miners_task.metagraph.validator_permit = torch.nn.Parameter(torch.tensor([1.0, 1.0]))
+
+        # Call the method
+        result = query_miners_task.get_axons()
+
+        # Assertions
+        # Only UID 0 should be included because it is serving and has unique ip
+        assert len(result) == 1
+
+        # Check correct axon is returned
+        assert result[0].hotkey == "hotkey1"
 
     def test_get_axons_empty_metagraph(
         self,
@@ -153,16 +204,16 @@ class TestQueryMiners:
 
         event_data = synapse.events[expected_key]
 
-        assert event_data == {
-            "cutoff": 1354458600,
-            "description": "Test match",
-            "event_id": "event1",
-            "market_type": "LLM",
-            "metadata": {"topics": ["topic_1", "topic_2"], "trigger_name": "trigger"},
-            "miner_answered": False,
-            "probability": None,
-            "reasoning": None,
-        }
+        assert event_data == EventPrediction(
+            event_id="event1",
+            market_type="LLM",
+            probability=None,
+            reasoning=None,
+            miner_answered=False,
+            description="Test match",
+            cutoff=1354458600,
+            metadata={"topics": ["topic_1", "topic_2"], "trigger_name": "trigger"},
+        )
 
         # Assert event 2
         expected_key = "ifgames-event2"
@@ -171,16 +222,16 @@ class TestQueryMiners:
 
         event_data = synapse.events[expected_key]
 
-        assert event_data == {
-            "cutoff": 1354458600,
-            "description": "Test match 2",
-            "event_id": "event2",
-            "market_type": "aZuro",
-            "metadata": {"topics": [], "trigger_name": None},
-            "miner_answered": False,
-            "probability": None,
-            "reasoning": None,
-        }
+        assert event_data == EventPrediction(
+            event_id="event2",
+            market_type="aZuro",
+            probability=None,
+            reasoning=None,
+            miner_answered=False,
+            description="Test match 2",
+            cutoff=1354458600,
+            metadata={"topics": [], "trigger_name": None},
+        )
 
     def test_make_predictions_synapse_empty_events(self, query_miners_task: QueryMiners):
         """Test handling of empty events"""
@@ -204,42 +255,42 @@ class TestQueryMiners:
 
         neuron_predictions = EventPredictionSynapse(
             events={
-                "ifgames-event1": {
-                    "event_id": "event1",
-                    "market_type": "acled",
-                    "probability": 0.5,
-                    "reasoning": None,
-                    "miner_answered": True,
-                    "description": "Test match",
-                    "cutoff": 1354458600,
-                    "metadata": {"topics": ["topic_1", "topic_2"], "trigger_name": "trigger"},
-                },
-                "ifgames-event2": {
-                    "event_id": "event2",
-                    "market_type": "azuro",
-                    "probability": 0.75,
-                    "reasoning": "s" * (REASONING_LENGTH_LIMIT * 2),
-                    "miner_answered": False,
-                    "description": "Test match 2",
-                    "cutoff": 1354458600,
-                    "metadata": {
+                "ifgames-event1": EventPrediction(
+                    event_id="event1",
+                    market_type="acled",
+                    probability=0.5,
+                    reasoning=None,
+                    miner_answered=True,
+                    description="Test match",
+                    cutoff=1354458600,
+                    metadata={"topics": ["topic_1", "topic_2"], "trigger_name": "trigger"},
+                ),
+                "ifgames-event2": EventPrediction(
+                    event_id="event2",
+                    market_type="azuro",
+                    probability=0.75,
+                    reasoning="s" * (REASONING_LENGTH_LIMIT * 2),
+                    miner_answered=False,
+                    description="Test match 2",
+                    cutoff=1354458600,
+                    metadata={
                         "topics": [
                             "topic_10",
                         ],
                         "trigger_name": None,
                     },
-                },
-                "ifgames-event3": {
-                    "event_id": "event3",
-                    "market_type": "azuro",
+                ),
+                "ifgames-event3": EventPrediction(
+                    event_id="event3",
+                    market_type="azuro",
                     # None predictions are dropped
-                    "probability": None,
-                    "reasoning": "Reasoning event 3",
-                    "miner_answered": False,
-                    "description": "Test match 2",
-                    "cutoff": 1354458600,
-                    "metadata": {},
-                },
+                    probability=None,
+                    reasoning="Reasoning event 3",
+                    miner_answered=False,
+                    description="Test match 2",
+                    cutoff=1354458600,
+                    metadata={},
+                ),
             }
         )
 
@@ -407,24 +458,26 @@ class TestQueryMiners:
 
         synapse = EventPredictionSynapse(
             events={
-                "acled-event1": {
-                    "event_id": "event1",
-                    "market_type": "acled",
-                    "probability": 0.5,
-                    "reasoning": "Reasoning 1",
-                    "miner_answered": True,
-                    "description": "Test match",
-                    "cutoff": 1354458600,
-                },
-                "azuro-event2": {
-                    "event_id": "event2",
-                    "market_type": "azuro",
-                    "probability": 0.75,
-                    "reasoning": "Reasoning 2",
-                    "miner_answered": False,
-                    "description": "Test match 2",
-                    "cutoff": 1354458600,
-                },
+                "acled-event1": EventPrediction(
+                    event_id="event1",
+                    market_type="acled",
+                    probability=0.5,
+                    reasoning="Reasoning 1",
+                    miner_answered=True,
+                    description="Test match",
+                    cutoff=1354458600,
+                    metadata={},
+                ),
+                "azuro-event2": EventPrediction(
+                    event_id="event2",
+                    market_type="azuro",
+                    probability=0.75,
+                    reasoning="Reasoning 2",
+                    miner_answered=False,
+                    description="Test match 2",
+                    cutoff=1354458600,
+                    metadata={},
+                ),
             }
         )
 
@@ -608,8 +661,8 @@ class TestQueryMiners:
         ):
             # Add a fake probability to each event in synapse.events
             for _, event in synapse.events.items():
-                event["probability"] = 0.8
-                event["reasoning"] = "Test reasoning"
+                event.probability = 0.8
+                event.reasoning = "Test reasoning"
 
             # Build responses
             responses = [synapse for _ in axons]

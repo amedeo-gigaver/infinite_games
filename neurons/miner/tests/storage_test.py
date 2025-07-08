@@ -20,9 +20,13 @@ def storage():
 def sample_event():
     return MinerEvent(
         event_id="test_id",
+        market_type="test_market_type",
         description="test_description",
         cutoff=datetime.now(timezone.utc) + timedelta(days=1),
-        market_type="test_market_type",
+        metadata={},
+        probability=None,
+        reasoning=None,
+        miner_answered=False,
     )
 
 
