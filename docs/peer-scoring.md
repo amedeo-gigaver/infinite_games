@@ -34,18 +34,18 @@ Unresponsive miners are penalised by imputing missing predictions as the value a
 
 $$S(0_{m,q,t}, o_E) = S(p_{q,t}^I, o_E)$$ 
 
-where $p_{q,t}^I = (p_{q,t}^M + \frac{1}{3}\times (p_{q,t}^W - p_{q,t}^M)$.
+where $p_{q,t}^I = (p_{q,t}^M + \frac{1}{3}\times (p_{q,t}^W - p_{q,t}^M))$.
 
 
 ## Weights
 
-We associate a weight $w_{q, t}$ to each prediction depending on the time of the submission $t \in T_q$. 
+We associate a weight $w_{q, t}$ to each prediction depending on the time of the submission $t \in T_q$. Denote $T_q = [A_q, B_q ]$.
 
 
-We choose exponentially decreasing weights along the intuition that predicting gets exponentially harder as one goes back in time. Denote $T_q = [A_q, B_q ]$.
+We use parabolically decreasing weights. We want to strike a balance between the fact that predicting gets increasingly hard as one moves away from the resolution time and that we want miners to update their predictions as new information comes in (previously we used exponentially decreasing weights). 
 
 
-We divide the time segment $[A_q,B_q]$ into $n$ intervals $[t_j, t_{j+1}]$ of equal length (currently 4 hours). Then for the interval $[t_j, t_{j+1}]$ we set the weight $w_{q,t_j} =  e^{-\frac{n}{n-j}+1}$ where $t_0 = A_q$ and $t_{n} = B_q$ and where $j$ increases from $0$ to $n-1$.
+We divide the time segment $[A_q,B_q]$ into $n$ intervals $[t_j, t_{j+1}]$ of equal length (currently 4 hours). Then for the interval $[t_j, t_{j+1}]$ we set the weight $w_{q,t_j} =  1 - (\frac{j}{n-1})$ where $t_0 = A_q$ and $t_{n} = B_q$ and where $j$ increases from $0$ to $n-1$.
 
 ## Averaging per window
 
