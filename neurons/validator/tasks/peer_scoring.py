@@ -1,5 +1,4 @@
 import copy
-import math
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from functools import partial
@@ -27,6 +26,8 @@ from neurons.validator.version import __spec_version__ as spec_version
 CLIP_EPS = 1e-2
 # controls the distance mean-min answer penalty for miners which are unresponsive
 UPTIME_PENALTY_DISTANCE = 1 / 3
+
+DEFAULT_POWER_DECAY_WEIGHT_EXPONENT = 2
 
 
 # this is just for avoiding typos in column names
@@ -168,12 +169,19 @@ class PeerScoring(AbstractTask):
         return event
 
     @staticmethod
-    def reverse_exponential_weight(idx, n_intervals):
-        # first 2 intervals are 1, then it decays exponentially
-        if idx < 2:
-            return 1
-        else:
-            return math.exp(-(n_intervals / (n_intervals - idx)) + 1)
+    def power_decay_weight(
+        idx: int, n_intervals: int, exponent: int = DEFAULT_POWER_DECAY_WEIGHT_EXPONENT
+    ):
+        """
+        General power-law decay:
+        w (i) = 1 - (i / (n_intervals - 1)) ** exponent
+        """
+        if n_intervals <= 1:
+            return 1.0
+
+        x = idx / (n_intervals - 1)
+
+        return 1 - x**exponent
 
     def get_intervals_df(self, event_registered_start_minutes, event_cutoff_start_minutes):
         n_intervals = (
@@ -207,7 +215,7 @@ class PeerScoring(AbstractTask):
         )
         # Reverse exponential MA weights:
         intervals[PSNames.weight] = intervals[PSNames.interval_idx].apply(
-            lambda idx: self.reverse_exponential_weight(idx, n_intervals)
+            lambda idx: self.power_decay_weight(idx, n_intervals)
         )
 
         return intervals

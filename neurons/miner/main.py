@@ -69,7 +69,7 @@ class Miner(BaseMinerNeuron):
                 event: MinerEvent | None = await self.storage.get(event_key)
                 if event is None:
                     self.logger.info(f"Event {event_key} is a new event")
-                    event = MinerEvent.model_validate(validator_event)
+                    event = MinerEvent.model_validate(validator_event.model_dump())
 
                     if event.cutoff > datetime.now(timezone.utc):
                         await self.storage.set(event_key, event)
