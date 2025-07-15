@@ -1,5 +1,9 @@
 # Release Notes
 
+## [1.5.5] - 2025-07-15
+- **Scoring**: Update interval scoring weights to parabolic decay
+- **Bittensor Upgrade**: Upgraded to Bittensor version 9.8.0
+
 ## [1.5.4] - 2025-07-08
 - **Database**: Added task to delete old soft deleted events
 - **Miners Querying**: Filter out duplicate IP miners
@@ -12,7 +16,6 @@
 - **Data Exporting**: Clean up fields in export scores
 - **Protocol**: Drop deprecated fields - starts, resolve_date, end_date
 - **Validator Options**: Added --db.directory command option to allow to set db file directory
-
 
 ## [1.5.1] - 2025-06-17
 - **Database**: Pre soft delete events prior to hard delete

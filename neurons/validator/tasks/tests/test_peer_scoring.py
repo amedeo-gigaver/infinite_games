@@ -1,5 +1,4 @@
 import copy
-import math
 import tempfile
 from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -17,7 +16,12 @@ from neurons.validator.db.operations import DatabaseOperations
 from neurons.validator.models.event import EventsModel, EventStatus
 from neurons.validator.models.miner import MinersModel
 from neurons.validator.models.prediction import PredictionsModel
-from neurons.validator.tasks.peer_scoring import CLIP_EPS, PeerScoring, PSNames
+from neurons.validator.tasks.peer_scoring import (
+    CLIP_EPS,
+    DEFAULT_POWER_DECAY_WEIGHT_EXPONENT,
+    PeerScoring,
+    PSNames,
+)
 from neurons.validator.utils.common.interval import (
     AGGREGATION_INTERVAL_LENGTH_MINUTES,
     align_to_interval,
@@ -249,24 +253,19 @@ class TestPeerScoring:
         assert list(intervals_df.columns) == expected_columns
         assert intervals_df.empty
 
-    def test_reverse_exponential_weight_decay(self, peer_scoring_task: PeerScoring):
+    def test_power_decay_weight(self, peer_scoring_task: PeerScoring):
         n_intervals = 1
-        weight = peer_scoring_task.reverse_exponential_weight(0, n_intervals)
+        weight = peer_scoring_task.power_decay_weight(0, n_intervals)
+
         assert weight == 1
 
-        n_intervals = 2
-        for idx in range(n_intervals):
-            weight = peer_scoring_task.reverse_exponential_weight(idx, n_intervals)
-            assert weight == 1
-
         n_intervals = 10
-        for idx in [0, 1]:
-            weight = peer_scoring_task.reverse_exponential_weight(idx, n_intervals)
-            assert weight == 1
-        for idx in range(2, n_intervals):
-            expected_weight = math.exp(-(n_intervals / (n_intervals - idx)) + 1)
-            weight = peer_scoring_task.reverse_exponential_weight(idx, n_intervals)
-            np.testing.assert_almost_equal(weight, expected_weight)
+
+        for idx in range(0, n_intervals):
+            expected_weight = 1 - (idx / (n_intervals - 1)) ** DEFAULT_POWER_DECAY_WEIGHT_EXPONENT
+            weight = peer_scoring_task.power_decay_weight(idx, n_intervals)
+
+            assert weight == expected_weight
 
     def test_get_intervals_df_success(self, peer_scoring_task: PeerScoring):
         unit = peer_scoring_task
@@ -308,11 +307,8 @@ class TestPeerScoring:
             assert row[PSNames.interval_start] == expected_interval_start
             assert row[PSNames.interval_end] == expected_interval_end
 
-            if idx < 2:
-                expected_weight = 1
-            else:
-                expected_weight = math.exp(-(n_intervals / (n_intervals - idx)) + 1)
-            np.testing.assert_almost_equal(row[PSNames.weight], expected_weight)
+            expected_weight = 1 - (idx / (n_intervals - 1)) ** DEFAULT_POWER_DECAY_WEIGHT_EXPONENT
+            assert row[PSNames.weight] == expected_weight
 
     def test_prepare_predictions_df_no_valid_miner(self, peer_scoring_task: PeerScoring):
         prediction = PredictionsModel(
@@ -1570,13 +1566,13 @@ class TestPeerScoring:
                 "miner_uid": 1,
                 "miner_hotkey": "hotkey1",
                 # Updated expected values:
-                "rema_prediction": 0.0189728,  # new filled value for hotkey1
+                "rema_prediction": 0.05143763213530655,  # new filled value for hotkey1
                 "rema_peer_score": 0.0,  # group peer score becomes 0.0
             },
             1: {
                 "miner_uid": 2,
                 "miner_hotkey": "hotkey2",
-                "rema_prediction": 0.0189728,  # assuming both filled to same value
+                "rema_prediction": 0.05143763213530655,  # assuming both filled to same value
                 "rema_peer_score": 0.0,
             },
         }

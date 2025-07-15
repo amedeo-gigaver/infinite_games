@@ -19,6 +19,7 @@ class MockMinerWithActualForwardMethod(Miner):
         self.storage.get = AsyncMock()
         self.storage.set = AsyncMock()
         self.task_executor = AsyncMock()
+        self.assign_forecaster = AsyncMock()
         self.assign_resolver = AsyncMock()
         self.logger = Mock()
 
@@ -27,6 +28,36 @@ class MockMinerWithActualForwardMethod(Miner):
 async def miner():
     miner = MockMinerWithActualForwardMethod()
     return miner
+
+
+@pytest.mark.asyncio
+async def test_forward_new_event(miner):
+    miner.storage.get = AsyncMock(return_value=None)
+
+    future_cutoff = datetime.now(timezone.utc) + timedelta(hours=24)
+
+    validator_event = EventPrediction(
+        event_id="test_event_3",
+        market_type="test_type",
+        description="Will BTC reach 100k by 2024?",
+        cutoff=int(future_cutoff.timestamp()),
+        metadata={},
+        probability=None,
+        reasoning=None,
+        miner_answered=False,
+    )
+
+    synapse = EventPredictionSynapse(events={"test_event_3": validator_event})
+
+    result = await miner.forward(synapse)
+
+    assert result.events["test_event_3"].miner_answered is False
+    assert result.events["test_event_3"].probability is None
+
+    miner_event = MinerEvent.model_validate(validator_event.model_dump())
+    miner_event.status = MinerEventStatus.PENDING
+
+    miner.storage.set.assert_called_once_with(validator_event.event_id, miner_event)
 
 
 @pytest.mark.asyncio
