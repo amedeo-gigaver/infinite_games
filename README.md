@@ -4,8 +4,7 @@
 # **Infinite Games** 
 
 
-[Discord](https://discord.gg/qKPeYPc3) • [Dashboard](https://app.hex.tech/1644b22a-abe5-4113-9d5f-3ad05e4a8de7/app/5f1e0e62-6072-4440-9646-6d2b60cd1674/latest) •
-[Website](https://www.infinitegam.es/) • [Twitter](https://twitter.com/Playinfgames) •  [Network](https://taostats.io/) 
+[Discord](https://discord.gg/qKPeYPc3) • [Dashboard](https://app.hex.tech/1644b22a-abe5-4113-9d5f-3ad05e4a8de7/app/5f1e0e62-6072-4440-9646-6d2b60cd1674/latest) • [Twitter](https://twitter.com/Playinfgames) •  [Network](https://taostats.io/) 
 
 ---
 
